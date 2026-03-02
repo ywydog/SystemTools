@@ -1,3 +1,4 @@
+using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Layout;
 using Avalonia.Threading;
@@ -15,17 +16,30 @@ namespace SystemTools.Actions;
 [ActionInfo("SystemTools.AdvancedShutdown", "高级计时关机", "\uE4C4", false)]
 public class AdvancedShutdownAction(ILogger<AdvancedShutdownAction> logger) : ActionBase<AdvancedShutdownSettings>
 {
+    private const string HostProcessName = "ClassIsland.Desktop";
+
     private readonly ILogger<AdvancedShutdownAction> _logger = logger;
-    private readonly object _syncLock = new();
-    private DateTimeOffset _shutdownAt = DateTimeOffset.MinValue;
-    private int _totalScheduledSeconds;
-    private Process? _countdownProcess;
-    private AdvancedShutdownDialog? _activeDialog;
-    private Window? _launcherWindow;
+
+    private static readonly object StateLock = new();
+    private static DateTimeOffset _shutdownAt = DateTimeOffset.MinValue;
+    private static int _totalScheduledSeconds;
+    private static Process? _countdownProcess;
+    private static AdvancedShutdownDialog? _activeDialog;
+    private static Window? _floatingWindow;
+    private static DispatcherTimer? _watchdogTimer;
+    private static bool _allowMainDialogClose;
+    private static bool _allowFloatingWindowClose;
 
     protected override async Task OnInvoke()
     {
         _logger.LogDebug("AdvancedShutdownAction OnInvoke 开始");
+
+        if (!IsHostRunning())
+        {
+            _logger.LogWarning("未检测到 ClassIsland.Desktop.exe，取消启动高级计时关机。");
+            StopAllStates();
+            return;
+        }
 
         if (!IsPlanActive())
         {
@@ -37,9 +51,21 @@ public class AdvancedShutdownAction(ILogger<AdvancedShutdownAction> logger) : Ac
         await base.OnInvoke();
     }
 
-    private bool IsPlanActive()
+    private static bool IsHostRunning()
     {
-        lock (_syncLock)
+        try
+        {
+            return Process.GetProcessesByName(HostProcessName).Length > 0;
+        }
+        catch
+        {
+            return true;
+        }
+    }
+
+    private static bool IsPlanActive()
+    {
+        lock (StateLock)
         {
             return _countdownProcess is { HasExited: false } && _shutdownAt > DateTimeOffset.Now;
         }
@@ -50,13 +76,14 @@ public class AdvancedShutdownAction(ILogger<AdvancedShutdownAction> logger) : Ac
         var safeMinutes = Math.Max(1, minutes);
         var seconds = safeMinutes * 60;
 
-        lock (_syncLock)
+        lock (StateLock)
         {
             _shutdownAt = DateTimeOffset.Now.AddMinutes(safeMinutes);
             _totalScheduledSeconds = seconds;
         }
 
         StartOrReplaceCountdownProcess(seconds);
+        EnsureWatchdogRunning();
     }
 
     private void ExtendShutdown(int extendMinutes)
@@ -64,7 +91,7 @@ public class AdvancedShutdownAction(ILogger<AdvancedShutdownAction> logger) : Ac
         var safeExtendMinutes = Math.Max(1, extendMinutes);
         DateTimeOffset targetTime;
 
-        lock (_syncLock)
+        lock (StateLock)
         {
             var baseline = _shutdownAt > DateTimeOffset.Now ? _shutdownAt : DateTimeOffset.Now;
             _shutdownAt = baseline.AddMinutes(safeExtendMinutes);
@@ -79,13 +106,7 @@ public class AdvancedShutdownAction(ILogger<AdvancedShutdownAction> logger) : Ac
 
     private void CancelShutdownPlan()
     {
-        StopCountdownProcess();
-        CloseLauncherWindow();
-        lock (_syncLock)
-        {
-            _shutdownAt = DateTimeOffset.MinValue;
-            _totalScheduledSeconds = 0;
-        }
+        StopAllStates();
     }
 
     private void StartOrReplaceCountdownProcess(int seconds)
@@ -114,7 +135,7 @@ public class AdvancedShutdownAction(ILogger<AdvancedShutdownAction> logger) : Ac
         }
     }
 
-    private void StopCountdownProcess()
+    private static void StopCountdownProcess()
     {
         try
         {
@@ -123,9 +144,8 @@ public class AdvancedShutdownAction(ILogger<AdvancedShutdownAction> logger) : Ac
                 _countdownProcess.Kill(true);
             }
         }
-        catch (Exception ex)
+        catch
         {
-            _logger.LogWarning(ex, "停止计时关机进程时发生异常。将继续执行后续流程。");
         }
         finally
         {
@@ -134,20 +154,20 @@ public class AdvancedShutdownAction(ILogger<AdvancedShutdownAction> logger) : Ac
         }
     }
 
-    private int GetRemainingSeconds()
+    private static int GetRemainingSeconds()
     {
-        lock (_syncLock)
+        lock (StateLock)
         {
             var remainingSeconds = (int)Math.Ceiling((_shutdownAt - DateTimeOffset.Now).TotalSeconds);
             return Math.Max(0, remainingSeconds);
         }
     }
 
-    private double BuildCountdownProgress()
+    private static double BuildCountdownProgress()
     {
         int remaining;
         int total;
-        lock (_syncLock)
+        lock (StateLock)
         {
             remaining = Math.Max(0, (int)Math.Ceiling((_shutdownAt - DateTimeOffset.Now).TotalSeconds));
             total = _totalScheduledSeconds;
@@ -161,37 +181,101 @@ public class AdvancedShutdownAction(ILogger<AdvancedShutdownAction> logger) : Ac
         return Math.Clamp(remaining * 100.0 / total, 0, 100);
     }
 
-    private string BuildCountdownText()
+    private static string BuildCountdownText()
     {
         var remainingSeconds = GetRemainingSeconds();
         var minutes = remainingSeconds / 60;
         var seconds = remainingSeconds % 60;
-        return $"将在{minutes}分{seconds:00}秒后关机……";
+        return $"距离关机还有{minutes}分{seconds:00}秒";
+    }
+
+    private void EnsureWatchdogRunning()
+    {
+        Dispatcher.UIThread.Post(() =>
+        {
+            if (_watchdogTimer != null)
+            {
+                return;
+            }
+
+            _watchdogTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
+            _watchdogTimer.Tick += (_, _) =>
+            {
+                if (!IsHostRunning())
+                {
+                    _logger.LogWarning("检测到 ClassIsland.Desktop.exe 已退出，立即停止高级计时关机。");
+                    StopAllStates();
+                    return;
+                }
+
+                if (!IsPlanActive())
+                {
+                    StopAllStates();
+                }
+            };
+            _watchdogTimer.Start();
+        });
+    }
+
+    private void StopWatchdog()
+    {
+        Dispatcher.UIThread.Post(() =>
+        {
+            _watchdogTimer?.Stop();
+            _watchdogTimer = null;
+        });
+    }
+
+    private void StopAllStates()
+    {
+        StopCountdownProcess();
+
+        lock (StateLock)
+        {
+            _shutdownAt = DateTimeOffset.MinValue;
+            _totalScheduledSeconds = 0;
+        }
+
+        StopWatchdog();
+
+        Dispatcher.UIThread.Post(() =>
+        {
+            CloseMainDialogProgrammatically();
+            CloseFloatingWindowProgrammatically();
+        });
     }
 
     private async Task ShowDialogAsync()
     {
         await Dispatcher.UIThread.InvokeAsync(async () =>
         {
-            CloseLauncherWindow();
-            try
-            {
-                await ShowStyledDialogAsync();
-            }
-            catch (Exception ex)
-            {
-                _logger.LogWarning(ex, "高级计时关机样式对话框初始化失败，回退到基础对话框。");
-                await ShowFallbackDialogAsync();
-            }
+            CloseFloatingWindowProgrammatically();
+            await ShowStyledDialogAsync();
         });
     }
 
     private async Task ShowStyledDialogAsync()
     {
-        _activeDialog?.Close();
+        if (_activeDialog is { IsVisible: true })
+        {
+            _activeDialog.Activate();
+            return;
+        }
 
-        var dialog = new AdvancedShutdownDialog();
+        var dialog = new AdvancedShutdownDialog
+        {
+            CanResize = false,
+            SystemDecorations = SystemDecorations.Full
+        };
         _activeDialog = dialog;
+
+        dialog.Closing += (_, e) =>
+        {
+            if (!_allowMainDialogClose && IsPlanActive())
+            {
+                e.Cancel = true;
+            }
+        };
 
         var textBlock = dialog.CountdownTextBlock ?? throw new InvalidOperationException("CountdownTextBlockElement 未找到");
         var progressBar = dialog.CountdownProgressBar ?? throw new InvalidOperationException("CountdownProgressBarElement 未找到");
@@ -207,9 +291,10 @@ public class AdvancedShutdownAction(ILogger<AdvancedShutdownAction> logger) : Ac
         {
             textBlock.Text = BuildCountdownText();
             progressBar.Value = BuildCountdownProgress();
+
             if (!IsPlanActive())
             {
-                dialog.Close();
+                CloseMainDialogProgrammatically();
             }
         };
         countdownTimer.Start();
@@ -224,20 +309,17 @@ public class AdvancedShutdownAction(ILogger<AdvancedShutdownAction> logger) : Ac
 
             if (IsPlanActive())
             {
-                ShowOrUpdateLauncherWindow();
-            }
-            else
-            {
-                CloseLauncherWindow();
+                ShowOrUpdateFloatingWindow();
             }
         };
 
-        readButton.Click += (_, _) => dialog.Close();
-        cancelPlanButton.Click += (_, _) =>
+        readButton.Click += (_, _) =>
         {
-            CancelShutdownPlan();
-            dialog.Close();
+            CloseMainDialogProgrammatically();
+            ShowOrUpdateFloatingWindow();
         };
+
+        cancelPlanButton.Click += (_, _) => CancelShutdownPlan();
 
         extendButton.Click += async (_, _) =>
         {
@@ -245,7 +327,8 @@ public class AdvancedShutdownAction(ILogger<AdvancedShutdownAction> logger) : Ac
             if (extendMinutes.HasValue)
             {
                 ExtendShutdown(extendMinutes.Value);
-                dialog.Close();
+                CloseMainDialogProgrammatically();
+                ShowOrUpdateFloatingWindow();
             }
         };
 
@@ -254,175 +337,127 @@ public class AdvancedShutdownAction(ILogger<AdvancedShutdownAction> logger) : Ac
         await Task.CompletedTask;
     }
 
-    private async Task ShowFallbackDialogAsync()
-    {
-        var dialog = new Window
-        {
-            Title = "高级计时关机",
-            Width = 380,
-            Height = 200,
-            CanResize = false,
-            WindowStartupLocation = WindowStartupLocation.CenterScreen,
-            SystemDecorations = SystemDecorations.Full
-        };
-
-        var message = new TextBlock
-        {
-            Text = BuildCountdownText(),
-            FontSize = 15,
-            Margin = new(0, 0, 0, 12)
-        };
-
-        var countdownTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
-        countdownTimer.Tick += (_, _) =>
-        {
-            message.Text = BuildCountdownText();
-            if (!IsPlanActive())
-            {
-                dialog.Close();
-            }
-        };
-        countdownTimer.Start();
-        dialog.Closed += (_, _) =>
-        {
-            countdownTimer.Stop();
-            if (IsPlanActive())
-            {
-                ShowOrUpdateLauncherWindow();
-            }
-            else
-            {
-                CloseLauncherWindow();
-            }
-        };
-
-        var readButton = new Button { Content = "已阅", Width = 90 };
-        var cancelButton = new Button { Content = "取消计划", Width = 90 };
-        var extendButton = new Button { Content = "延长时间", Width = 90 };
-
-        readButton.Click += (_, _) => dialog.Close();
-        cancelButton.Click += (_, _) =>
-        {
-            CancelShutdownPlan();
-            dialog.Close();
-        };
-        extendButton.Click += async (_, _) =>
-        {
-            var extendMinutes = await ShowExtendInputDialogAsync(dialog);
-            if (extendMinutes.HasValue)
-            {
-                ExtendShutdown(extendMinutes.Value);
-                dialog.Close();
-            }
-        };
-
-        dialog.Content = new StackPanel
-        {
-            Margin = new(16),
-            Spacing = 8,
-            Children =
-            {
-                message,
-                new StackPanel
-                {
-                    Orientation = Orientation.Horizontal,
-                    Spacing = 10,
-                    HorizontalAlignment = HorizontalAlignment.Right,
-                    Children = { readButton, cancelButton, extendButton }
-                }
-            }
-        };
-
-        dialog.Show();
-        dialog.Activate();
-        await Task.CompletedTask;
-    }
-
-    private void ShowOrUpdateLauncherWindow()
+    private void ShowOrUpdateFloatingWindow()
     {
         if (!IsPlanActive())
         {
-            CloseLauncherWindow();
+            CloseFloatingWindowProgrammatically();
             return;
         }
 
-        if (_launcherWindow is { IsVisible: true })
+        if (_floatingWindow is { IsVisible: true })
         {
-            _launcherWindow.Activate();
             return;
         }
 
-        var remainingText = new TextBlock
+        var tipButton = new Button
         {
-            Text = BuildCountdownText(),
-            FontSize = 13,
-            HorizontalAlignment = HorizontalAlignment.Center
+            Content = BuildCountdownText() + "  点此返回设置",
+            HorizontalAlignment = HorizontalAlignment.Stretch,
+            VerticalAlignment = VerticalAlignment.Stretch,
+            Background = Avalonia.Media.Brushes.Transparent,
+            Foreground = Avalonia.Media.Brushes.White
         };
 
-        var reopenButton = new Button
-        {
-            Content = "打开关机面板",
-            HorizontalAlignment = HorizontalAlignment.Stretch
-        };
-
-        reopenButton.Click += async (_, _) =>
-        {
-            CloseLauncherWindow();
-            await ShowDialogAsync();
-        };
+        tipButton.Click += async (_, _) => await ShowDialogAsync();
 
         var timer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
         timer.Tick += (_, _) =>
         {
             if (!IsPlanActive())
             {
-                CloseLauncherWindow();
+                CloseFloatingWindowProgrammatically();
                 return;
             }
 
-            remainingText.Text = BuildCountdownText();
+            tipButton.Content = BuildCountdownText() + "  点此返回设置";
         };
 
-        var window = new Window
+        var floatWindow = new Window
         {
-            Title = "高级计时关机进行中",
-            Width = 240,
-            Height = 120,
+            Width = 320,
+            Height = 56,
             CanResize = false,
             Topmost = true,
             ShowInTaskbar = false,
-            SystemDecorations = SystemDecorations.Full,
-            WindowStartupLocation = WindowStartupLocation.CenterScreen,
-            Content = new StackPanel
+            SystemDecorations = SystemDecorations.None,
+            Content = new Border
             {
-                Margin = new(12),
-                Spacing = 8,
-                Children = { remainingText, reopenButton }
+                CornerRadius = new CornerRadius(10),
+                Padding = new Thickness(10, 6),
+                Background = Avalonia.Media.Brushes.Black,
+                Opacity = 0.92,
+                Child = tipButton
             }
         };
 
-        window.Closed += (_, _) =>
+        floatWindow.Opened += (_, _) => PinFloatingWindowTopRight(floatWindow);
+        floatWindow.PositionChanged += (_, _) => PinFloatingWindowTopRight(floatWindow);
+        floatWindow.Closing += (_, e) =>
+        {
+            if (!_allowFloatingWindowClose && IsPlanActive())
+            {
+                e.Cancel = true;
+                PinFloatingWindowTopRight(floatWindow);
+            }
+        };
+        floatWindow.Closed += (_, _) =>
         {
             timer.Stop();
-            if (ReferenceEquals(_launcherWindow, window))
+            if (ReferenceEquals(_floatingWindow, floatWindow))
             {
-                _launcherWindow = null;
+                _floatingWindow = null;
             }
         };
 
-        _launcherWindow = window;
-        window.Show();
+        _floatingWindow = floatWindow;
+        floatWindow.Show();
         timer.Start();
     }
 
-    private void CloseLauncherWindow()
+    private static void PinFloatingWindowTopRight(Window window)
     {
-        if (_launcherWindow is { IsVisible: true })
+        var screen = window.Screens.ScreenFromWindow(window) ?? window.Screens.Primary;
+        if (screen is null)
         {
-            _launcherWindow.Close();
+            return;
         }
 
-        _launcherWindow = null;
+        var area = screen.WorkingArea;
+        var x = area.X + area.Width - (int)window.Width - 12;
+        var y = area.Y + 12;
+        var target = new PixelPoint(Math.Max(area.X, x), Math.Max(area.Y, y));
+
+        if (window.Position != target)
+        {
+            window.Position = target;
+        }
+    }
+
+    private void CloseMainDialogProgrammatically()
+    {
+        if (_activeDialog is not { } dialog)
+        {
+            return;
+        }
+
+        _allowMainDialogClose = true;
+        dialog.Close();
+        _allowMainDialogClose = false;
+        _activeDialog = null;
+    }
+
+    private void CloseFloatingWindowProgrammatically()
+    {
+        if (_floatingWindow is not { } window)
+        {
+            return;
+        }
+
+        _allowFloatingWindowClose = true;
+        window.Close();
+        _allowFloatingWindowClose = false;
+        _floatingWindow = null;
     }
 
     private static async Task<int?> ShowExtendInputDialogAsync(Window owner)
