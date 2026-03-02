@@ -91,6 +91,17 @@ public class AdvancedShutdownAction(ILogger<AdvancedShutdownAction> logger) : Ac
         }
     }
 
+
+    private int GetRemainingMinutes()
+    {
+        lock (_syncLock)
+        {
+            var remainingSeconds = (int)Math.Ceiling((_shutdownAt - DateTimeOffset.Now).TotalSeconds);
+            remainingSeconds = Math.Max(60, remainingSeconds);
+            return (int)Math.Ceiling(remainingSeconds / 60.0);
+        }
+    }
+
     private async Task ShowDialogAsync()
     {
         await Dispatcher.UIThread.InvokeAsync(async () =>
@@ -106,7 +117,7 @@ public class AdvancedShutdownAction(ILogger<AdvancedShutdownAction> logger) : Ac
 
             var message = new TextBlock
             {
-                Text = "将在2分钟后关机……",
+                Text = $"将在{GetRemainingMinutes()}分钟后关机……",
                 FontSize = 15,
                 Margin = new(0, 0, 0, 12)
             };
