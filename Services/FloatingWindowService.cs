@@ -189,7 +189,7 @@ public class FloatingWindowService
             var iconBlock = new FluentIcon
             {
                 Glyph = ConvertIcon(entry.Icon),
-                FontSize = 18 * scale,
+                FontSize = 20 * scale,
                 HorizontalAlignment = HorizontalAlignment.Center,
                 VerticalAlignment = VerticalAlignment.Center
             };

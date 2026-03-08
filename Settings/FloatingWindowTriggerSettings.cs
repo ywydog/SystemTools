@@ -163,7 +163,7 @@ public class FloatingWindowTriggerSettings : TriggerSettingsControlBase<Floating
             Content = new FluentIcon
             {
                 Glyph = ToGlyph(token),
-                FontSize = 16,
+                FontSize = 18,
                 HorizontalAlignment = HorizontalAlignment.Center,
                 VerticalAlignment = VerticalAlignment.Center
             }
