@@ -4,6 +4,7 @@ using Avalonia.Controls.Templates;
 using Avalonia.Layout;
 using Avalonia.Media;
 using ClassIsland.Core.Abstractions.Controls;
+using ClassIsland.Core.Controls;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
@@ -178,14 +179,12 @@ public class FloatingWindowTriggerSettings : TriggerSettingsControlBase<Floating
                 Margin = new Thickness(1),
                 ToolTip = icon.Token,
                 Padding = new Thickness(0),
-                Content = new TextBlock
+                Content = new FluentIcon
                 {
-                    Text = icon.Glyph,
-                    FontFamily = new FontFamily("Segoe Fluent Icons, Segoe MDL2 Assets"),
+                    Glyph = icon.Glyph,
                     FontSize = 16,
                     HorizontalAlignment = HorizontalAlignment.Center,
-                    VerticalAlignment = VerticalAlignment.Center,
-                    TextAlignment = TextAlignment.Center
+                    VerticalAlignment = VerticalAlignment.Center
                 }
             };
 
