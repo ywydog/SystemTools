@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.ComponentModel;
 using System.IO;
 using System.Linq;
@@ -55,6 +55,11 @@ public partial class FloatingWindowEditorSettingsPage : SettingsPageBase
 
     private void OnFloatingWindowConfigChanged(object? sender, RoutedEventArgs e)
     {
+        if (!ViewModel.HasFloatingTriggerEntries)
+        {
+            ViewModel.Settings.ShowFloatingWindow = false;
+        }
+
         ViewModel.RefreshFloatingTriggers();
         IAppHost.GetService<FloatingWindowService>().UpdateWindowState();
     }

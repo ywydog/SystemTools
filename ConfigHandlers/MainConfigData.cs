@@ -42,7 +42,23 @@ public class MainConfigData : INotifyPropertyChanged
         }
     }
     
-    bool _lyricifyLiteWarningDismissed;
+
+    bool _enableFloatingWindowFeature = true;
+
+    [JsonPropertyName("enableFloatingWindowFeature")]
+    public bool EnableFloatingWindowFeature
+    {
+        get => _enableFloatingWindowFeature;
+        set
+        {
+            if (value == _enableFloatingWindowFeature) return;
+            _enableFloatingWindowFeature = value;
+            OnPropertyChanged();
+            RestartPropertyChanged?.Invoke(this, EventArgs.Empty);
+        }
+    }
+
+        bool _lyricifyLiteWarningDismissed;
 
     [JsonPropertyName("lyricifyLiteWarningDismissed")]
     public bool LyricifyLiteWarningDismissed

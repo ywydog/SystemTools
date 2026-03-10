@@ -172,6 +172,18 @@
                     </controls:SettingsExpander.Footer>
                 </controls:SettingsExpander>
 
+
+                <controls:SettingsExpander IconSource="{ci:FluentIconSource &#xEA37;}"
+                                           Header="悬浮窗功能"
+                                           Description="关闭后将禁用悬浮窗相关触发器与设置页，需重启生效。">
+                    <controls:SettingsExpanderItem Content="启用悬浮窗功能">
+                        <controls:SettingsExpanderItem.Footer>
+                            <ToggleSwitch IsChecked="{Binding ViewModel.Settings.EnableFloatingWindowFeature, Mode=TwoWay}"
+                                          Click="OnFloatingFeatureToggleClick" />
+                        </controls:SettingsExpanderItem.Footer>
+                    </controls:SettingsExpanderItem>
+                </controls:SettingsExpander>
+
                 <!-- 启用更多功能 -->
                 <controls:SettingsExpander IconSource="{ci:FluentIconSource &#xE071;}"
                                            Header="启用扩展功能"

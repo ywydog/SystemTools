@@ -1,4 +1,4 @@
-using System.IO;
+﻿using System.IO;
 using System.Net.Http;
 using System.Security.Cryptography;
 using Avalonia.Threading;
@@ -73,6 +73,7 @@ public partial class SystemToolsSettingsViewModel : ObservableObject
     private readonly FloatingWindowService _floatingWindowService;
 
     [ObservableProperty] private ObservableCollection<FloatingTriggerRow> _floatingTriggerRows = new();
+    [ObservableProperty] private bool _hasFloatingTriggerEntries;
 
     private const string DownloadUrl =
         "https://livefile.xesimg.com/programme/python_assets/f94fcfa40c9de41d6df09566a51e3130.exe";
@@ -114,13 +115,17 @@ public partial class SystemToolsSettingsViewModel : ObservableObject
             });
         }
 
-        var triggers = new[]
+        var triggers = new List<(string Id, string Name)>
         {
             ("SystemTools.UsbDeviceTrigger", "USB设备插入时"),
             ("SystemTools.HotkeyTrigger", "按下F9时"),
-("SystemTools.ActionInProgressTrigger", "行动进行时"),
-            ("SystemTools.FloatingWindowTrigger", "从悬浮窗触发"),
+            ("SystemTools.ActionInProgressTrigger", "行动进行时"),
         };
+
+        if (Settings.EnableFloatingWindowFeature)
+        {
+            triggers.Add(("SystemTools.FloatingWindowTrigger", "从悬浮窗触发"));
+        }
         foreach (var (id, name) in triggers)
         {
             FeatureItems.Add(new UnifiedFeatureItem
@@ -208,6 +213,13 @@ public partial class SystemToolsSettingsViewModel : ObservableObject
     public void RefreshFloatingTriggers()
     {
         var entries = _floatingWindowService.Entries.ToDictionary(x => x.ButtonId, x => x);
+        HasFloatingTriggerEntries = entries.Count > 0;
+
+        if (!HasFloatingTriggerEntries && Settings.ShowFloatingWindow)
+        {
+            Settings.ShowFloatingWindow = false;
+            _configHandler.Save();
+        }
         var legacyOrder = Settings.FloatingWindowButtonOrder ?? [];
 
         var orderedIds = entries.Keys

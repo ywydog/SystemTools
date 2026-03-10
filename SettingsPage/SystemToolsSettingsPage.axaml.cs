@@ -76,6 +76,12 @@ public partial class SystemToolsSettingsPage : SettingsPageBase
         RequestRestart();
     }
 
+
+    private void OnFloatingFeatureToggleClick(object? sender, RoutedEventArgs e)
+    {
+        RequestRestart();
+    }
+
     private async void OnFfmpegToggleClick(object? sender, RoutedEventArgs e)
     {
         if (sender is not ToggleSwitch toggle) return;

@@ -77,7 +77,10 @@ public class Plugin : PluginBase
         
         // ========== 注册设置页面 ==========
         services.AddSettingsPage<SystemToolsSettingsPage>();
-        services.AddSettingsPage<FloatingWindowEditorSettingsPage>();
+        if (GlobalConstants.MainConfig.Data.EnableFloatingWindowFeature)
+        {
+            services.AddSettingsPage<FloatingWindowEditorSettingsPage>();
+        }
         services.AddSettingsPage<AboutSettingsPage>();
 
         // ========== 构建行动树（根据配置）==========
@@ -93,7 +96,10 @@ public class Plugin : PluginBase
 
         AppBase.Current.AppStarted += (o, args) =>
         {
-            IAppHost.GetService<FloatingWindowService>().Start();
+            if (GlobalConstants.MainConfig?.Data.EnableFloatingWindowFeature == true)
+            {
+                IAppHost.GetService<FloatingWindowService>().Start();
+            }
             _logger = IAppHost.GetService<ILogger<Plugin>>();
 
             _logger?.LogInformation("[SystemTools]实验性功能状态: {Status}", experimentalEnabled);
@@ -244,8 +250,11 @@ public class Plugin : PluginBase
         RegisterTriggerIfEnabled<HotkeyTrigger, HotkeyTriggerSettings>(services, config, "SystemTools.HotkeyTrigger");
         RegisterTriggerIfEnabled<ActionInProgressTrigger, ActionInProgressTriggerSettings>(services, config,
             "SystemTools.ActionInProgressTrigger");
-        RegisterTriggerIfEnabled<FloatingWindowTrigger, FloatingWindowTriggerSettings>(services, config,
-            "SystemTools.FloatingWindowTrigger");
+        if (config.EnableFloatingWindowFeature)
+        {
+            RegisterTriggerIfEnabled<FloatingWindowTrigger, FloatingWindowTriggerSettings>(services, config,
+                "SystemTools.FloatingWindowTrigger");
+        }
     }
 
     private void RegisterBaseComponents(IServiceCollection services)
@@ -593,7 +602,10 @@ public class Plugin : PluginBase
 
     private void OnAppStopping(object? sender, EventArgs e)
     {
-        IAppHost.GetService<FloatingWindowService>().Stop();
+        if (GlobalConstants.MainConfig?.Data.EnableFloatingWindowFeature == true)
+        {
+            IAppHost.GetService<FloatingWindowService>().Stop();
+        }
         _logger?.LogInformation("[SystemTools]关闭插件SystemTools，保存配置...");
         GlobalConstants.MainConfig?.Save();
     }
