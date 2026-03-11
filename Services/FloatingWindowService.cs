@@ -28,6 +28,7 @@ public class FloatingWindowService
     private Point _pointerDownPoint;
     private PointerPressedEventArgs? _lastPressedArgs;
     private bool _isThemeSubscribed;
+    private readonly Dictionary<string, double> _buttonWidthCache = new();
 
     public event EventHandler? EntriesChanged;
 
@@ -69,8 +70,13 @@ public class FloatingWindowService
             trigger.GetButtonId(),
             trigger.GetIcon(),
             trigger.GetButtonName(),
-            trigger.TriggerFromFloatingWindow);
+            trigger.ShouldUseRevertStyle(),
+            trigger.IsRevertEnabled(),
+            trigger.GetLayoutButtonName(),
+            trigger.TriggerFromFloatingWindow,
+            trigger.CancelIsOnState);
 
+        PruneButtonWidthCache();
         NotifyEntriesChanged();
     }
 
@@ -78,6 +84,7 @@ public class FloatingWindowService
     {
         if (_entries.Remove(trigger))
         {
+            PruneButtonWidthCache();
             NotifyEntriesChanged();
         }
     }
@@ -294,6 +301,45 @@ public class FloatingWindowService
                     VerticalContentAlignment = VerticalAlignment.Center
                 };
 
+                if (_buttonWidthCache.TryGetValue(entry.ButtonId, out var cachedWidth) && cachedWidth > 0)
+                {
+                    button.Width = cachedWidth;
+                }
+
+                if (entry.IsRevertStyleActive)
+                {
+                    button.Background = TryGetButtonPointerOverBrush() ??
+                                        new SolidColorBrush(Color.FromArgb(80, 255, 255, 255));
+                }
+
+                button.LayoutUpdated += (_, _) =>
+                {
+                    if (entry.IsRevertStyleActive)
+                    {
+                        return;
+                    }
+
+                    var width = button.Bounds.Width;
+                    if (width > 0)
+                    {
+                        _buttonWidthCache[entry.ButtonId] = width;
+                    }
+                };
+
+                button.PointerPressed += (_, e) =>
+                {
+                    if (!entry.IsRevertStyleActive || !entry.IsRevertEnabled)
+                    {
+                        return;
+                    }
+
+                    if (e.GetCurrentPoint(button).Properties.IsRightButtonPressed)
+                    {
+                        entry.CancelIsOnAction();
+                        e.Handled = true;
+                    }
+                };
+
                 button.Click += (_, _) => entry.TriggerAction();
                 rowPanel.Children.Add(button);
             }
@@ -353,15 +399,22 @@ public class FloatingWindowService
             rows.Add([]);
         }
 
-        _configHandler.Data.FloatingWindowButtonRows = rows
-            .Select(r => r.Select(x => x.ButtonId).ToList())
-            .ToList();
-        _configHandler.Data.FloatingWindowButtonOrder = rows
-            .SelectMany(r => r)
-            .Select(x => x.ButtonId)
-            .ToList();
-
         return rows;
+    }
+
+    private void PruneButtonWidthCache()
+    {
+        if (_buttonWidthCache.Count == 0)
+        {
+            return;
+        }
+
+        var validIds = _entries.Values.Select(x => x.ButtonId).ToHashSet();
+        var staleIds = _buttonWidthCache.Keys.Where(id => !validIds.Contains(id)).ToList();
+        foreach (var id in staleIds)
+        {
+            _buttonWidthCache.Remove(id);
+        }
     }
 
     private void OnPointerPressed(object? sender, PointerPressedEventArgs e)
@@ -413,7 +466,7 @@ public class FloatingWindowService
 
         var clamped = ClampToVisibleScreen(_window.Position);
         _window.Position = clamped;
-        SavePosition(clamped, forceSave: true);
+        SavePosition(clamped);
     }
 
     private PixelRect GetWindowRect(PixelPoint position)
@@ -535,6 +588,36 @@ public class FloatingWindowService
 
         return v;
     }
+
+    private static IBrush? TryGetButtonPointerOverBrush()
+    {
+        if (Application.Current == null)
+        {
+            return null;
+        }
+
+        if (Application.Current.TryGetResource("SubtleFillColorSecondaryBrush", null, out var subtle) &&
+            subtle is IBrush subtleBrush)
+        {
+            return subtleBrush;
+        }
+
+        if (Application.Current.TryGetResource("ControlFillColorSecondaryBrush", null, out var control) &&
+            control is IBrush controlBrush)
+        {
+            return controlBrush;
+        }
+
+        return null;
+    }
 }
 
-public record FloatingWindowEntry(string ButtonId, string Icon, string Name, Action TriggerAction);
+public record FloatingWindowEntry(
+    string ButtonId,
+    string Icon,
+    string Name,
+    bool IsRevertStyleActive,
+    bool IsRevertEnabled,
+    string LayoutName,
+    Action TriggerAction,
+    Action CancelIsOnAction);
