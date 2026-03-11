@@ -1,217 +1,359 @@
-name: Build & Release
+name: Release
 
 on:
   push:
-    branches: [main, master]
-    paths-ignore:
-      - '**.md'
-      - '.github/**'
-  
+    tags:
+      - '*'
+
   workflow_dispatch:
     inputs:
-      version:
-        description: '版本号 (如 1.0.0.0)'
+      version_type:
+        description: '版本类型'
         required: true
-        type: string
-      release:
+        default: 'none'
+        type: choice
+        options:
+          - none
+          - patch
+          - minor
+          - major
+          - build
+      prerelease:
+        description: '是否为预发布'
+        required: true
+        default: true
+        type: boolean
+      draft:
+        description: '是否创建草稿 Release'
+        required: true
+        default: false
+        type: boolean
+      create_release:
         description: '是否创建 GitHub Release'
         required: true
-        type: boolean
         default: true
-      draft:
-        description: '是否为草稿 Release'
-        required: true
         type: boolean
-        default: true
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.ref }}-${{ github.sha }}
+  cancel-in-progress: true
 
 env:
   PLUGIN_NAME: SystemTools
 
 jobs:
-  build:
-    runs-on: windows-2022
-    name: Build Plugin
-    
+  prepare:
+    runs-on: ubuntu-latest
     outputs:
-      version: ${{ steps.build-step.outputs.version }}
-      artifact_name: ${{ steps.pack-step.outputs.artifact_name }}
-    
+      tag_name: ${{ steps.get_tag.outputs.tag_name }}
+      version: ${{ steps.get_tag.outputs.version }}
+      is_prerelease: ${{ steps.release_type.outputs.is_prerelease }}
+      is_draft: ${{ steps.release_type.outputs.is_draft }}
+      changelog: ${{ steps.decode_changelog.outputs.changelog }}
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          submodules: recursive
+          fetch-tags: true
+
+      - name: Get version from csproj
+        id: get_version
+        shell: bash
+        run: |
+          CSPROJ=$(find . -name "*.csproj" -type f | head -1)
+          if [ -z "$CSPROJ" ]; then
+            echo "❌ 未找到 .csproj 文件"
+            exit 1
+          fi
+          echo "📄 找到项目文件: $CSPROJ"
+          
+          VERSION=$(grep -oP '<Version>\K[^<]+' "$CSPROJ" || echo "")
+          if [ -z "$VERSION" ]; then
+            VERSION="1.0.0.0"
+          fi
+          
+          PARTS=$(echo "$VERSION" | tr '.' '\n' | wc -l)
+          while [ "$PARTS" -lt 4 ]; do
+            VERSION="${VERSION}.0"
+            PARTS=$((PARTS + 1))
+          done
+          
+          echo "🔖 csproj 版本: $VERSION"
+          echo "current_version=$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Calculate new version
+        id: get_tag
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" = "push" ]; then
+            TAG_NAME="${GITHUB_REF#refs/tags/}"
+            echo "tag_name=$TAG_NAME" >> $GITHUB_OUTPUT
+            echo "version=$TAG_NAME" >> $GITHUB_OUTPUT
+            echo "使用推送的标签: $TAG_NAME"
+          else
+            CURRENT="${{ steps.get_version.outputs.current_version }}"
+            VERSION_TYPE="${{ github.event.inputs.version_type }}"
+            
+            if [ "$VERSION_TYPE" = "none" ]; then
+              NEW_VERSION="$CURRENT"
+              echo "使用 csproj 版本（无修改）: $NEW_VERSION"
+            else
+              MAJOR=$(echo "$CURRENT" | cut -d. -f1)
+              MINOR=$(echo "$CURRENT" | cut -d. -f2)
+              PATCH=$(echo "$CURRENT" | cut -d. -f3)
+              BUILD=$(echo "$CURRENT" | cut -d. -f4)
+              
+              case "$VERSION_TYPE" in
+                major)
+                  MAJOR=$((MAJOR + 1))
+                  MINOR=0
+                  PATCH=0
+                  BUILD=0
+                  ;;
+                minor)
+                  MINOR=$((MINOR + 1))
+                  PATCH=0
+                  BUILD=0
+                  ;;
+                patch)
+                  PATCH=$((PATCH + 1))
+                  BUILD=0
+                  ;;
+                build)
+                  BUILD=$((BUILD + 1))
+                  ;;
+              esac
+              
+              NEW_VERSION="$MAJOR.$MINOR.$PATCH.$BUILD"
+            fi
+            
+            echo "tag_name=$NEW_VERSION" >> $GITHUB_OUTPUT
+            echo "version=$NEW_VERSION" >> $GITHUB_OUTPUT
+            echo "最终版本: $NEW_VERSION"
+          fi
+
+      - name: Determine release type
+        id: release_type
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" = "push" ]; then
+            VERSION="${{ steps.get_tag.outputs.version }}"
+            BUILD=$(echo "$VERSION" | cut -d. -f4)
+            if [ "$BUILD" = "0" ]; then
+              echo "is_prerelease=false" >> $GITHUB_OUTPUT
+            else
+              echo "is_prerelease=true" >> $GITHUB_OUTPUT
+            fi
+            echo "is_draft=false" >> $GITHUB_OUTPUT
+          else
+            echo "is_prerelease=${{ github.event.inputs.prerelease }}" >> $GITHUB_OUTPUT
+            echo "is_draft=${{ github.event.inputs.draft }}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Read changelog
+        id: read_changelog
+        shell: bash
+        run: |
+          VERSION="${{ steps.get_tag.outputs.version }}"
+          CHANGELOG_PATH="./changelog/${VERSION}.md"
+          
+          if [ -f "$CHANGELOG_PATH" ]; then
+            # 使用手动编写的变更日志
+            CONTENT=$(cat "$CHANGELOG_PATH")
+            echo "✅ 使用手动变更日志: $CHANGELOG_PATH"
+          else
+            # 自动生成变更日志
+            echo "⚠️ 未找到 $CHANGELOG_PATH，自动生成"
+            
+            LAST_TAG=$(git describe --tags --abbrev=0 HEAD~1 2>/dev/null || git rev-list --max-parents=0 HEAD)
+            COMMITS=$(git log "$LAST_TAG..HEAD" --pretty=format:"- %s (%h)" --no-merges 2>/dev/null || echo "- 版本更新")
+            
+            # 修复：简化格式，只有一个 "## 变更内容"，删除重复的提示
+            CONTENT=$(printf "%s\n\n*日志由action自动生成*" "$COMMITS")
+          fi
+          
+          CONTENT_B64=$(echo "$CONTENT" | base64 -w 0)
+          echo "changelog_b64=$CONTENT_B64" >> $GITHUB_OUTPUT
+
+      - name: Decode changelog
+        id: decode_changelog
+        shell: bash
+        run: |
+          echo "${{ steps.read_changelog.outputs.changelog_b64 }}" | base64 -d > changelog_output.txt
+          echo "changelog<<CHANGELOG_EOF" >> $GITHUB_OUTPUT
+          cat changelog_output.txt >> $GITHUB_OUTPUT
+          echo "CHANGELOG_EOF" >> $GITHUB_OUTPUT
+
+  build:
+    needs: prepare
+    runs-on: windows-2022
+    outputs:
+      cipx_size: ${{ steps.calculate_size.outputs.cipx_size }}
+      cipx_md5: ${{ steps.calculate_size.outputs.cipx_md5 }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
 
       - name: Setup .NET 8
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '8.0.x'
 
-      - name: Build & Publish
-        id: build-step
+      - name: Build and Package
+        id: build_package
         shell: pwsh
         run: |
-          # 查找项目文件
+          $pluginName = "${{ env.PLUGIN_NAME }}"
+          $version = "${{ needs.prepare.outputs.version }}"
+          
           $csproj = Get-ChildItem -Path . -Filter "*.csproj" -Recurse | Select-Object -First 1
-          if (-not $csproj) {
-            Write-Error "❌ 未找到 .csproj 文件"
-            exit 1
-          }
-          Write-Host "📄 项目: $($csproj.FullName)" -ForegroundColor Gray
+          if (-not $csproj) { throw "未找到 .csproj 文件" }
           
-          # 获取版本号
-          if ("${{ github.event.inputs.version }}") {
-            $version = "${{ github.event.inputs.version }}"
-          } else {
-            [xml]$proj = Get-Content $csproj.FullName
-            $version = $proj.Project.PropertyGroup.Version
-            if ([string]::IsNullOrWhiteSpace($version)) {
-              $version = "1.0.0"
-              Write-Host "⚠️ 未找到版本号，使用默认版本: $version" -ForegroundColor Yellow
-            }
-          }
-          Write-Host "🔖 版本: $version" -ForegroundColor Cyan
-          echo "version=$version" >> $env:GITHUB_OUTPUT
-          
-          # 清理并创建输出目录
           $OutputPath = "./output"
-          if (Test-Path $OutputPath) {
-            Remove-Item $OutputPath -Recurse -Force
-          }
+          if (Test-Path $OutputPath) { Remove-Item $OutputPath -Recurse -Force }
           New-Item -ItemType Directory -Path $OutputPath -Force | Out-Null
           
-          # 还原依赖
-          Write-Host "📦 还原 NuGet 包..." -ForegroundColor Yellow
           dotnet restore $csproj.FullName
-          if ($LASTEXITCODE -ne 0) { throw "还原失败" }
-          
-          # 构建
-          Write-Host "🔨 编译项目..." -ForegroundColor Yellow
           dotnet build $csproj.FullName -c Release --no-restore
-          if ($LASTEXITCODE -ne 0) { throw "构建失败" }
           
-          # 发布
-          Write-Host "📤 发布项目..." -ForegroundColor Yellow
-          dotnet publish $csproj.FullName `
-            -c Release `
-            --no-build `
-            -o $OutputPath
-          if ($LASTEXITCODE -ne 0) { throw "发布失败" }
+          $PublishPath = "$OutputPath/publish"
+          dotnet publish $csproj.FullName -c Release --no-build -o $PublishPath
           
-          # 显示产物列表
-          Write-Host ""
-          Write-Host "✅ 构建完成！产物列表：" -ForegroundColor Green
-          Get-ChildItem $OutputPath -Recurse | ForEach-Object {
-            $size = if ($_.Length -lt 1KB) { "$($_.Length) B" } 
-                    elseif ($_.Length -lt 1MB) { "{0:F2} KB" -f ($_.Length/1KB) }
-                    else { "{0:F2} MB" -f ($_.Length/1MB) }
-            Write-Host "   📎 $($_.Name) ($size)" -ForegroundColor Gray
+          $filesToPack = @(
+            "$PublishPath/$pluginName.pdb",
+            "$PublishPath/$pluginName.dll",
+            "$PublishPath/$pluginName.deps.json",
+            "$PublishPath/$pluginName.runtimeconfig.json",
+            "$PublishPath/Lyricify Lite - README.md",
+            "$PublishPath/README-1.md",
+            "$PublishPath/README-2.md",
+            "$PublishPath/jinyongshubiao.ps1",
+            "$PublishPath/jinyongshubiao.bat",
+            "$PublishPath/black.html",
+            "$PublishPath/huifu.bat",
+            "$PublishPath/$pluginName.pdb",
+            "$PublishPath/huifu.ps1",
+            "$PublishPath/icon-1.png",
+            "$PublishPath/$pluginName.dll",
+            "$PublishPath/README.md",
+            "$PublishPath/manifest.yml",
+            "$PublishPath/icon.png"
+          )
+          
+          # 移除重复项并过滤不存在的文件
+          $filesToPack = $filesToPack | Get-Unique | Where-Object { Test-Path $_ }
+          
+          Write-Host "找到的文件:"
+          foreach ($file in $filesToPack) {
+            Write-Host "  - $file"
           }
+          
+          $PackTemp = "$OutputPath/pack_temp"
+          New-Item -ItemType Directory -Path $PackTemp -Force | Out-Null
+          
+          foreach ($file in $filesToPack) {
+            if (Test-Path $file) { 
+              Write-Host "复制文件: $file"
+              Copy-Item $file $PackTemp/ 
+            } else {
+              Write-Host "警告: 文件不存在 - $file"
+            }
+          }
+          
+          # 检查是否复制了文件
+          if (-not (Get-ChildItem -Path $PackTemp -ErrorAction SilentlyContinue)) {
+            throw "没有文件被复制到打包目录！"
+          }
+          
+          $cipxName = "$pluginName.$version.cipx"
+          Compress-Archive -Path "$PackTemp/*" -DestinationPath "$OutputPath/$pluginName.zip" -Force
+          Move-Item "$OutputPath/$pluginName.zip" "$OutputPath/$cipxName" -Force
+          
+          Remove-Item $PublishPath, $PackTemp -Recurse -Force
+          
+          echo "cipx_name=$cipxName" >> $env:GITHUB_OUTPUT
 
-      - name: Pack Artifacts
-        id: pack-step
+      - name: Calculate size and MD5
+        id: calculate_size
         shell: pwsh
         run: |
-          $version = "${{ steps.build-step.outputs.version }}"
-          $zipName = "${{ env.PLUGIN_NAME }}_v${version}.zip"
-          $sourcePath = "./output"
-          $zipPath = "./${zipName}"
+          $cipxName = "${{ steps.build_package.outputs.cipx_name }}"
+          $cipxPath = "./output/$cipxName"
           
-          # 检查输出目录是否存在文件
-          $files = Get-ChildItem $sourcePath -Recurse -File
-          if ($files.Count -eq 0) {
-            Write-Error "❌ 输出目录为空，没有文件可以打包"
-            exit 1
-          }
+          $size = (Get-Item $cipxPath).Length
+          $md5 = (Get-FileHash $cipxPath -Algorithm MD5).Hash
           
-          Write-Host "📦 正在打包产物..." -ForegroundColor Yellow
-          Compress-Archive -Path "$sourcePath\*" -DestinationPath $zipPath -Force
-          
-          # 显示压缩包信息
-          $zipSize = (Get-Item $zipPath).Length
-          $sizeStr = if ($zipSize -lt 1MB) { "{0:F2} KB" -f ($zipSize/1KB) } else { "{0:F2} MB" -f ($zipSize/1MB) }
-          Write-Host "✅ 压缩包创建成功: $zipName ($sizeStr)" -ForegroundColor Green
-          
-          # 输出文件名供后续步骤使用
-          echo "artifact_name=$zipName" >> $env:GITHUB_OUTPUT
-          echo "zip_path=$zipPath" >> $env:GITHUB_OUTPUT
+          echo "cipx_size=$size" >> $env:GITHUB_OUTPUT
+          echo "cipx_md5=$md5" >> $env:GITHUB_OUTPUT
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ steps.pack-step.outputs.artifact_name }}
-          path: ${{ steps.pack-step.outputs.zip_path }}
-          if-no-files-found: error
-          retention-days: 30
-          compression-level: 0
+          name: ${{ env.PLUGIN_NAME }}-${{ needs.prepare.outputs.version }}
+          path: ./output/*.cipx
 
   release:
-    runs-on: windows-2022
-    name: Create Release
-    needs: build
-    if: ${{ github.event.inputs.release == true && github.event_name == 'workflow_dispatch' }}
-    
+    needs: [prepare, build]
+    runs-on: ubuntu-latest
+    # 只有在 push 事件时，或者手动触发且选择了创建 release 时才执行
+    if: github.event_name == 'push' || github.event.inputs.create_release == 'true'
     permissions:
       contents: write
-    
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
 
+    steps:
       - name: Download Artifact
         uses: actions/download-artifact@v4
         with:
-          name: ${{ needs.build.outputs.artifact_name }}
-          path: ./artifacts
+          name: ${{ env.PLUGIN_NAME }}-${{ needs.prepare.outputs.version }}
 
-      - name: Generate Release Note
-        shell: pwsh
+      - name: Create Release Body
+        id: create_body
+        shell: bash
         run: |
-          $version = "${{ needs.build.outputs.version }}"
-          $changelogPath = "./changelog/${version}.md"
+          VERSION="${{ needs.prepare.outputs.version }}"
+          SIZE="${{ needs.build.outputs.cipx_size }}"
+          MD5="${{ needs.build.outputs.cipx_md5 }}"
           
-          $md5Summary = @"
+          if [ "$SIZE" -lt 1024 ]; then
+            SIZE_STR="${SIZE} B"
+          elif [ "$SIZE" -lt 1048576 ]; then
+            SIZE_STR=$(awk "BEGIN {printf \"%.2f KB\", $SIZE/1024}")
+          else
+            SIZE_STR=$(awk "BEGIN {printf \"%.2f MB\", $SIZE/1048576}")
+          fi
           
-          ## 文件校验
+          CHANGELOG="${{ needs.prepare.outputs.changelog }}"
           
-          > [!important]
-          > 下载后请校验文件 MD5 值，确保文件完整性。
+          # 修复：只在手动生成时添加 "## 变更内容" 标题
+          {
+            echo "## 变更内容"
+            echo ""
+            echo "$CHANGELOG"
+            echo ""
+            echo "## 文件信息"
+            echo ""
+            echo "| 文件名 | 大小 | MD5 |"
+            echo "|--------|------|-----|"
+            echo "| ${{ env.PLUGIN_NAME }}.${VERSION}.cipx | ${SIZE_STR} | \`${MD5}\` |"
+            echo ""
+            echo "<!-- CLASSISLAND_PKG_MD5 {\"${{ env.PLUGIN_NAME }}.${VERSION}.cipx\":\"${MD5}\"} -->"
+          } > release_body.txt
           
-          | 文件名 | MD5 |
-          |--------|-----|
-          "@
-          
-          $hashes = [ordered]@{}
-          
-          Get-ChildItem ./artifacts -File | ForEach-Object {
-            $hash = Get-FileHash $_.FullName -Algorithm MD5
-            $md5Summary += "`n| $($_.Name) | ``$($hash.Hash)`` |"
-            $hashes.Add($_.Name, $hash.Hash)
-          }
-          
-          $json = ConvertTo-Json $hashes -Compress
-          $md5Summary += "`n`n<!-- CLASSISLAND_PKG_MD5 ${json} -->"
-          
-          if (Test-Path $changelogPath) {
-            $changelog = Get-Content $changelogPath -Raw
-          } else {
-            $changelog = "## 版本 ${version}`n`n- 更新内容详见提交历史"
-          }
-          
-          $fullContent = $changelog + "`n`n" + $md5Summary
-          $fullContent | Out-File -FilePath "./release-note.md" -Encoding utf8
+          echo "body<<BODY_EOF" >> $GITHUB_OUTPUT
+          cat release_body.txt >> $GITHUB_OUTPUT
+          echo "BODY_EOF" >> $GITHUB_OUTPUT
 
       - name: Create GitHub Release
-        uses: ncipollo/release-action@v1
+        uses: softprops/action-gh-release@v2
         with:
-          artifacts: "./artifacts/*"
-          tag: v${{ needs.build.outputs.version }}
-          name: ${{ env.PLUGIN_NAME }} v${{ needs.build.outputs.version }}
-          bodyFile: ./release-note.md
-          draft: ${{ github.event.inputs.draft }}
-          prerelease: false
-          token: ${{ secrets.GITHUB_TOKEN }}
-          generateReleaseNotes: false
+          tag_name: ${{ needs.prepare.outputs.tag_name }}
+          name: ${{ env.PLUGIN_NAME }} ${{ needs.prepare.outputs.version }}
+          body: ${{ steps.create_body.outputs.body }}
+          draft: ${{ needs.prepare.outputs.is_draft }}
+          prerelease: ${{ needs.prepare.outputs.is_prerelease == 'true' }}
+          files: '*.cipx'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
