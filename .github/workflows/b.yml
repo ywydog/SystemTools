@@ -1,0 +1,134 @@
+name: Build and Upload Artifacts
+
+on:
+  # 在推送到 main 分支时触发
+  push:
+    branches: [ main, master ]
+  # 在创建 Pull Request 时触发
+  pull_request:
+    branches: [ main, master ]
+  # 允许手动触发
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    
+    steps:
+    # 1. 检出代码
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    # 2. 根据项目类型设置环境（以下是常见示例，根据实际项目选择）
+    
+    # Java/Maven 项目
+    - name: Set up JDK 17
+      if: false  # 如果是 Maven 项目，改为 true
+      uses: actions/setup-java@v4
+      with:
+        java-version: '17'
+        distribution: 'temurin'
+        cache: maven
+
+    # Node.js 项目
+    - name: Set up Node.js
+      if: false  # 如果是 Node 项目，改为 true
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+        cache: 'npm'
+
+    # Python 项目
+    - name: Set up Python
+      if: false  # 如果是 Python 项目，改为 true
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+
+    # .NET 项目
+    - name: Set up .NET
+      if: false  # 如果是 .NET 项目，改为 true
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: '8.0.x'
+
+    # 3. 执行构建（根据实际项目修改命令）
+    
+    # Maven 构建示例
+    - name: Build with Maven
+      if: false
+      run: mvn clean package -DskipTests
+
+    # Gradle 构建示例
+    - name: Build with Gradle
+      if: false
+      run: ./gradlew build
+
+    # Node.js 构建示例
+    - name: Build Node.js project
+      if: false
+      run: |
+        npm ci
+        npm run build
+
+    # Python 构建/打包示例
+    - name: Build Python package
+      if: false
+      run: |
+        pip install build
+        python -m build
+
+    # .NET 构建示例
+    - name: Build .NET project
+      if: false
+      run: dotnet publish -c Release -o ./publish
+
+    # 通用构建（如果没有特定构建工具，直接打包文件）
+    - name: General build
+      run: |
+        # 创建输出目录
+        mkdir -p ./dist
+        # 这里可以添加自定义构建命令
+        # 例如：复制需要的文件到 ./dist 目录
+        cp -r ./* ./dist/ 2>/dev/null || true
+
+    # 4. 上传构建产物（核心步骤）
+    
+    # 方式一：上传到 GitHub Artifacts（推荐，90天保留期）
+    - name: Upload Build Artifacts to GitHub
+      uses: actions/upload-artifact@v4
+      with:
+        # 产物名称，会显示在 Actions 页面的 Artifacts 部分
+        name: build-artifacts-${{ github.run_id }}
+        # 要上传的文件或目录路径（支持通配符）
+        path: |
+          target/*.jar
+          build/libs/*.jar
+          dist/
+          publish/
+          *.zip
+          *.tar.gz
+        # 保留天数（默认90天，可设置1-90）
+        retention-days: 30
+        # 如果文件不存在是否报错（false表示不报错）
+        if-no-files-found: warn
+
+    # 方式二：创建 GitHub Release 并上传（适合正式版本）
+    - name: Create Release and Upload Assets
+      if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+      uses: softprops/action-gh-release@v1
+      with:
+        files: |
+          target/*.jar
+          build/libs/*.jar
+          dist/*
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+    # 5. 可选：部署到 GitHub Pages（如果是静态网站）
+    - name: Deploy to GitHub Pages
+      if: false  # 需要时改为 true
+      uses: peaceiris/actions-gh-pages@v3
+      with:
+        github_token: ${{ secrets.GITHUB_TOKEN }}
+        publish_dir: ./dist
