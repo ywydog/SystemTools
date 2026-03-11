@@ -1,134 +1,201 @@
-name: Build and Upload Artifacts
+name: Build & Release
 
 on:
-  # 在推送到 main 分支时触发
   push:
-    branches: [ main, master ]
-  # 在创建 Pull Request 时触发
-  pull_request:
-    branches: [ main, master ]
-  # 允许手动触发
+    branches: [main, master]
+    paths-ignore:
+      - '**.md'
+      - '.github/**'
+  
   workflow_dispatch:
+    inputs:
+      version:
+        description: '版本号 (如 1.0.0.0)'
+        required: true
+        type: string
+      release:
+        description: '是否创建 GitHub Release'
+        required: true
+        type: boolean
+        default: true
+      draft:
+        description: '是否为草稿 Release'
+        required: true
+        type: boolean
+        default: true
+
+env:
+  PLUGIN_NAME: YourPlugin
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: windows-2022
+    name: Build Plugin
+    
+    outputs:
+      version: ${{ steps.build-step.outputs.version }}
     
     steps:
-    # 1. 检出代码
-    - name: Checkout code
-      uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          submodules: recursive
 
-    # 2. 根据项目类型设置环境（以下是常见示例，根据实际项目选择）
+      - name: Setup .NET 8
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Build & Publish
+        id: build-step
+        shell: pwsh
+        run: |
+          # 查找项目文件
+          $csproj = Get-ChildItem -Path . -Filter "*.csproj" -Recurse | Select-Object -First 1
+          if (-not $csproj) {
+            Write-Error "❌ 未找到 .csproj 文件"
+            exit 1
+          }
+          Write-Host "📄 项目: $($csproj.FullName)" -ForegroundColor Gray
+          
+          # 获取版本号
+          if ("${{ github.event.inputs.version }}") {
+            $version = "${{ github.event.inputs.version }}"
+          } else {
+            [xml]$proj = Get-Content $csproj.FullName
+            $version = $proj.Project.PropertyGroup.Version
+          }
+          Write-Host "🔖 版本: $version" -ForegroundColor Cyan
+          echo "version=$version" >> $env:GITHUB_OUTPUT
+          
+          # 清理并创建输出目录
+          $OutputPath = "./output"
+          if (Test-Path $OutputPath) {
+            Remove-Item $OutputPath -Recurse -Force
+          }
+          New-Item -ItemType Directory -Path $OutputPath -Force | Out-Null
+          
+          # 还原依赖
+          Write-Host "📦 还原 NuGet 包..." -ForegroundColor Yellow
+          dotnet restore $csproj.FullName
+          if ($LASTEXITCODE -ne 0) { throw "还原失败" }
+          
+          # 构建
+          Write-Host "🔨 编译项目..." -ForegroundColor Yellow
+          dotnet build $csproj.FullName -c Release --no-restore
+          if ($LASTEXITCODE -ne 0) { throw "构建失败" }
+          
+          # 发布（生成 CIPX）
+          Write-Host "📤 发布项目..." -ForegroundColor Yellow
+          dotnet publish $csproj.FullName `
+            -c Release `
+            --no-build `
+            -p:CreateCipx=true `
+            -o $OutputPath
+          if ($LASTEXITCODE -ne 0) { throw "发布失败" }
+          
+          # 显示结果
+          Write-Host ""
+          Write-Host "✅ 构建完成！产物列表：" -ForegroundColor Green
+          Get-ChildItem $OutputPath -Recurse | ForEach-Object {
+            $size = if ($_.Length -lt 1KB) { "$($_.Length) B" } 
+                    elseif ($_.Length -lt 1MB) { "{0:F2} KB" -f ($_.Length/1KB) }
+                    else { "{0:F2} MB" -f ($_.Length/1MB) }
+            Write-Host "   📎 $($_.Name) ($size)" -ForegroundColor Gray
+          }
+
+      # 上传 CIPX 文件（必需）
+      - name: Upload CIPX Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.PLUGIN_NAME }}_cipx
+          path: ./output/*.cipx
+          if-no-files-found: error
+          retention-days: 30
+
+      # 上传 NuGet 包（可选）
+      - name: Upload NuPkg Artifact
+        uses: actions/upload-artifact@v4
+        if: ${{ hashFiles('./output/*.nupkg') != '' }}
+        with:
+          name: ${{ env.PLUGIN_NAME }}_nupkg
+          path: ./output/*.nupkg
+          retention-days: 7
+
+  release:
+    runs-on: windows-2022
+    name: Create Release
+    needs: build
+    if: ${{ github.event.inputs.release == true && github.event_name == 'workflow_dispatch' }}
     
-    # Java/Maven 项目
-    - name: Set up JDK 17
-      if: false  # 如果是 Maven 项目，改为 true
-      uses: actions/setup-java@v4
-      with:
-        java-version: '17'
-        distribution: 'temurin'
-        cache: maven
-
-    # Node.js 项目
-    - name: Set up Node.js
-      if: false  # 如果是 Node 项目，改为 true
-      uses: actions/setup-node@v4
-      with:
-        node-version: '20'
-        cache: 'npm'
-
-    # Python 项目
-    - name: Set up Python
-      if: false  # 如果是 Python 项目，改为 true
-      uses: actions/setup-python@v5
-      with:
-        python-version: '3.11'
-
-    # .NET 项目
-    - name: Set up .NET
-      if: false  # 如果是 .NET 项目，改为 true
-      uses: actions/setup-dotnet@v4
-      with:
-        dotnet-version: '8.0.x'
-
-    # 3. 执行构建（根据实际项目修改命令）
+    permissions:
+      contents: write
     
-    # Maven 构建示例
-    - name: Build with Maven
-      if: false
-      run: mvn clean package -DskipTests
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
-    # Gradle 构建示例
-    - name: Build with Gradle
-      if: false
-      run: ./gradlew build
+      - name: Download Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: ./artifacts
+          pattern: ${{ env.PLUGIN_NAME }}_*
+          merge-multiple: true
 
-    # Node.js 构建示例
-    - name: Build Node.js project
-      if: false
-      run: |
-        npm ci
-        npm run build
+      - name: Generate Release Note
+        shell: pwsh
+        run: |
+          $version = "${{ needs.build.outputs.version }}"
+          $changelogPath = "./changelog/${version}.md"
+          
+          $md5Summary = @"
+          
+          ## 文件校验
+          
+          > [!important]
+          > 下载后请校验文件 MD5 值，确保文件完整性。
+          
+          | 文件名 | MD5 |
+          |--------|-----|
+          "@
+          
+          $hashes = [ordered]@{}
+          
+          # 计算所有文件的 MD5
+          Get-ChildItem ./artifacts -File | ForEach-Object {
+            $hash = Get-FileHash $_.FullName -Algorithm MD5
+            $md5Summary += "`n| $($_.Name) | ``$($hash.Hash)`` |"
+            $hashes.Add($_.Name, $hash.Hash)
+          }
+          
+          # 添加隐藏元数据
+          $json = ConvertTo-Json $hashes -Compress
+          $md5Summary += "`n`n<!-- CLASSISLAND_PKG_MD5 ${json} -->"
+          
+          # 读取或创建变更日志
+          if (Test-Path $changelogPath) {
+            $changelog = Get-Content $changelogPath -Raw
+          } else {
+            $changelog = "## 版本 ${version}`n`n- 更新内容详见提交历史"
+          }
+          
+          $fullContent = $changelog + "`n`n" + $md5Summary
+          $fullContent | Out-File -FilePath "./release-note.md" -Encoding utf8
+          
+          Write-Host "生成的发布说明：" -ForegroundColor Gray
+          Get-Content "./release-note.md"
 
-    # Python 构建/打包示例
-    - name: Build Python package
-      if: false
-      run: |
-        pip install build
-        python -m build
-
-    # .NET 构建示例
-    - name: Build .NET project
-      if: false
-      run: dotnet publish -c Release -o ./publish
-
-    # 通用构建（如果没有特定构建工具，直接打包文件）
-    - name: General build
-      run: |
-        # 创建输出目录
-        mkdir -p ./dist
-        # 这里可以添加自定义构建命令
-        # 例如：复制需要的文件到 ./dist 目录
-        cp -r ./* ./dist/ 2>/dev/null || true
-
-    # 4. 上传构建产物（核心步骤）
-    
-    # 方式一：上传到 GitHub Artifacts（推荐，90天保留期）
-    - name: Upload Build Artifacts to GitHub
-      uses: actions/upload-artifact@v4
-      with:
-        # 产物名称，会显示在 Actions 页面的 Artifacts 部分
-        name: build-artifacts-${{ github.run_id }}
-        # 要上传的文件或目录路径（支持通配符）
-        path: |
-          target/*.jar
-          build/libs/*.jar
-          dist/
-          publish/
-          *.zip
-          *.tar.gz
-        # 保留天数（默认90天，可设置1-90）
-        retention-days: 30
-        # 如果文件不存在是否报错（false表示不报错）
-        if-no-files-found: warn
-
-    # 方式二：创建 GitHub Release 并上传（适合正式版本）
-    - name: Create Release and Upload Assets
-      if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
-      uses: softprops/action-gh-release@v1
-      with:
-        files: |
-          target/*.jar
-          build/libs/*.jar
-          dist/*
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-    # 5. 可选：部署到 GitHub Pages（如果是静态网站）
-    - name: Deploy to GitHub Pages
-      if: false  # 需要时改为 true
-      uses: peaceiris/actions-gh-pages@v3
-      with:
-        github_token: ${{ secrets.GITHUB_TOKEN }}
-        publish_dir: ./dist
+      - name: Create GitHub Release
+        uses: ncipollo/release-action@v1
+        with:
+          artifacts: "./artifacts/*"
+          tag: v${{ needs.build.outputs.version }}
+          name: ${{ env.PLUGIN_NAME }} v${{ needs.build.outputs.version }}
+          bodyFile: ./release-note.md
+          draft: ${{ github.event.inputs.draft }}
+          prerelease: false
+          token: ${{ secrets.GITHUB_TOKEN }}
+          generateReleaseNotes: false
