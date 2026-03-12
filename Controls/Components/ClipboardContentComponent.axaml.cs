@@ -14,7 +14,7 @@ namespace SystemTools.Controls.Components;
     "E2A41B7D-9F36-4A08-8B8D-1BA29E570F62",
     "显示剪切板内容",
     "\uE48C",
-    "剪切板内容更新时显示最新文本"
+    "实时读取并显示显示剪切板内容"
 )]
 public partial class ClipboardContentComponent : ComponentBase<ClipboardContentSettings>, INotifyPropertyChanged
 {

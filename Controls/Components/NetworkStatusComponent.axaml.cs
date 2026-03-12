@@ -8,6 +8,7 @@ using System.ComponentModel;
 using System.Diagnostics;
 using System.Net.Http;
 using System.Net.NetworkInformation;
+using System.Threading;
 using SystemTools.Models.ComponentSettings;
 using RoutedEventArgs = Avalonia.Interactivity.RoutedEventArgs;
 
@@ -21,11 +22,16 @@ namespace SystemTools.Controls.Components;
 )]
 public partial class NetworkStatusComponent : ComponentBase<NetworkStatusSettings>, INotifyPropertyChanged
 {
+    private const int AutoModeIcmpRetryInterval = 60;
+
     private readonly DispatcherTimer _timer;
     private readonly HttpClient _httpClient;
+    private readonly SemaphoreSlim _checkSemaphore = new(1, 1);
+
     private string _statusText = "--";
     private IBrush _statusBrush = new SolidColorBrush(Colors.Gray);
-    private bool _autoModeUseHttp = false;
+    private bool _autoModeUseHttp;
+    private int _httpDetectCountSinceIcmp;
 
     public string StatusText
     {
@@ -57,9 +63,13 @@ public partial class NetworkStatusComponent : ComponentBase<NetworkStatusSetting
     public NetworkStatusComponent()
     {
         InitializeComponent();
-        _timer = new DispatcherTimer();
-        _timer.Tick += OnTimer_Ticked;
-        
+
+        _timer = new DispatcherTimer
+        {
+            Interval = TimeSpan.FromSeconds(1)
+        };
+        _timer.Tick += OnTimerTicked;
+
         _httpClient = new HttpClient
         {
             Timeout = TimeSpan.FromSeconds(5)
@@ -69,19 +79,16 @@ public partial class NetworkStatusComponent : ComponentBase<NetworkStatusSetting
 
     private void NetworkStatusComponent_OnLoaded(object? sender, RoutedEventArgs e)
     {
-        _timer.Interval = TimeSpan.FromSeconds(1);
-        _timer.Start();
-        
         Settings.PropertyChanged += OnSettingsPropertyChanged;
-        
-        CheckNetworkStatus();
+        _timer.Start();
+        _ = CheckNetworkStatusAsync();
     }
 
     private void NetworkStatusComponent_OnUnloaded(object? sender, RoutedEventArgs e)
     {
-        _timer.Stop();
         Settings.PropertyChanged -= OnSettingsPropertyChanged;
-        _httpClient?.Dispose();
+        _timer.Stop();
+        _httpClient.Dispose();
     }
 
     private void OnSettingsPropertyChanged(object? sender, PropertyChangedEventArgs e)
@@ -89,67 +96,89 @@ public partial class NetworkStatusComponent : ComponentBase<NetworkStatusSetting
         if (e.PropertyName == nameof(Settings.DetectMode))
         {
             _autoModeUseHttp = false;
-            CheckNetworkStatus();
+            _httpDetectCountSinceIcmp = 0;
+            _ = CheckNetworkStatusAsync();
+            return;
         }
-        
+
         if (e.PropertyName == nameof(Settings.PingUrl))
         {
-            CheckNetworkStatus();
+            _ = CheckNetworkStatusAsync();
         }
     }
 
-    private void OnTimer_Ticked(object? sender, EventArgs e)
+    private void OnTimerTicked(object? sender, EventArgs e)
     {
-        CheckNetworkStatus();
+        _ = CheckNetworkStatusAsync();
     }
 
-    private async void CheckNetworkStatus()
+    private async Task CheckNetworkStatusAsync()
     {
+        if (!await _checkSemaphore.WaitAsync(0))
+        {
+            return;
+        }
+
         try
         {
-            var url = Settings.PingUrl;
-            if (string.IsNullOrWhiteSpace(url))
-            {
-                url = "https://www.baidu.com";
-            }
+            var url = string.IsNullOrWhiteSpace(Settings.PingUrl)
+                ? "https://www.baidu.com"
+                : Settings.PingUrl;
 
             long delay;
-
             switch (Settings.DetectMode)
             {
                 case NetworkDetectMode.Icmp:
-                    delay = await TryIcmpPingAsync(url);
-                    if (delay <= 0)
+                {
+                    var icmpResult = await TryIcmpPingAsync(url);
+                    if (!icmpResult.Success)
                     {
-                        StatusText = "失败";
-                        StatusBrush = new SolidColorBrush(Colors.Red);
+                        SetErrorStatus(icmpResult.ErrorText);
                         return;
                     }
-                    break;
 
+                    delay = icmpResult.Delay;
+                    break;
+                }
                 case NetworkDetectMode.Http:
                     delay = await TryHttpPingAsync(url);
                     break;
-
                 case NetworkDetectMode.Auto:
                 default:
                     if (!_autoModeUseHttp)
                     {
-                        var icmpDelay = await TryIcmpPingAsync(url);
-                        if (icmpDelay > 0)
+                        var autoIcmpResult = await TryIcmpPingAsync(url);
+                        if (autoIcmpResult.Success)
                         {
-                            delay = icmpDelay;
+                            _httpDetectCountSinceIcmp = 0;
+                            delay = autoIcmpResult.Delay;
                         }
                         else
                         {
                             _autoModeUseHttp = true;
+                            _httpDetectCountSinceIcmp = 0;
                             delay = await TryHttpPingAsync(url);
                         }
                     }
                     else
                     {
+                        _httpDetectCountSinceIcmp++;
+
+                        if (_httpDetectCountSinceIcmp >= AutoModeIcmpRetryInterval)
+                        {
+                            _httpDetectCountSinceIcmp = 0;
+                            var retryIcmpResult = await TryIcmpPingAsync(url);
+                            if (retryIcmpResult.Success)
+                            {
+                                _autoModeUseHttp = false;
+                                delay = retryIcmpResult.Delay;
+                                break;
+                            }
+                        }
+
                         delay = await TryHttpPingAsync(url);
                     }
+
                     break;
             }
 
@@ -157,66 +186,82 @@ public partial class NetworkStatusComponent : ComponentBase<NetworkStatusSetting
         }
         catch (TaskCanceledException)
         {
-            StatusText = "超时";
-            StatusBrush = new SolidColorBrush(Colors.Red);
+            SetErrorStatus("超时");
         }
         catch (HttpRequestException)
         {
-            StatusText = "无网络";
-            StatusBrush = new SolidColorBrush(Colors.Red);
+            SetErrorStatus("无网络");
         }
         catch
         {
-            StatusText = "错误";
-            StatusBrush = new SolidColorBrush(Colors.Red);
+            SetErrorStatus("错误");
+        }
+        finally
+        {
+            _checkSemaphore.Release();
         }
     }
 
-    private async Task<long> TryIcmpPingAsync(string url)
+    private async Task<IcmpProbeResult> TryIcmpPingAsync(string url)
     {
         try
         {
-            var uri = new Uri(url);
-            var host = uri.Host;
+            var uri = url.StartsWith("http://", StringComparison.OrdinalIgnoreCase)
+                || url.StartsWith("https://", StringComparison.OrdinalIgnoreCase)
+                ? new Uri(url)
+                : new Uri($"https://{url}");
 
             using var ping = new Ping();
-            var reply = await ping.SendPingAsync(host, 2000);
-            
-            if (reply.Status == IPStatus.Success && reply.RoundtripTime > 0)
+            var reply = await ping.SendPingAsync(uri.Host, 2000);
+
+            if (reply.Status == IPStatus.Success)
             {
-                return reply.RoundtripTime;
+                if (reply.RoundtripTime <= 0)
+                {
+                    return IcmpProbeResult.Fail("错误");
+                }
+
+                return IcmpProbeResult.Ok(reply.RoundtripTime);
             }
+
+            return reply.Status == IPStatus.TimedOut
+                ? IcmpProbeResult.Fail("超时")
+                : IcmpProbeResult.Fail("无网络");
         }
-        catch { }
-        
-        return -1;
+        catch (PingException)
+        {
+            return IcmpProbeResult.Fail("无网络");
+        }
+        catch
+        {
+            return IcmpProbeResult.Fail("错误");
+        }
     }
 
     private async Task<long> TryHttpPingAsync(string url)
     {
         var httpUrl = url;
-        if (!httpUrl.StartsWith("http://", StringComparison.OrdinalIgnoreCase) 
+        if (!httpUrl.StartsWith("http://", StringComparison.OrdinalIgnoreCase)
             && !httpUrl.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
         {
             httpUrl = "https://" + httpUrl;
         }
 
         var stopwatch = Stopwatch.StartNew();
-        
+
         using var response = await _httpClient.SendAsync(
-            new HttpRequestMessage(HttpMethod.Head, httpUrl), 
+            new HttpRequestMessage(HttpMethod.Head, httpUrl),
             HttpCompletionOption.ResponseHeadersRead);
-        
+
         stopwatch.Stop();
-        
         response.EnsureSuccessStatusCode();
+
         return stopwatch.ElapsedMilliseconds;
     }
 
     private void UpdateStatus(long delay)
     {
         StatusText = $"{delay}ms";
-        
         StatusBrush = delay switch
         {
             < 50 => new SolidColorBrush(Colors.LimeGreen),
@@ -224,5 +269,18 @@ public partial class NetworkStatusComponent : ComponentBase<NetworkStatusSetting
             < 300 => new SolidColorBrush(Colors.Orange),
             _ => new SolidColorBrush(Colors.Red)
         };
+    }
+
+    private void SetErrorStatus(string text)
+    {
+        StatusText = text;
+        StatusBrush = new SolidColorBrush(Colors.Red);
+    }
+
+    private sealed record IcmpProbeResult(bool Success, long Delay, string ErrorText)
+    {
+        public static IcmpProbeResult Ok(long delay) => new(true, delay, string.Empty);
+
+        public static IcmpProbeResult Fail(string errorText) => new(false, -1, errorText);
     }
 }

@@ -301,15 +301,20 @@ public class FloatingWindowService
                     VerticalContentAlignment = VerticalAlignment.Center
                 };
 
-                if (_buttonWidthCache.TryGetValue(entry.ButtonId, out var cachedWidth) && cachedWidth > 0)
-                {
-                    button.Width = cachedWidth;
-                }
-
                 if (entry.IsRevertStyleActive)
                 {
                     button.Background = TryGetButtonPointerOverBrush() ??
                                         new SolidColorBrush(Color.FromArgb(80, 255, 255, 255));
+
+                    if (_buttonWidthCache.TryGetValue(entry.ButtonId, out var cachedWidth) && cachedWidth > 0)
+                    {
+                        button.Width = cachedWidth;
+                    }
+                }
+                else
+                {
+                    // 保持自动布局，允许文本变更/缩放后重新测量自然宽度。
+                    button.Width = double.NaN;
                 }
 
                 button.LayoutUpdated += (_, _) =>

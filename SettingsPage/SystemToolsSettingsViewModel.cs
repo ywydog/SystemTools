@@ -104,6 +104,7 @@ public partial class SystemToolsSettingsViewModel : ObservableObject, IDisposabl
             ("SystemTools.NetworkStatus", "网络延迟"),
             ("SystemTools.LyricsDisplay", "歌词显示"),
             ("SystemTools.ClipboardContent", "显示剪切板内容"),
+            ("SystemTools.LocalQuote", "本地一言"),
         };
         foreach (var (id, name) in components)
         {
@@ -160,6 +161,9 @@ public partial class SystemToolsSettingsViewModel : ObservableObject, IDisposabl
             ("SystemTools.AdvancedShutdown", "高级计时关机", "电源选项"),
             ("SystemTools.CancelShutdown", "取消关机计划", "电源选项"),
             ("SystemTools.LockScreen", "锁定屏幕", "电源选项"),
+            ("SystemTools.ImmediateRestart", "立即重启", "电源选项"),
+            ("SystemTools.ImmediateShutdown", "立即关机", "电源选项"),
+            ("SystemTools.Sleep", "睡眠", "电源选项"),
             ("SystemTools.Copy", "复制", "文件操作"),
             ("SystemTools.Move", "移动", "文件操作"),
             ("SystemTools.Delete", "删除", "文件操作"),

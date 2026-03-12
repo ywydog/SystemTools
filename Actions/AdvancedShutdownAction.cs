@@ -18,7 +18,7 @@ using SystemTools.Views;
 
 namespace SystemTools.Actions;
 
-[ActionInfo("SystemTools.AdvancedShutdown", "高级计时关机", "\uF357", false)]
+[ActionInfo("SystemTools.AdvancedShutdown", "高级计时关机", "\uE4D2", false)]
 public class AdvancedShutdownAction(ILogger<AdvancedShutdownAction> logger) : ActionBase<AdvancedShutdownSettings>
 {
     private const string HostProcessName = "ClassIsland.Desktop";
