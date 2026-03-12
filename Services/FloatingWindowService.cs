@@ -29,6 +29,8 @@ public class FloatingWindowService
     private PointerPressedEventArgs? _lastPressedArgs;
     private bool _isThemeSubscribed;
     private readonly Dictionary<string, double> _buttonWidthCache = new();
+    private bool _allowWindowClose;
+    private bool _restoringFromMinimized;
 
     public event EventHandler? EntriesChanged;
 
@@ -56,6 +58,7 @@ public class FloatingWindowService
         {
             if (_window != null)
             {
+                _allowWindowClose = true;
                 _window.Close();
                 _window = null;
             }
@@ -151,6 +154,7 @@ public class FloatingWindowService
             return;
         }
 
+        _allowWindowClose = false;
         _stackPanel = new StackPanel { Margin = new Thickness(6), Spacing = 6 };
         _window = new Window
         {
@@ -177,14 +181,33 @@ public class FloatingWindowService
         _window.AddHandler(InputElement.PointerReleasedEvent, OnPointerReleased, RoutingStrategies.Tunnel, true);
         _window.Closing += (_, e) =>
         {
-            if (_configHandler.Data.ShowFloatingWindow)
+            if (!_allowWindowClose)
             {
                 e.Cancel = true;
-                _window?.Hide();
+                if (_window is { IsVisible: false })
+                {
+                    _window.Show();
+                }
             }
         };
+        _window.PropertyChanged += OnWindowPropertyChanged;
 
         _window.Show();
+    }
+
+    private void OnWindowPropertyChanged(object? sender, AvaloniaPropertyChangedEventArgs e)
+    {
+        if (_window == null || _restoringFromMinimized)
+        {
+            return;
+        }
+
+        if (e.Property == Window.WindowStateProperty && _window.WindowState == WindowState.Minimized)
+        {
+            _restoringFromMinimized = true;
+            _window.WindowState = WindowState.Normal;
+            _restoringFromMinimized = false;
+        }
     }
 
     private void OnWindowLoaded(object? sender, RoutedEventArgs e)
@@ -301,15 +324,20 @@ public class FloatingWindowService
                     VerticalContentAlignment = VerticalAlignment.Center
                 };
 
-                if (_buttonWidthCache.TryGetValue(entry.ButtonId, out var cachedWidth) && cachedWidth > 0)
-                {
-                    button.Width = cachedWidth;
-                }
-
                 if (entry.IsRevertStyleActive)
                 {
                     button.Background = TryGetButtonPointerOverBrush() ??
                                         new SolidColorBrush(Color.FromArgb(80, 255, 255, 255));
+
+                    if (_buttonWidthCache.TryGetValue(entry.ButtonId, out var cachedWidth) && cachedWidth > 0)
+                    {
+                        button.Width = cachedWidth;
+                    }
+                }
+                else
+                {
+                    // 保持自动布局，允许文本变更/缩放后重新测量自然宽度。
+                    button.Width = double.NaN;
                 }
 
                 button.LayoutUpdated += (_, _) =>

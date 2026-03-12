@@ -208,6 +208,9 @@ public class Plugin : PluginBase
             "SystemTools.AdvancedShutdown");
         RegisterActionIfEnabled<LockScreenAction>(services, config, "SystemTools.LockScreen");
         RegisterActionIfEnabled<CancelShutdownAction>(services, config, "SystemTools.CancelShutdown");
+        RegisterActionIfEnabled<ImmediateRestartAction>(services, config, "SystemTools.ImmediateRestart");
+        RegisterActionIfEnabled<ImmediateShutdownAction>(services, config, "SystemTools.ImmediateShutdown");
+        RegisterActionIfEnabled<SleepAction>(services, config, "SystemTools.Sleep");
 
         // 文件操作
         RegisterActionIfEnabled<CopyAction, CopySettingsControl>(services, config, "SystemTools.Copy");
@@ -274,6 +277,8 @@ public class Plugin : PluginBase
             "SystemTools.LyricsDisplay");
         RegisterComponentIfEnabled<ClipboardContentComponent, ClipboardContentSettingsControl>(services, config,
             "SystemTools.ClipboardContent");
+        RegisterComponentIfEnabled<LocalQuoteComponent, LocalQuoteSettingsControl>(services, config,
+            "SystemTools.LocalQuote");
     }
 
     private void RegisterExperimentalFeatures(IServiceCollection services)
@@ -378,7 +383,7 @@ public class Plugin : PluginBase
         }
 
         // 电源选项
-        if (HasAnyActionEnabled(config, "SystemTools.Shutdown", "SystemTools.AdvancedShutdown", "SystemTools.LockScreen", "SystemTools.CancelShutdown"))
+        if (HasAnyActionEnabled(config, "SystemTools.Shutdown", "SystemTools.AdvancedShutdown", "SystemTools.LockScreen", "SystemTools.CancelShutdown", "SystemTools.ImmediateRestart", "SystemTools.ImmediateShutdown", "SystemTools.Sleep"))
         {
             IActionService.ActionMenuTree["SystemTools 行动"].Add(new ActionMenuTreeGroup("电源选项…", "\uEDE8"));
             BuildPowerMenu(config);
@@ -504,11 +509,17 @@ public class Plugin : PluginBase
         if (config.IsActionEnabled("SystemTools.Shutdown"))
             items.Add(new ActionMenuTreeItem("SystemTools.Shutdown", "计时关机", "\uE4C4"));
         if (config.IsActionEnabled("SystemTools.AdvancedShutdown"))
-            items.Add(new ActionMenuTreeItem("SystemTools.AdvancedShutdown", "高级计时关机", "\uE4C4"));
+            items.Add(new ActionMenuTreeItem("SystemTools.AdvancedShutdown", "高级计时关机", "\uE4D2"));
         if (config.IsActionEnabled("SystemTools.CancelShutdown"))
             items.Add(new ActionMenuTreeItem("SystemTools.CancelShutdown", "取消关机计划", "\uE4CC"));
         if (config.IsActionEnabled("SystemTools.LockScreen"))
             items.Add(new ActionMenuTreeItem("SystemTools.LockScreen", "锁定屏幕", "\uEAF0"));
+        if (config.IsActionEnabled("SystemTools.ImmediateRestart"))
+            items.Add(new ActionMenuTreeItem("SystemTools.ImmediateRestart", "立即重启", "\uE0BD"));
+        if (config.IsActionEnabled("SystemTools.ImmediateShutdown"))
+            items.Add(new ActionMenuTreeItem("SystemTools.ImmediateShutdown", "立即关机", "\uEDE9"));
+        if (config.IsActionEnabled("SystemTools.Sleep"))
+            items.Add(new ActionMenuTreeItem("SystemTools.Sleep", "睡眠", "\uF44B"));
 
         if (items.Count > 0)
         {
@@ -577,7 +588,7 @@ public class Plugin : PluginBase
         var items = new List<ActionMenuTreeItem>();
 
         if (config.EnableFloatingWindowFeature && config.IsActionEnabled("SystemTools.ShowFloatingWindow"))
-            items.Add(new ActionMenuTreeItem("SystemTools.ShowFloatingWindow", "显示悬浮窗", "\uEDDB"));
+            items.Add(new ActionMenuTreeItem("SystemTools.ShowFloatingWindow", "显示悬浮窗", "\uEA37"));
 
         if (items.Count > 0)
         {
