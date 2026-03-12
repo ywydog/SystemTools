@@ -22,8 +22,10 @@ namespace SystemTools.Controls.Components;
 public partial class LocalQuoteComponent : ComponentBase<LocalQuoteSettings>, INotifyPropertyChanged
 {
     private static readonly Thickness StableMargin = new(0);
-    private static readonly Thickness EnterFromBottomMargin = new(0, 12, 0, -12);
-    private static readonly Thickness ExitToTopMargin = new(0, -12, 0, 12);
+    private static readonly Thickness EnterFromBottomMargin = new(0, 18, 0, -18);
+    private static readonly Thickness EnterHalfwayMargin = new(0, 6, 0, -6);
+    private static readonly Thickness SlightOvershootMargin = new(0, -2, 0, 2);
+    private static readonly Thickness ExitToTopMargin = new(0, -18, 0, 18);
 
     private readonly DispatcherTimer _carouselTimer;
     private readonly List<string> _quotes = [];
@@ -209,7 +211,7 @@ public partial class LocalQuoteComponent : ComponentBase<LocalQuoteSettings>, IN
 
     private async void ShowNextQuote()
     {
-        if (_quotes.Count == 0)
+        if (_quotes.Count == 0 || _isAnimating)
         {
             return;
         }
@@ -225,20 +227,35 @@ public partial class LocalQuoteComponent : ComponentBase<LocalQuoteSettings>, IN
         }
 
         _isAnimating = true;
-        NextQuote = next;
-        NextTextOpacity = 0;
-        NextTextMargin = EnterFromBottomMargin;
+        try
+        {
+            NextQuote = next;
+            NextTextOpacity = 0;
+            NextTextMargin = EnterFromBottomMargin;
 
-        await Task.Delay(20);
-        CurrentTextOpacity = 0;
-        CurrentTextMargin = ExitToTopMargin;
-        NextTextOpacity = 1;
-        NextTextMargin = StableMargin;
+            await Task.Delay(20);
 
-        await Task.Delay(260);
-        CurrentQuote = next;
-        ResetAnimationVisualState();
-        _isAnimating = false;
+            // 第一阶段：旧句上翻淡出，新句快速进入。
+            CurrentTextOpacity = 0;
+            CurrentTextMargin = ExitToTopMargin;
+            NextTextOpacity = 1;
+            NextTextMargin = EnterHalfwayMargin;
+
+            await Task.Delay(160);
+
+            // 第二阶段：新句轻微越位后回弹，模拟翻页落位。
+            NextTextMargin = SlightOvershootMargin;
+            await Task.Delay(80);
+            NextTextMargin = StableMargin;
+
+            await Task.Delay(80);
+            CurrentQuote = next;
+            ResetAnimationVisualState();
+        }
+        finally
+        {
+            _isAnimating = false;
+        }
     }
 
     private void ResetAnimationVisualState()
