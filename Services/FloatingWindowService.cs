@@ -12,11 +12,22 @@ using System.Collections.Generic;
 using System.Linq;
 using SystemTools.ConfigHandlers;
 using SystemTools.Triggers;
+using Windows.Win32;
+using Windows.Win32.Foundation;
+using Windows.Win32.UI.Accessibility;
+using Windows.Win32.UI.WindowsAndMessaging;
 
 namespace SystemTools.Services;
 
 public class FloatingWindowService
 {
+    private const uint EventSystemForeground = 0x0003;
+    private const uint EventObjectReorder = 0x8004;
+    private const uint WinEventOutOfContext = 0;
+    private const uint WinEventSkipOwnProcess = 2;
+    private static readonly HWND HwndBottom = new(1);
+    private static readonly HWND HwndTopmost = new(-1);
+
     private readonly MainConfigHandler _configHandler;
     private readonly Dictionary<FloatingWindowTrigger, FloatingWindowEntry> _entries = new();
     private Window? _window;
@@ -31,6 +42,11 @@ public class FloatingWindowService
     private readonly Dictionary<string, double> _buttonWidthCache = new();
     private bool _allowWindowClose;
     private bool _restoringFromMinimized;
+    private HWINEVENTHOOK _foregroundHook;
+    private HWINEVENTHOOK _reorderHook;
+    private WINEVENTPROC? _winEventProc;
+    private DispatcherTimer LayerRecheck50MsTimer { get; } = new() { Interval = TimeSpan.FromMilliseconds(50) };
+    private DispatcherTimer LayerRecheck1MsTimer { get; } = new() { Interval = TimeSpan.FromMilliseconds(1) };
 
     public event EventHandler? EntriesChanged;
 
@@ -46,8 +62,11 @@ public class FloatingWindowService
         Dispatcher.UIThread.Post(() =>
         {
             EnsureWindow();
+            EnsureLayerRecheckHooks();
             SubscribeThemeChanged();
             ApplyVisibility();
+            RefreshLayerRecheckMode();
+            RecheckWindowLayer();
             RefreshWindowButtons();
         });
     }
@@ -63,6 +82,9 @@ public class FloatingWindowService
                 _window = null;
             }
 
+            LayerRecheck50MsTimer.Stop();
+            LayerRecheck1MsTimer.Stop();
+            RemoveLayerRecheckHooks();
             UnsubscribeThemeChanged();
         });
     }
@@ -97,6 +119,8 @@ public class FloatingWindowService
         Dispatcher.UIThread.Post(() =>
         {
             ApplyVisibility();
+            RefreshLayerRecheckMode();
+            RecheckWindowLayer();
             RefreshWindowButtons();
         });
     }
@@ -107,6 +131,7 @@ public class FloatingWindowService
         Dispatcher.UIThread.Post(() =>
         {
             ApplyVisibility();
+            RecheckWindowLayer();
             RefreshWindowButtons();
         });
     }
@@ -161,7 +186,7 @@ public class FloatingWindowService
             Width = 1,
             Height = 1,
             ShowActivated = false,
-            Topmost = true,
+            Topmost = _configHandler.Data.FloatingWindowLayer == 1,
             SystemDecorations = SystemDecorations.None,
             Background = Brushes.Transparent,
             CanResize = false,
@@ -214,6 +239,7 @@ public class FloatingWindowService
     {
         _window!.TransparencyLevelHint = new[] { WindowTransparencyLevel.Transparent };
         EnsureWindowPositionVisibleOnStartup();
+        RecheckWindowLayer();
     }
 
     private void ApplyVisibility()
@@ -599,6 +625,134 @@ public class FloatingWindowService
         {
             _configHandler.Save();
         }
+    }
+
+    private void EnsureLayerRecheckHooks()
+    {
+        if (_winEventProc == null)
+        {
+            _winEventProc = OnWinEvent;
+        }
+
+        if (_foregroundHook.Value == IntPtr.Zero)
+        {
+            _foregroundHook = PInvoke.SetWinEventHook(
+                EventSystemForeground,
+                EventSystemForeground,
+                HMODULE.Null,
+                _winEventProc,
+                0,
+                0,
+                WinEventOutOfContext | WinEventSkipOwnProcess);
+        }
+
+        if (_reorderHook.Value == IntPtr.Zero)
+        {
+            _reorderHook = PInvoke.SetWinEventHook(
+                EventObjectReorder,
+                EventObjectReorder,
+                HMODULE.Null,
+                _winEventProc,
+                0,
+                0,
+                WinEventOutOfContext | WinEventSkipOwnProcess);
+        }
+
+        LayerRecheck50MsTimer.Tick -= OnLayerRecheck50MsTimerTick;
+        LayerRecheck50MsTimer.Tick += OnLayerRecheck50MsTimerTick;
+        LayerRecheck1MsTimer.Tick -= OnLayerRecheck1MsTimerTick;
+        LayerRecheck1MsTimer.Tick += OnLayerRecheck1MsTimerTick;
+    }
+
+    private void RemoveLayerRecheckHooks()
+    {
+        if (_foregroundHook.Value != IntPtr.Zero)
+        {
+            PInvoke.UnhookWinEvent(_foregroundHook);
+            _foregroundHook = default;
+        }
+
+        if (_reorderHook.Value != IntPtr.Zero)
+        {
+            PInvoke.UnhookWinEvent(_reorderHook);
+            _reorderHook = default;
+        }
+    }
+
+    private void RefreshLayerRecheckMode()
+    {
+        var mode = _configHandler.Data.FloatingWindowLayerRecheckMode;
+        LayerRecheck50MsTimer.IsEnabled = mode == 2;
+        LayerRecheck1MsTimer.IsEnabled = mode == 3;
+    }
+
+    private void OnLayerRecheck50MsTimerTick(object? sender, EventArgs e)
+    {
+        if (_configHandler.Data.FloatingWindowLayerRecheckMode == 2)
+        {
+            RecheckWindowLayer();
+        }
+    }
+
+    private void OnLayerRecheck1MsTimerTick(object? sender, EventArgs e)
+    {
+        if (_configHandler.Data.FloatingWindowLayerRecheckMode == 3)
+        {
+            RecheckWindowLayer();
+        }
+    }
+
+    private void OnWinEvent(HWINEVENTHOOK hWinEventHook, uint @event, HWND hwnd, int idObject, int idChild, uint idEventThread,
+        uint dwmsEventTime)
+    {
+        if (_window == null)
+        {
+            return;
+        }
+
+        Dispatcher.UIThread.Post(() =>
+        {
+            var mode = _configHandler.Data.FloatingWindowLayerRecheckMode;
+            if (@event == EventSystemForeground && mode == 1)
+            {
+                RecheckWindowLayer();
+            }
+
+            if (@event == EventObjectReorder && mode == 0)
+            {
+                RecheckWindowLayer();
+            }
+        });
+    }
+
+    private void RecheckWindowLayer()
+    {
+        if (_window == null)
+        {
+            return;
+        }
+
+        var handle = _window.TryGetPlatformHandle()?.Handle ?? IntPtr.Zero;
+        if (handle == IntPtr.Zero)
+        {
+            return;
+        }
+
+        var flags = SET_WINDOW_POS_FLAGS.SWP_NOMOVE |
+                    SET_WINDOW_POS_FLAGS.SWP_NOSIZE |
+                    SET_WINDOW_POS_FLAGS.SWP_NOACTIVATE |
+                    SET_WINDOW_POS_FLAGS.SWP_NOSENDCHANGING;
+        var hwnd = new HWND(handle);
+
+        if (_configHandler.Data.FloatingWindowLayer == 0)
+        {
+            _window.Topmost = false;
+            PInvoke.SetWindowPos(hwnd, HwndBottom, 0, 0, 0, 0, flags);
+            return;
+        }
+
+        _window.Topmost = true;
+        PInvoke.SetWindowPos(hwnd, HwndTopmost, 0, 0, 0, 0, flags);
     }
 
     public static string ConvertIcon(string raw)
