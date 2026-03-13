@@ -47,7 +47,7 @@
 
                         <StackPanel Grid.Column="1" VerticalAlignment="Center">
                             <TextBlock>
-                                <Run Text="SystemTools" FontSize="24" />
+                                <Run Text="SystemTools  " FontSize="24" />
                                 <Run Text="{Binding PluginVersion}" />
                             </TextBlock>
                             <TextBlock Text="Copyright © 2026 Programmer_Wang"

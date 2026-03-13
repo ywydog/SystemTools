@@ -59,7 +59,7 @@ public partial class AboutSettingsPage : SettingsPageBase
         {
             var iconPath = Path.Combine(
                 GlobalConstants.Information.PluginFolder,
-                "icon-1.png");
+                "icon.png");
 
             if (File.Exists(iconPath))
             {

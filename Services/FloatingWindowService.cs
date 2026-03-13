@@ -6,17 +6,29 @@ using Avalonia.Layout;
 using Avalonia.Media;
 using Avalonia.Styling;
 using Avalonia.Threading;
+using Avalonia.VisualTree;
 using ClassIsland.Core.Controls;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using SystemTools.ConfigHandlers;
 using SystemTools.Triggers;
+using System.Runtime.InteropServices;
+using Windows.Win32;
+using Windows.Win32.Foundation;
+using Windows.Win32.UI.WindowsAndMessaging;
 
 namespace SystemTools.Services;
 
 public class FloatingWindowService
 {
+    private const uint EventSystemForeground = 0x0003;
+    private const uint EventObjectReorder = 0x8004;
+    private const uint WinEventOutOfContext = 0;
+    private const uint WinEventSkipOwnProcess = 2;
+    private static readonly HWND HwndBottom = new(1);
+    private static readonly HWND HwndTopmost = new(-1);
+
     private readonly MainConfigHandler _configHandler;
     private readonly Dictionary<FloatingWindowTrigger, FloatingWindowEntry> _entries = new();
     private Window? _window;
@@ -31,6 +43,26 @@ public class FloatingWindowService
     private readonly Dictionary<string, double> _buttonWidthCache = new();
     private bool _allowWindowClose;
     private bool _restoringFromMinimized;
+    private bool _isTouchInputMode;
+    private bool _touchDragAllowed;
+    private PixelPoint _touchDragStartScreenPoint;
+    private PixelPoint _touchDragStartWindowPosition;
+    private Border? _touchDragHandle;
+    private IntPtr _foregroundHook;
+    private IntPtr _reorderHook;
+    private WinEventProc? _winEventProc;
+    private DispatcherTimer LayerRecheck50MsTimer { get; } = new() { Interval = TimeSpan.FromMilliseconds(50) };
+    private DispatcherTimer LayerRecheck1MsTimer { get; } = new() { Interval = TimeSpan.FromMilliseconds(1) };
+
+    private delegate void WinEventProc(IntPtr hWinEventHook, uint @event, IntPtr hwnd, int idObject, int idChild, uint idEventThread,
+        uint dwmsEventTime);
+
+    [DllImport("user32.dll", SetLastError = true)]
+    private static extern IntPtr SetWinEventHook(uint eventMin, uint eventMax, IntPtr hmodWinEventProc,
+        WinEventProc lpfnWinEventProc, uint idProcess, uint idThread, uint dwFlags);
+
+    [DllImport("user32.dll", SetLastError = true)]
+    private static extern bool UnhookWinEvent(IntPtr hWinEventHook);
 
     public event EventHandler? EntriesChanged;
 
@@ -46,8 +78,11 @@ public class FloatingWindowService
         Dispatcher.UIThread.Post(() =>
         {
             EnsureWindow();
+            EnsureLayerRecheckHooks();
             SubscribeThemeChanged();
             ApplyVisibility();
+            RefreshLayerRecheckMode();
+            RecheckWindowLayer();
             RefreshWindowButtons();
         });
     }
@@ -63,6 +98,9 @@ public class FloatingWindowService
                 _window = null;
             }
 
+            LayerRecheck50MsTimer.Stop();
+            LayerRecheck1MsTimer.Stop();
+            RemoveLayerRecheckHooks();
             UnsubscribeThemeChanged();
         });
     }
@@ -97,6 +135,8 @@ public class FloatingWindowService
         Dispatcher.UIThread.Post(() =>
         {
             ApplyVisibility();
+            RefreshLayerRecheckMode();
+            RecheckWindowLayer();
             RefreshWindowButtons();
         });
     }
@@ -107,6 +147,7 @@ public class FloatingWindowService
         Dispatcher.UIThread.Post(() =>
         {
             ApplyVisibility();
+            RecheckWindowLayer();
             RefreshWindowButtons();
         });
     }
@@ -161,7 +202,7 @@ public class FloatingWindowService
             Width = 1,
             Height = 1,
             ShowActivated = false,
-            Topmost = true,
+            Topmost = _configHandler.Data.FloatingWindowLayer == 1,
             SystemDecorations = SystemDecorations.None,
             Background = Brushes.Transparent,
             CanResize = false,
@@ -214,6 +255,7 @@ public class FloatingWindowService
     {
         _window!.TransparencyLevelHint = new[] { WindowTransparencyLevel.Transparent };
         EnsureWindowPositionVisibleOnStartup();
+        RecheckWindowLayer();
     }
 
     private void ApplyVisibility()
@@ -266,6 +308,16 @@ public class FloatingWindowService
         _stackPanel.HorizontalAlignment = HorizontalAlignment.Center;
 
         _stackPanel.Children.Clear();
+
+        if (_isTouchInputMode)
+        {
+            _touchDragHandle = CreateTouchDragHandle(scale, contentForeground);
+            _stackPanel.Children.Add(_touchDragHandle);
+        }
+        else
+        {
+            _touchDragHandle = null;
+        }
 
         foreach (var rowEntries in GetOrderedRows())
         {
@@ -447,7 +499,29 @@ public class FloatingWindowService
 
     private void OnPointerPressed(object? sender, PointerPressedEventArgs e)
     {
-        if (_window == null || !e.GetCurrentPoint(_window).Properties.IsLeftButtonPressed)
+        if (_window == null)
+        {
+            return;
+        }
+
+        UpdateInputMode(e.Pointer.Type);
+
+        if (_isTouchInputMode)
+        {
+            if (!IsEventFromTouchDragHandle(e.Source))
+            {
+                _touchDragAllowed = false;
+                return;
+            }
+
+            _touchDragAllowed = true;
+            _touchDragStartScreenPoint = _window.PointToScreen(e.GetPosition(_window));
+            _touchDragStartWindowPosition = _window.Position;
+            e.Handled = true;
+            return;
+        }
+
+        if (!e.GetCurrentPoint(_window).Properties.IsLeftButtonPressed)
         {
             return;
         }
@@ -460,7 +534,31 @@ public class FloatingWindowService
 
     private void OnPointerMoved(object? sender, PointerEventArgs e)
     {
-        if (_window == null || !_pointerPressed || _dragInitiated)
+        if (_window == null)
+        {
+            return;
+        }
+
+        UpdateInputMode(e.Pointer.Type);
+
+        if (_isTouchInputMode)
+        {
+            if (!_touchDragAllowed)
+            {
+                return;
+            }
+
+            var screenPoint = _window.PointToScreen(e.GetPosition(_window));
+            var deltaX = screenPoint.X - _touchDragStartScreenPoint.X;
+            var deltaY = screenPoint.Y - _touchDragStartScreenPoint.Y;
+            var target = new PixelPoint(_touchDragStartWindowPosition.X + deltaX,
+                _touchDragStartWindowPosition.Y + deltaY);
+            _window.Position = ClampToVisibleScreen(target);
+            e.Handled = true;
+            return;
+        }
+
+        if (!_pointerPressed || _dragInitiated)
         {
             return;
         }
@@ -483,18 +581,91 @@ public class FloatingWindowService
 
     private void OnPointerReleased(object? sender, PointerReleasedEventArgs e)
     {
-        _pointerPressed = false;
-        _dragInitiated = false;
-        _lastPressedArgs = null;
-
         if (_window == null)
         {
             return;
         }
 
+        UpdateInputMode(e.Pointer.Type);
+
+        if (_isTouchInputMode)
+        {
+            var wasTouchDragging = _touchDragAllowed;
+            _touchDragAllowed = false;
+            if (!wasTouchDragging)
+            {
+                return;
+            }
+
+            var touchClamped = ClampToVisibleScreen(_window.Position);
+            _window.Position = touchClamped;
+            SavePosition(touchClamped);
+            e.Handled = true;
+            return;
+        }
+
+        _pointerPressed = false;
+        _dragInitiated = false;
+        _lastPressedArgs = null;
+
         var clamped = ClampToVisibleScreen(_window.Position);
         _window.Position = clamped;
         SavePosition(clamped);
+    }
+
+    private Border CreateTouchDragHandle(double scale, IBrush foreground)
+    {
+        return new Border
+        {
+            Background = Brushes.Transparent,
+            HorizontalAlignment = HorizontalAlignment.Center,
+            Padding = new Thickness(12 * scale, 3 * scale),
+            Child = new TextBlock
+            {
+                Text = ": : :",
+                FontSize = 12 * scale,
+                Foreground = foreground,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                TextAlignment = TextAlignment.Center
+            }
+        };
+    }
+
+    private bool IsEventFromTouchDragHandle(object? source)
+    {
+        if (_touchDragHandle == null || source is not Visual visual)
+        {
+            return false;
+        }
+
+        var current = visual;
+        while (current != null)
+        {
+            if (ReferenceEquals(current, _touchDragHandle))
+            {
+                return true;
+            }
+
+            current = current.GetVisualParent();
+        }
+
+        return false;
+    }
+
+    private void UpdateInputMode(PointerType pointerType)
+    {
+        var isTouchMode = pointerType == PointerType.Touch;
+        if (isTouchMode == _isTouchInputMode)
+        {
+            return;
+        }
+
+        _isTouchInputMode = isTouchMode;
+        _pointerPressed = false;
+        _dragInitiated = false;
+        _lastPressedArgs = null;
+        _touchDragAllowed = false;
+        Dispatcher.UIThread.Post(RefreshWindowButtons);
     }
 
     private PixelRect GetWindowRect(PixelPoint position)
@@ -599,6 +770,134 @@ public class FloatingWindowService
         {
             _configHandler.Save();
         }
+    }
+
+    private void EnsureLayerRecheckHooks()
+    {
+        if (_winEventProc == null)
+        {
+            _winEventProc = OnWinEvent;
+        }
+
+        if (_foregroundHook == IntPtr.Zero)
+        {
+            _foregroundHook = SetWinEventHook(
+                EventSystemForeground,
+                EventSystemForeground,
+                IntPtr.Zero,
+                _winEventProc,
+                0,
+                0,
+                WinEventOutOfContext | WinEventSkipOwnProcess);
+        }
+
+        if (_reorderHook == IntPtr.Zero)
+        {
+            _reorderHook = SetWinEventHook(
+                EventObjectReorder,
+                EventObjectReorder,
+                IntPtr.Zero,
+                _winEventProc,
+                0,
+                0,
+                WinEventOutOfContext | WinEventSkipOwnProcess);
+        }
+
+        LayerRecheck50MsTimer.Tick -= OnLayerRecheck50MsTimerTick;
+        LayerRecheck50MsTimer.Tick += OnLayerRecheck50MsTimerTick;
+        LayerRecheck1MsTimer.Tick -= OnLayerRecheck1MsTimerTick;
+        LayerRecheck1MsTimer.Tick += OnLayerRecheck1MsTimerTick;
+    }
+
+    private void RemoveLayerRecheckHooks()
+    {
+        if (_foregroundHook != IntPtr.Zero)
+        {
+            UnhookWinEvent(_foregroundHook);
+            _foregroundHook = default;
+        }
+
+        if (_reorderHook != IntPtr.Zero)
+        {
+            UnhookWinEvent(_reorderHook);
+            _reorderHook = default;
+        }
+    }
+
+    private void RefreshLayerRecheckMode()
+    {
+        var mode = _configHandler.Data.FloatingWindowLayerRecheckMode;
+        LayerRecheck50MsTimer.IsEnabled = mode == 2;
+        LayerRecheck1MsTimer.IsEnabled = mode == 3;
+    }
+
+    private void OnLayerRecheck50MsTimerTick(object? sender, EventArgs e)
+    {
+        if (_configHandler.Data.FloatingWindowLayerRecheckMode == 2)
+        {
+            RecheckWindowLayer();
+        }
+    }
+
+    private void OnLayerRecheck1MsTimerTick(object? sender, EventArgs e)
+    {
+        if (_configHandler.Data.FloatingWindowLayerRecheckMode == 3)
+        {
+            RecheckWindowLayer();
+        }
+    }
+
+    private void OnWinEvent(IntPtr hWinEventHook, uint @event, IntPtr hwnd, int idObject, int idChild, uint idEventThread,
+        uint dwmsEventTime)
+    {
+        if (_window == null)
+        {
+            return;
+        }
+
+        Dispatcher.UIThread.Post(() =>
+        {
+            var mode = _configHandler.Data.FloatingWindowLayerRecheckMode;
+            if (@event == EventSystemForeground && mode == 1)
+            {
+                RecheckWindowLayer();
+            }
+
+            if (@event == EventObjectReorder && mode == 0)
+            {
+                RecheckWindowLayer();
+            }
+        });
+    }
+
+    private void RecheckWindowLayer()
+    {
+        if (_window == null)
+        {
+            return;
+        }
+
+        var handle = _window.TryGetPlatformHandle()?.Handle ?? IntPtr.Zero;
+        if (handle == IntPtr.Zero)
+        {
+            return;
+        }
+
+        var flags = SET_WINDOW_POS_FLAGS.SWP_NOMOVE |
+                    SET_WINDOW_POS_FLAGS.SWP_NOSIZE |
+                    SET_WINDOW_POS_FLAGS.SWP_NOACTIVATE |
+                    SET_WINDOW_POS_FLAGS.SWP_NOSENDCHANGING;
+        var hwnd = new HWND(handle);
+
+        if (_configHandler.Data.FloatingWindowLayer == 0)
+        {
+            _window.Topmost = false;
+            PInvoke.SetWindowPos(hwnd, HwndBottom, 0, 0, 0, 0, flags);
+            return;
+        }
+
+        _window.Topmost = true;
+        PInvoke.SetWindowPos(hwnd, HwndTopmost, 0, 0, 0, 0, flags);
     }
 
     public static string ConvertIcon(string raw)

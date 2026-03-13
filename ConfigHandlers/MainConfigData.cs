@@ -227,6 +227,36 @@ public class MainConfigData : INotifyPropertyChanged
         }
     }
 
+    int _floatingWindowLayer = 1;
+
+    [JsonPropertyName("floatingWindowLayer")]
+    public int FloatingWindowLayer
+    {
+        get => _floatingWindowLayer;
+        set
+        {
+            var normalized = value is 0 or 1 ? value : 1;
+            if (normalized == _floatingWindowLayer) return;
+            _floatingWindowLayer = normalized;
+            OnPropertyChanged();
+        }
+    }
+
+    int _floatingWindowLayerRecheckMode = 1;
+
+    [JsonPropertyName("floatingWindowLayerRecheckMode")]
+    public int FloatingWindowLayerRecheckMode
+    {
+        get => _floatingWindowLayerRecheckMode;
+        set
+        {
+            var normalized = Math.Clamp(value, 0, 3);
+            if (normalized == _floatingWindowLayerRecheckMode) return;
+            _floatingWindowLayerRecheckMode = normalized;
+            OnPropertyChanged();
+        }
+    }
+
         // 行动功能启用状态（Key: 行动ID, Value: 是否启用）
     [JsonPropertyName("enabledActions")] public Dictionary<string, bool> EnabledActions { get; set; } = new();
 
