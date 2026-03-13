@@ -245,10 +245,40 @@ public class FloatingWindowService
 
         if (e.Property == Window.WindowStateProperty && _window.WindowState == WindowState.Minimized)
         {
-            _restoringFromMinimized = true;
-            _window.WindowState = WindowState.Normal;
-            _restoringFromMinimized = false;
+            RestoreWindowFromMinimized();
         }
+    }
+
+    private void RestoreWindowFromMinimized()
+    {
+        if (_window == null || _restoringFromMinimized)
+        {
+            return;
+        }
+
+        _restoringFromMinimized = true;
+
+        Dispatcher.UIThread.Post(() =>
+        {
+            try
+            {
+                if (_window == null)
+                {
+                    return;
+                }
+
+                if (!_window.IsVisible)
+                {
+                    _window.Show();
+                }
+
+                _window.WindowState = WindowState.Normal;
+            }
+            finally
+            {
+                _restoringFromMinimized = false;
+            }
+        }, DispatcherPriority.Background);
     }
 
     private void OnWindowLoaded(object? sender, RoutedEventArgs e)
