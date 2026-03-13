@@ -12,9 +12,9 @@ using System.Collections.Generic;
 using System.Linq;
 using SystemTools.ConfigHandlers;
 using SystemTools.Triggers;
+using System.Runtime.InteropServices;
 using Windows.Win32;
 using Windows.Win32.Foundation;
-using Windows.Win32.UI.Accessibility;
 using Windows.Win32.UI.WindowsAndMessaging;
 
 namespace SystemTools.Services;
@@ -42,11 +42,21 @@ public class FloatingWindowService
     private readonly Dictionary<string, double> _buttonWidthCache = new();
     private bool _allowWindowClose;
     private bool _restoringFromMinimized;
-    private HWINEVENTHOOK _foregroundHook;
-    private HWINEVENTHOOK _reorderHook;
-    private WINEVENTPROC? _winEventProc;
+    private IntPtr _foregroundHook;
+    private IntPtr _reorderHook;
+    private WinEventProc? _winEventProc;
     private DispatcherTimer LayerRecheck50MsTimer { get; } = new() { Interval = TimeSpan.FromMilliseconds(50) };
     private DispatcherTimer LayerRecheck1MsTimer { get; } = new() { Interval = TimeSpan.FromMilliseconds(1) };
+
+    private delegate void WinEventProc(IntPtr hWinEventHook, uint @event, IntPtr hwnd, int idObject, int idChild, uint idEventThread,
+        uint dwmsEventTime);
+
+    [DllImport("user32.dll", SetLastError = true)]
+    private static extern IntPtr SetWinEventHook(uint eventMin, uint eventMax, IntPtr hmodWinEventProc,
+        WinEventProc lpfnWinEventProc, uint idProcess, uint idThread, uint dwFlags);
+
+    [DllImport("user32.dll", SetLastError = true)]
+    private static extern bool UnhookWinEvent(IntPtr hWinEventHook);
 
     public event EventHandler? EntriesChanged;
 
@@ -634,24 +644,24 @@ public class FloatingWindowService
             _winEventProc = OnWinEvent;
         }
 
-        if (_foregroundHook.Value == IntPtr.Zero)
+        if (_foregroundHook == IntPtr.Zero)
         {
-            _foregroundHook = PInvoke.SetWinEventHook(
+            _foregroundHook = SetWinEventHook(
                 EventSystemForeground,
                 EventSystemForeground,
-                HMODULE.Null,
+                IntPtr.Zero,
                 _winEventProc,
                 0,
                 0,
                 WinEventOutOfContext | WinEventSkipOwnProcess);
         }
 
-        if (_reorderHook.Value == IntPtr.Zero)
+        if (_reorderHook == IntPtr.Zero)
         {
-            _reorderHook = PInvoke.SetWinEventHook(
+            _reorderHook = SetWinEventHook(
                 EventObjectReorder,
                 EventObjectReorder,
-                HMODULE.Null,
+                IntPtr.Zero,
                 _winEventProc,
                 0,
                 0,
@@ -666,15 +676,15 @@ public class FloatingWindowService
 
     private void RemoveLayerRecheckHooks()
     {
-        if (_foregroundHook.Value != IntPtr.Zero)
+        if (_foregroundHook != IntPtr.Zero)
         {
-            PInvoke.UnhookWinEvent(_foregroundHook);
+            UnhookWinEvent(_foregroundHook);
             _foregroundHook = default;
         }
 
-        if (_reorderHook.Value != IntPtr.Zero)
+        if (_reorderHook != IntPtr.Zero)
         {
-            PInvoke.UnhookWinEvent(_reorderHook);
+            UnhookWinEvent(_reorderHook);
             _reorderHook = default;
         }
     }
@@ -702,7 +712,7 @@ public class FloatingWindowService
         }
     }
 
-    private void OnWinEvent(HWINEVENTHOOK hWinEventHook, uint @event, HWND hwnd, int idObject, int idChild, uint idEventThread,
+    private void OnWinEvent(IntPtr hWinEventHook, uint @event, IntPtr hwnd, int idObject, int idChild, uint idEventThread,
         uint dwmsEventTime)
     {
         if (_window == null)
