@@ -19,7 +19,8 @@ public enum FeatureItemType
 {
     Action,
     Trigger,
-    Component
+    Component,
+    Rule
 }
 
 public partial class UnifiedFeatureItem : ObservableObject
@@ -35,6 +36,7 @@ public partial class UnifiedFeatureItem : ObservableObject
         FeatureItemType.Action => "行动",
         FeatureItemType.Trigger => "触发器",
         FeatureItemType.Component => "组件",
+        FeatureItemType.Rule => "规则",
         _ => "未知"
     };
 }
@@ -123,6 +125,7 @@ public partial class SystemToolsSettingsViewModel : ObservableObject, IDisposabl
             ("SystemTools.UsbDeviceTrigger", "USB设备插入时"),
             ("SystemTools.HotkeyTrigger", "按下F9时"),
             ("SystemTools.ActionInProgressTrigger", "行动进行时"),
+            ("SystemTools.LongIdleTrigger", "长时间未操作电脑时"),
         };
 
         if (Settings.EnableFloatingWindowFeature)
@@ -137,6 +140,22 @@ public partial class SystemToolsSettingsViewModel : ObservableObject, IDisposabl
                 DisplayName = name,
                 IsEnabled = Settings.IsTriggerEnabled(id),
                 ItemType = FeatureItemType.Trigger,
+                GroupName = null
+            });
+        }
+
+        var rules = new List<(string Id, string Name)>
+        {
+            ("SystemTools.ProcessRunningRule", "程序正在运行")
+        };
+        foreach (var (id, name) in rules)
+        {
+            FeatureItems.Add(new UnifiedFeatureItem
+            {
+                Id = id,
+                DisplayName = name,
+                IsEnabled = Settings.IsRuleEnabled(id),
+                ItemType = FeatureItemType.Rule,
                 GroupName = null
             });
         }
@@ -177,7 +196,8 @@ public partial class SystemToolsSettingsViewModel : ObservableObject, IDisposabl
             ("SystemTools.DisableDevice", "禁用硬件设备", "实用工具"),
             ("SystemTools.EnableDevice", "启用硬件设备", "实用工具"),
             ("SystemTools.TriggerCustomTrigger", "触发指定触发器", null),
-            ("SystemTools.RestartAsAdmin", "重启应用为管理员身份", null),
+            ("SystemTools.RestartAsAdmin", "重启应用为管理员身份", "ClassIsland"),
+            ("SystemTools.ClearAllNotifications", "清除全部提醒", "ClassIsland"),
         };
 
         if (Settings.EnableFloatingWindowFeature)
@@ -212,6 +232,9 @@ public partial class SystemToolsSettingsViewModel : ObservableObject, IDisposabl
                     break;
                 case FeatureItemType.Component:
                     Settings.EnabledComponents[item.Id] = item.IsEnabled;
+                    break;
+                case FeatureItemType.Rule:
+                    Settings.EnabledRules[item.Id] = item.IsEnabled;
                     break;
             }
         }

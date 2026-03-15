@@ -297,6 +297,10 @@ public class MainConfigData : INotifyPropertyChanged
     [JsonPropertyName("enabledComponents")]
     public Dictionary<string, bool> EnabledComponents { get; set; } = new();
 
+    // 规则功能启用状态
+    [JsonPropertyName("enabledRules")]
+    public Dictionary<string, bool> EnabledRules { get; set; } = new();
+
     // 添加辅助方法检查功能是否启用
     public bool IsActionEnabled(string actionId) =>
         !EnabledActions.TryGetValue(actionId, out var enabled) || enabled;
@@ -306,6 +310,9 @@ public class MainConfigData : INotifyPropertyChanged
 
     public bool IsComponentEnabled(string componentId) =>
         !EnabledComponents.TryGetValue(componentId, out var enabled) || enabled;
+
+    public bool IsRuleEnabled(string ruleId) =>
+        !EnabledRules.TryGetValue(ruleId, out var enabled) || enabled;
 
     protected void OnPropertyChanged([CallerMemberName] string? propertyName = null)
     {
