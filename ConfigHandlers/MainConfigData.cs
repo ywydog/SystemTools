@@ -177,7 +177,7 @@ public class MainConfigData : INotifyPropertyChanged
         get => _floatingWindowIconSize;
         set
         {
-            var clamped = Math.Clamp(value, 8, 30);
+            var clamped = Math.Clamp(value, 15, 50);
             if (clamped == _floatingWindowIconSize) return;
             _floatingWindowIconSize = clamped;
             OnPropertyChanged();
@@ -195,6 +195,36 @@ public class MainConfigData : INotifyPropertyChanged
             var clamped = Math.Clamp(value, 10, 100);
             if (clamped == _floatingWindowOpacity) return;
             _floatingWindowOpacity = clamped;
+            OnPropertyChanged();
+        }
+    }
+
+
+    bool _floatingWindowShadowEnabled = true;
+
+    [JsonPropertyName("floatingWindowShadowEnabled")]
+    public bool FloatingWindowShadowEnabled
+    {
+        get => _floatingWindowShadowEnabled;
+        set
+        {
+            if (value == _floatingWindowShadowEnabled) return;
+            _floatingWindowShadowEnabled = value;
+            OnPropertyChanged();
+        }
+    }
+
+    int _floatingWindowTheme = 0;
+
+    [JsonPropertyName("floatingWindowTheme")]
+    public int FloatingWindowTheme
+    {
+        get => _floatingWindowTheme;
+        set
+        {
+            var normalized = value is 1 or 2 ? value : 0;
+            if (normalized == _floatingWindowTheme) return;
+            _floatingWindowTheme = normalized;
             OnPropertyChanged();
         }
     }
@@ -227,6 +257,36 @@ public class MainConfigData : INotifyPropertyChanged
         }
     }
 
+    int _floatingWindowLayer = 1;
+
+    [JsonPropertyName("floatingWindowLayer")]
+    public int FloatingWindowLayer
+    {
+        get => _floatingWindowLayer;
+        set
+        {
+            var normalized = value is 0 or 1 ? value : 1;
+            if (normalized == _floatingWindowLayer) return;
+            _floatingWindowLayer = normalized;
+            OnPropertyChanged();
+        }
+    }
+
+    int _floatingWindowLayerRecheckMode = 1;
+
+    [JsonPropertyName("floatingWindowLayerRecheckMode")]
+    public int FloatingWindowLayerRecheckMode
+    {
+        get => _floatingWindowLayerRecheckMode;
+        set
+        {
+            var normalized = Math.Clamp(value, 0, 3);
+            if (normalized == _floatingWindowLayerRecheckMode) return;
+            _floatingWindowLayerRecheckMode = normalized;
+            OnPropertyChanged();
+        }
+    }
+
         // 行动功能启用状态（Key: 行动ID, Value: 是否启用）
     [JsonPropertyName("enabledActions")] public Dictionary<string, bool> EnabledActions { get; set; } = new();
 
@@ -237,6 +297,10 @@ public class MainConfigData : INotifyPropertyChanged
     [JsonPropertyName("enabledComponents")]
     public Dictionary<string, bool> EnabledComponents { get; set; } = new();
 
+    // 规则功能启用状态
+    [JsonPropertyName("enabledRules")]
+    public Dictionary<string, bool> EnabledRules { get; set; } = new();
+
     // 添加辅助方法检查功能是否启用
     public bool IsActionEnabled(string actionId) =>
         !EnabledActions.TryGetValue(actionId, out var enabled) || enabled;
@@ -246,6 +310,9 @@ public class MainConfigData : INotifyPropertyChanged
 
     public bool IsComponentEnabled(string componentId) =>
         !EnabledComponents.TryGetValue(componentId, out var enabled) || enabled;
+
+    public bool IsRuleEnabled(string ruleId) =>
+        !EnabledRules.TryGetValue(ruleId, out var enabled) || enabled;
 
     protected void OnPropertyChanged([CallerMemberName] string? propertyName = null)
     {

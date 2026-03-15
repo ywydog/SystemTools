@@ -19,6 +19,7 @@ using SystemTools.Models.ComponentSettings;
 using SystemTools.ConfigHandlers;
 using SystemTools.Controls;
 using SystemTools.Controls.Components;
+using SystemTools.Rules;
 using SystemTools.Services;
 using SystemTools.Settings;
 using SystemTools.Shared;
@@ -89,6 +90,7 @@ public class Plugin : PluginBase
         // ========== 注册行动、触发器和组件（根据配置）==========
         RegisterBaseActions(services);
         RegisterBaseTriggers(services);
+        RegisterBaseRules(services);
         RegisterBaseComponents(services);
 
         var experimentalEnabled = GlobalConstants.MainConfig.Data.EnableExperimentalFeatures;
@@ -249,6 +251,7 @@ public class Plugin : PluginBase
         RegisterActionIfEnabled<TriggerCustomTriggerAction, TriggerCustomTriggerSettingsControl>(services, config,
             "SystemTools.TriggerCustomTrigger");
         RegisterActionIfEnabled<RestartAsAdminAction>(services, config, "SystemTools.RestartAsAdmin");
+        RegisterActionIfEnabled<ClearAllNotificationsAction>(services, config, "SystemTools.ClearAllNotifications");
     }
 
     private void RegisterBaseTriggers(IServiceCollection services)
@@ -260,11 +263,27 @@ public class Plugin : PluginBase
         RegisterTriggerIfEnabled<HotkeyTrigger, HotkeyTriggerSettings>(services, config, "SystemTools.HotkeyTrigger");
         RegisterTriggerIfEnabled<ActionInProgressTrigger, ActionInProgressTriggerSettings>(services, config,
             "SystemTools.ActionInProgressTrigger");
+        RegisterTriggerIfEnabled<LongIdleTrigger, LongIdleTriggerSettings>(services, config,
+            "SystemTools.LongIdleTrigger");
         if (config.EnableFloatingWindowFeature)
         {
             RegisterTriggerIfEnabled<FloatingWindowTrigger, FloatingWindowTriggerSettings>(services, config,
                 "SystemTools.FloatingWindowTrigger");
         }
+    }
+
+
+
+    private void RegisterBaseRules(IServiceCollection services)
+    {
+        var config = GlobalConstants.MainConfig!.Data;
+        if (!config.IsRuleEnabled("SystemTools.ProcessRunningRule"))
+        {
+            return;
+        }
+
+        services.AddRule<ProcessRunningRuleSettings, ProcessRunningRuleSettingsControl>(
+            "SystemTools.ProcessRunningRule", "程序正在运行", "\uE342", HandleProcessRunningRule);
     }
 
     private void RegisterBaseComponents(IServiceCollection services)
@@ -411,6 +430,12 @@ public class Plugin : PluginBase
             BuildUtilityMenu(config);
         }
 
+        if (HasAnyActionEnabled(config, "SystemTools.ClearAllNotifications", "SystemTools.RestartAsAdmin"))
+        {
+            IActionService.ActionMenuTree["SystemTools 行动"].Add(new ActionMenuTreeGroup("ClassIsland…", "\uE5CB"));
+            BuildClassIslandMenu(config);
+        }
+
         // 悬浮窗设置
         if (config.EnableFloatingWindowFeature && config.IsActionEnabled("SystemTools.ShowFloatingWindow"))
         {
@@ -429,8 +454,6 @@ public class Plugin : PluginBase
         var standaloneActions = new List<ActionMenuTreeItem>();
         if (config.IsActionEnabled("SystemTools.TriggerCustomTrigger"))
             standaloneActions.Add(new ActionMenuTreeItem("SystemTools.TriggerCustomTrigger", "触发指定触发器", "\uEAB7"));
-        if (config.IsActionEnabled("SystemTools.RestartAsAdmin"))
-            standaloneActions.Add(new ActionMenuTreeItem("SystemTools.RestartAsAdmin", "重启应用为管理员身份", "\uEF53"));
 
         if (standaloneActions.Count > 0)
         {
@@ -441,6 +464,30 @@ public class Plugin : PluginBase
     private bool HasAnyActionEnabled(MainConfigData config, params string[] actionIds)
     {
         return actionIds.Any(id => config.IsActionEnabled(id));
+    }
+
+    private static bool HandleProcessRunningRule(object? settings)
+    {
+        if (settings is not ProcessRunningRuleSettings ruleSettings ||
+            string.IsNullOrWhiteSpace(ruleSettings.ProcessName))
+        {
+            return false;
+        }
+
+        var processName = ruleSettings.ProcessName.Trim();
+        if (processName.EndsWith(".exe", StringComparison.OrdinalIgnoreCase))
+        {
+            processName = processName[..^4];
+        }
+
+        try
+        {
+            return System.Diagnostics.Process.GetProcessesByName(processName).Length > 0;
+        }
+        catch
+        {
+            return false;
+        }
     }
 
     private void BuildSimulationMenu(MainConfigData config)
@@ -602,6 +649,21 @@ public class Plugin : PluginBase
         {
             IActionService.ActionMenuTree["SystemTools 行动"]["其他工具…"].Add(
                 new ActionMenuTreeItem("SystemTools.FullscreenClock", "沉浸式时钟", "\uE4D2"));
+        }
+    }
+
+    private void BuildClassIslandMenu(MainConfigData config)
+    {
+        var items = new List<ActionMenuTreeItem>();
+
+        if (config.IsActionEnabled("SystemTools.ClearAllNotifications"))
+            items.Add(new ActionMenuTreeItem("SystemTools.ClearAllNotifications", "清除全部提醒", "\uE029"));
+        if (config.IsActionEnabled("SystemTools.RestartAsAdmin"))
+            items.Add(new ActionMenuTreeItem("SystemTools.RestartAsAdmin", "重启应用为管理员身份", "\uEF53"));
+
+        if (items.Count > 0)
+        {
+            IActionService.ActionMenuTree["SystemTools 行动"]["ClassIsland…"].AddRange(items);
         }
     }
 

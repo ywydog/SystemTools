@@ -63,7 +63,11 @@ public partial class FloatingWindowEditorSettingsPage : SettingsPageBase
             or nameof(MainConfigData.FloatingWindowScale)
             or nameof(MainConfigData.FloatingWindowIconSize)
             or nameof(MainConfigData.FloatingWindowTextSize)
-            or nameof(MainConfigData.FloatingWindowOpacity))
+            or nameof(MainConfigData.FloatingWindowOpacity)
+            or nameof(MainConfigData.FloatingWindowTheme)
+            or nameof(MainConfigData.FloatingWindowShadowEnabled)
+            or nameof(MainConfigData.FloatingWindowLayer)
+            or nameof(MainConfigData.FloatingWindowLayerRecheckMode))
         {
             IAppHost.GetService<FloatingWindowService>().UpdateWindowState();
         }

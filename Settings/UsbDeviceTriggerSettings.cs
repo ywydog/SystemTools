@@ -26,7 +26,7 @@ public class UsbDeviceTriggerSettings : TriggerSettingsControlBase<UsbDeviceTrig
 
         panel.Children.Add(new TextBlock
         {
-            Text = "检测到USB设备接入后，仅当识别到新存储盘符时才触发。",
+            Text = "勾选后使仅当U盘设备插入时触发。",
             TextWrapping = Avalonia.Media.TextWrapping.Wrap,
             Foreground = Avalonia.Media.Brushes.Gray
         });

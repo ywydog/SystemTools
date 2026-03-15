@@ -34,76 +34,161 @@
                 </controls:SettingsExpander.Footer>
             </controls:SettingsExpander>
 
-            <controls:SettingsExpander IconSource="{ci:FluentIconSource &#xE10B;}"
-                                       Header="悬浮窗缩放"
-                                       Description="调整悬浮窗缩放大小">
-                <controls:SettingsExpander.Footer>
-                    <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-                        <Slider Width="160"
-                                Minimum="0.5"
-                                Maximum="2"
-                                TickFrequency="0.1"
-                                IsSnapToTickEnabled="True"
-                                Value="{Binding ViewModel.Settings.FloatingWindowScale, Mode=TwoWay}" />
-                        <TextBlock Text="{Binding ViewModel.Settings.FloatingWindowScale, StringFormat='{}{0:F1}x'}"
-                                   Width="46"
-                                   VerticalAlignment="Center" />
-                    </StackPanel>
-                </controls:SettingsExpander.Footer>
+            <controls:SettingsExpander IconSource="{ci:FluentIconSource &#xE51E;}"
+                                       Header="外观设置"
+                                       Description="设置悬浮窗外观"
+                                       IsExpanded="True">
+
+                <controls:SettingsExpanderItem IconSource="{ci:FluentIconSource &#xE10B;}"
+                                               Content="悬浮窗缩放"
+                                               Description="调整悬浮窗缩放大小">
+                    <controls:SettingsExpanderItem.Footer>
+                        <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                            <Slider Width="160"
+                                    Minimum="0.5"
+                                    Maximum="2"
+                                    TickFrequency="0.1"
+                                    IsSnapToTickEnabled="True"
+                                    Value="{Binding ViewModel.Settings.FloatingWindowScale, Mode=TwoWay}" />
+                            <TextBlock
+                                Text="{Binding ViewModel.Settings.FloatingWindowScale, StringFormat='{}{0:F1}x'}"
+                                Width="46"
+                                VerticalAlignment="Center" />
+                        </StackPanel>
+                    </controls:SettingsExpanderItem.Footer>
+                </controls:SettingsExpanderItem>
+
+                <controls:SettingsExpanderItem IconSource="{ci:FluentIconSource &#xF17E;}"
+                                               Content="图标大小"
+                                               Description="调整悬浮窗内图标缩放">
+                    <controls:SettingsExpanderItem.Footer>
+                        <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                            <Slider Width="160"
+                                    Minimum="15"
+                                    Maximum="50"
+                                    TickFrequency="1"
+                                    IsSnapToTickEnabled="True"
+                                    Value="{Binding ViewModel.Settings.FloatingWindowIconSize, Mode=TwoWay}" />
+                            <TextBlock
+                                Text="{Binding ViewModel.Settings.FloatingWindowIconSize, StringFormat='{}{0}px'}"
+                                Width="46"
+                                VerticalAlignment="Center" />
+                        </StackPanel>
+                    </controls:SettingsExpanderItem.Footer>
+                </controls:SettingsExpanderItem>
+
+                <controls:SettingsExpanderItem IconSource="{ci:FluentIconSource &#xF17E;}"
+                                               Content="文字大小"
+                                               Description="调整悬浮窗内文字缩放">
+                    <controls:SettingsExpanderItem.Footer>
+                        <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                            <Slider Width="160"
+                                    Minimum="8"
+                                    Maximum="25"
+                                    TickFrequency="1"
+                                    IsSnapToTickEnabled="True"
+                                    Value="{Binding ViewModel.Settings.FloatingWindowTextSize, Mode=TwoWay}" />
+                            <TextBlock
+                                Text="{Binding ViewModel.Settings.FloatingWindowTextSize, StringFormat='{}{0}px'}"
+                                Width="46"
+                                VerticalAlignment="Center" />
+                        </StackPanel>
+                    </controls:SettingsExpanderItem.Footer>
+                </controls:SettingsExpanderItem>
+
+                <controls:SettingsExpanderItem IconSource="{ci:FluentIconSource &#xF045;}"
+                                               Content="透明度"
+                                               Description="调整悬浮窗透明度">
+                    <controls:SettingsExpanderItem.Footer>
+                        <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                            <Slider Width="160"
+                                    Minimum="10"
+                                    Maximum="100"
+                                    TickFrequency="1"
+                                    IsSnapToTickEnabled="True"
+                                    Value="{Binding ViewModel.Settings.FloatingWindowOpacity, Mode=TwoWay}" />
+                            <TextBlock Text="{Binding ViewModel.Settings.FloatingWindowOpacity, StringFormat='{}{0}%'}"
+                                       Width="46"
+                                       VerticalAlignment="Center" />
+                        </StackPanel>
+                    </controls:SettingsExpanderItem.Footer>
+                </controls:SettingsExpanderItem>
+
+                <controls:SettingsExpanderItem IconSource="{ci:FluentIconSource &#xE5CB;}"
+                                               Content="主题"
+                                               Description="设置悬浮窗主题">
+                    <controls:SettingsExpanderItem.Footer>
+                        <ComboBox SelectedIndex="{Binding ViewModel.Settings.FloatingWindowTheme, Mode=TwoWay}">
+                            <ComboBoxItem>
+                                <ci:IconText Glyph="&#xE5CB;" Text="跟随ClassIsland" />
+                            </ComboBoxItem>
+                            <ComboBoxItem>
+                                <ci:IconText Glyph="&#xF465;" Text="明亮" />
+                            </ComboBoxItem>
+                            <ComboBoxItem>
+                                <ci:IconText Glyph="&#xF44B;" Text="黑暗" />
+                            </ComboBoxItem>
+                        </ComboBox>
+                    </controls:SettingsExpanderItem.Footer>
+                </controls:SettingsExpanderItem>
+
+                <controls:SettingsExpanderItem IconSource="{ci:FluentIconSource &#xE20B;}"
+                                               Content="阴影效果"
+                                               Description="悬浮窗阴影效果">
+                    <controls:SettingsExpanderItem.Footer>
+                        <ToggleSwitch IsChecked="{Binding ViewModel.Settings.FloatingWindowShadowEnabled, Mode=TwoWay}" />
+                    </controls:SettingsExpanderItem.Footer>
+                </controls:SettingsExpanderItem>
             </controls:SettingsExpander>
 
-            <controls:SettingsExpander IconSource="{ci:FluentIconSource &#xF17E;}"
-                                       Header="图标大小"
-                                       Description="调整悬浮窗内图标缩放">
-                <controls:SettingsExpander.Footer>
-                    <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-                        <Slider Width="160"
-                                Minimum="15"
-                                Maximum="50"
-                                TickFrequency="1"
-                                IsSnapToTickEnabled="True"
-                                Value="{Binding ViewModel.Settings.FloatingWindowIconSize, Mode=TwoWay}" />
-                        <TextBlock Text="{Binding ViewModel.Settings.FloatingWindowIconSize, StringFormat='{}{0}px'}"
-                                   Width="46"
-                                   VerticalAlignment="Center" />
-                    </StackPanel>
-                </controls:SettingsExpander.Footer>
-            </controls:SettingsExpander>
 
-            <controls:SettingsExpander IconSource="{ci:FluentIconSource &#xF17E;}"
-                                       Header="文字大小"
-                                       Description="调整悬浮窗内文字缩放">
+            <controls:SettingsExpander IconSource="{ci:FluentIconSource &#xEA2F;}"
+                                       Header="悬浮窗层级"
+                                       Description="悬浮窗在屏幕上的层级。置底则会显示在所有窗口的后方，置顶则将显示在所有窗口的前方。"
+                                       IsExpanded="True">
                 <controls:SettingsExpander.Footer>
-                    <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-                        <Slider Width="160"
-                                Minimum="8"
-                                Maximum="25"
-                                TickFrequency="1"
-                                IsSnapToTickEnabled="True"
-                                Value="{Binding ViewModel.Settings.FloatingWindowTextSize, Mode=TwoWay}" />
-                        <TextBlock Text="{Binding ViewModel.Settings.FloatingWindowTextSize, StringFormat='{}{0}px'}"
-                                   Width="46"
-                                   VerticalAlignment="Center" />
-                    </StackPanel>
+                    <ComboBox SelectedIndex="{Binding ViewModel.Settings.FloatingWindowLayer, Mode=TwoWay}">
+                        <ComboBoxItem>
+                            <ci:IconText Glyph="&#xE0CB;" Text="置底" />
+                        </ComboBoxItem>
+                        <ComboBoxItem>
+                            <ci:IconText Glyph="&#xE197;" Text="置顶" />
+                        </ComboBoxItem>
+                    </ComboBox>
                 </controls:SettingsExpander.Footer>
-            </controls:SettingsExpander>
-
-            <controls:SettingsExpander IconSource="{ci:FluentIconSource &#xF045;}"
-                                       Header="透明度"
-                                       Description="调整悬浮窗透明度">
-                <controls:SettingsExpander.Footer>
-                    <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-                        <Slider Width="160"
-                                Minimum="10"
-                                Maximum="100"
-                                TickFrequency="1"
-                                IsSnapToTickEnabled="True"
-                                Value="{Binding ViewModel.Settings.FloatingWindowOpacity, Mode=TwoWay}" />
-                        <TextBlock Text="{Binding ViewModel.Settings.FloatingWindowOpacity, StringFormat='{}{0}%'}"
-                                   Width="46"
-                                   VerticalAlignment="Center" />
-                    </StackPanel>
-                </controls:SettingsExpander.Footer>
+                <controls:SettingsExpanderItem IconSource="{ci:FluentIconSource &#xE125;}"
+                                               Content="层级设置频率"
+                                               Description="在什么时候重新设置悬浮窗层级。请注意，较高的频率可能会产生较高的性能占用并导致悬浮窗闪烁。">
+                    <controls:SettingsExpanderItem.Footer>
+                        <ComboBox
+                            SelectedIndex="{Binding ViewModel.Settings.FloatingWindowLayerRecheckMode, Mode=TwoWay}">
+                            <ComboBoxItem>窗口层级变化时</ComboBoxItem>
+                            <ComboBoxItem>前台窗口变化时</ComboBoxItem>
+                            <ComboBoxItem>
+                                <StackPanel Orientation="Horizontal"
+                                            Classes="items-valign-center"
+                                            Spacing="4">
+                                    <TextBlock Text="每 50ms" />
+                                    <ci:FluentIcon Glyph="&#xF431;"
+                                                   FontSize="20"
+                                                   Margin="0 -8"
+                                                   Foreground="Orange" />
+                                </StackPanel>
+                            </ComboBoxItem>
+                            <ComboBoxItem>
+                                <StackPanel Orientation="Horizontal"
+                                            Classes="items-valign-center"
+                                            Spacing="4">
+                                    <TextBlock Text="每 1ms" />
+                                    <ci:FluentIcon Glyph="&#xF431;"
+                                                   FontSize="20"
+                                                   Margin="0 -8"
+                                                   Foreground="OrangeRed" />
+                                </StackPanel>
+                            </ComboBoxItem>
+                        </ComboBox>
+                    </controls:SettingsExpanderItem.Footer>
+                </controls:SettingsExpanderItem>
             </controls:SettingsExpander>
 
             <controls:SettingsExpander IconSource="{ci:FluentIconSource &#xEA37;}"
