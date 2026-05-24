@@ -26,10 +26,19 @@ public class ToggleWorkflowAction(ILogger<ToggleWorkflowAction> logger) : Action
     /// <summary>
     /// 原始状态快照
     /// </summary>
-    private readonly record struct OriginalStateSnapshot(
-        string WorkflowName,
-        int WorkflowIndex,
-        bool IsEnabled);
+    private struct OriginalStateSnapshot
+    {
+        public string WorkflowName;
+        public int WorkflowIndex;
+        public bool IsEnabled;
+
+        public OriginalStateSnapshot(string workflowName, int workflowIndex, bool isEnabled)
+        {
+            WorkflowName = workflowName;
+            WorkflowIndex = workflowIndex;
+            IsEnabled = isEnabled;
+        }
+    }
 
     protected override async Task OnInvoke()
     {
@@ -44,7 +53,7 @@ public class ToggleWorkflowAction(ILogger<ToggleWorkflowAction> logger) : Action
         try
         {
             var automationService = IAppHost.TryGetService<IAutomationService>();
-            if (automationService?.Workflows == null)
+            if (automationService == null || automationService.Workflows == null)
             {
                 _logger.LogError("无法获取自动化服务");
                 throw new InvalidOperationException("无法获取自动化服务，请确保 ClassIsland 已正确加载。");
@@ -55,7 +64,7 @@ public class ToggleWorkflowAction(ILogger<ToggleWorkflowAction> logger) : Action
             {
                 _logger.LogWarning("未找到目标自动化: Index={Index}, Name={Name}",
                     Settings.TargetWorkflowIndex, Settings.TargetWorkflowName);
-                throw new InvalidOperationException($"未找到指定的自动化方案: {Settings.TargetWorkflowName}");
+                throw new InvalidOperationException("未找到指定的自动化方案: " + Settings.TargetWorkflowName);
             }
 
             var actionSet = targetWorkflow.ActionSet;
@@ -78,20 +87,20 @@ public class ToggleWorkflowAction(ILogger<ToggleWorkflowAction> logger) : Action
             bool targetStatus;
             string operationDescription;
 
-            switch (Settings.EnableMode)
+            if (Settings.EnableMode == true)
             {
-                case true:
-                    targetStatus = true;
-                    operationDescription = "启用";
-                    break;
-                case false:
-                    targetStatus = false;
-                    operationDescription = "禁用";
-                    break;
-                default:
-                    targetStatus = !currentStatus;
-                    operationDescription = targetStatus ? "启用" : "禁用";
-                    break;
+                targetStatus = true;
+                operationDescription = "启用";
+            }
+            else if (Settings.EnableMode == false)
+            {
+                targetStatus = false;
+                operationDescription = "禁用";
+            }
+            else
+            {
+                targetStatus = !currentStatus;
+                operationDescription = targetStatus ? "启用" : "禁用";
             }
 
             // 执行状态切换
@@ -106,7 +115,7 @@ public class ToggleWorkflowAction(ILogger<ToggleWorkflowAction> logger) : Action
                     operationDescription, actionSet.Name, currentStatus, targetStatus);
 
                 actionSet.IsEnabled = targetStatus;
-                automationService.SaveConfig($"通过行动{operationDescription}自动化 \"{actionSet.Name}\"");
+                automationService.SaveConfig("通过行动" + operationDescription + "自动化 \"" + actionSet.Name + "\"");
 
                 _logger.LogInformation("自动化 \"{WorkflowName}\" 已成功{Operation}",
                     actionSet.Name, operationDescription);
@@ -144,7 +153,7 @@ public class ToggleWorkflowAction(ILogger<ToggleWorkflowAction> logger) : Action
         try
         {
             var automationService = IAppHost.TryGetService<IAutomationService>();
-            if (automationService?.Workflows == null)
+            if (automationService == null || automationService.Workflows == null)
             {
                 _logger.LogError("无法获取自动化服务");
                 throw new InvalidOperationException("无法获取自动化服务。");
@@ -207,7 +216,7 @@ public class ToggleWorkflowAction(ILogger<ToggleWorkflowAction> logger) : Action
                     actionSet.Name, currentStatus, originalStatus);
 
                 actionSet.IsEnabled = originalStatus;
-                automationService.SaveConfig($"通过行动恢复自动化 \"{actionSet.Name}\" 到原始状态({originalStatus})");
+                automationService.SaveConfig("通过行动恢复自动化 \"" + actionSet.Name + "\" 到原始状态(" + originalStatus + ")");
 
                 _logger.LogInformation("自动化 \"{WorkflowName}\" 已成功恢复到原始状态",
                     actionSet.Name);
