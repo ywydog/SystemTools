@@ -8,6 +8,7 @@ using System.Collections.Concurrent;
 using System.Linq;
 using System.Threading.Tasks;
 using SystemTools.Settings;
+using ClassIsland.Shared;
 using Workflow = ClassIsland.Core.Models.Automation.Workflow;
 
 namespace SystemTools.Actions;
