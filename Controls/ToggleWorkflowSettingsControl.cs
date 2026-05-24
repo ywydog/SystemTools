@@ -20,7 +20,7 @@ public class ToggleWorkflowSettingsControl : ActionSettingsControlBase<ToggleWor
     private ComboBox _workflowComboBox;
     private ComboBox _modeComboBox;
     private CheckBox _revertCheckBox;
-    private ObservableCollection<Workflow> _workflows = [];
+    private ObservableCollection<Workflow> _workflows = new();
     private TextBlock _infoTextBlock;
 
     public ToggleWorkflowSettingsControl()
@@ -136,7 +136,7 @@ public class ToggleWorkflowSettingsControl : ActionSettingsControlBase<ToggleWor
         try
         {
             var automationService = IAppHost.TryGetService<IAutomationService>();
-            if (automationService?.Workflows == null)
+            if (automationService == null || automationService.Workflows == null)
             {
                 _infoTextBlock.Text = "无法获取自动化服务，请确保 ClassIsland 已正确加载。";
                 _infoTextBlock.Foreground = Brushes.Orange;
@@ -153,7 +153,7 @@ public class ToggleWorkflowSettingsControl : ActionSettingsControlBase<ToggleWor
                 var statusText = actionSet.IsEnabled ? "[已启用]" : "[已禁用]";
                 var item = new ComboBoxItem
                 {
-                    Content = $"{actionSet.Name} {statusText}",
+                    Content = actionSet.Name + " " + statusText,
                     Tag = workflow
                 };
                 _workflowComboBox.Items.Add(item);
@@ -176,7 +176,7 @@ public class ToggleWorkflowSettingsControl : ActionSettingsControlBase<ToggleWor
         }
         catch (Exception ex)
         {
-            _infoTextBlock.Text = $"加载自动化列表失败: {ex.Message}";
+            _infoTextBlock.Text = "加载自动化列表失败: " + ex.Message;
             _infoTextBlock.Foreground = Brushes.Red;
             _infoTextBlock.IsVisible = true;
         }
@@ -196,9 +196,9 @@ public class ToggleWorkflowSettingsControl : ActionSettingsControlBase<ToggleWor
             // 尝试通过名称查找
             for (int i = 0; i < _workflowComboBox.Items.Count; i++)
             {
-                if (_workflowComboBox.Items[i] is ComboBoxItem item &amp;&amp;
-                    item.Tag is Workflow workflow &amp;&amp;
-                    workflow.ActionSet.Name == Settings.TargetWorkflowName)
+                var comboItem = _workflowComboBox.Items[i] as ComboBoxItem;
+                var wf = comboItem?.Tag as Workflow;
+                if (wf != null &amp;&amp; wf.ActionSet.Name == Settings.TargetWorkflowName)
                 {
                     _workflowComboBox.SelectedIndex = i;
                     break;
@@ -207,13 +207,19 @@ public class ToggleWorkflowSettingsControl : ActionSettingsControlBase<ToggleWor
         }
 
         // 恢复操作模式
-        var modeIndex = Settings.EnableMode switch
+        int modeIndex;
+        if (Settings.EnableMode == null)
         {
-            null => 0,  // 切换
-            true => 1,  // 启用
-            false => 2, // 禁用
-            _ => 0
-        };
+            modeIndex = 0;  // 切换
+        }
+        else if (Settings.EnableMode == true)
+        {
+            modeIndex = 1;  // 启用
+        }
+        else
+        {
+            modeIndex = 2;  // 禁用
+        }
         _modeComboBox.SelectedIndex = modeIndex;
 
         // 恢复复选框
@@ -222,14 +228,16 @@ public class ToggleWorkflowSettingsControl : ActionSettingsControlBase<ToggleWor
 
     private void OnWorkflowSelectionChanged(object? sender, SelectionChangedEventArgs e)
     {
-        if (_workflowComboBox.SelectedItem is ComboBoxItem item &amp;&amp; item.Tag is Workflow workflow)
+        var selectedItem = _workflowComboBox.SelectedItem as ComboBoxItem;
+        var workflow = selectedItem?.Tag as Workflow;
+        if (workflow != null)
         {
             Settings.TargetWorkflowName = workflow.ActionSet.Name;
             Settings.TargetWorkflowIndex = _workflowComboBox.SelectedIndex;
 
             // 更新信息显示
             var status = workflow.ActionSet.IsEnabled ? "已启用" : "已禁用";
-            _infoTextBlock.Text = $"当前状态: {status} | 行动组: {workflow.ActionSet.Name}";
+            _infoTextBlock.Text = "当前状态: " + status + " | 行动组: " + workflow.ActionSet.Name;
             _infoTextBlock.Foreground = workflow.ActionSet.IsEnabled ? Brushes.Green : Brushes.Gray;
             _infoTextBlock.IsVisible = true;
         }
@@ -237,7 +245,8 @@ public class ToggleWorkflowSettingsControl : ActionSettingsControlBase<ToggleWor
 
     private void OnModeSelectionChanged(object? sender, SelectionChangedEventArgs e)
     {
-        if (_modeComboBox.SelectedItem is ComboBoxItem item &amp;&amp; item.Tag is bool? mode)
+        var selectedItem = _modeComboBox.SelectedItem as ComboBoxItem;
+        if (selectedItem != null &amp;&amp; selectedItem.Tag is bool mode)
         {
             Settings.EnableMode = mode;
         }
