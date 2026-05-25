@@ -19,7 +19,7 @@ public class ToggleWorkflowAction(ILogger<ToggleWorkflowAction> logger) : Action
     private static readonly ConcurrentDictionary<Guid, OriginalStateSnapshot> PreviousSnapshots = new();
 
     /// <summary>
-    /// 清空所有状态快照，防止插件卸载或重启后内存泄漏。
+    /// 清空所有状态快照,防止插件卸载或重启后内存泄漏。
     /// 由 Plugin 在应用停止时调用。
     /// </summary>
     internal static void ClearSnapshots()
@@ -33,7 +33,7 @@ public class ToggleWorkflowAction(ILogger<ToggleWorkflowAction> logger) : Action
 
         if (Settings == null)
         {
-            _logger.LogWarning("设置为空，无法执行");
+            _logger.LogWarning("设置为空,无法执行");
             return;
         }
 
@@ -41,7 +41,7 @@ public class ToggleWorkflowAction(ILogger<ToggleWorkflowAction> logger) : Action
         if (automationService?.Workflows == null)
         {
             _logger.LogError("无法获取自动化服务");
-            throw new InvalidOperationException("无法获取自动化服务，请确保 ClassIsland 已正确加载。");
+            throw new InvalidOperationException("无法获取自动化服务,请确保 ClassIsland 已正确加载。");
         }
 
         var targetWorkflow = FindTargetWorkflow(automationService);
@@ -73,7 +73,7 @@ public class ToggleWorkflowAction(ILogger<ToggleWorkflowAction> logger) : Action
 
         if (currentStatus == targetStatus)
         {
-            _logger.LogInformation("自动化 "{WorkflowName}" 已经是{Operation}状态，无需操作",
+            _logger.LogInformation("自动化 "{WorkflowName}" 已经是{Operation}状态,无需操作",
                 actionSet.Name, operationDescription);
         }
         else
@@ -98,18 +98,18 @@ public class ToggleWorkflowAction(ILogger<ToggleWorkflowAction> logger) : Action
 
         if (!PreviousSnapshots.TryRemove(ActionSet.Guid, out var snapshot))
         {
-            _logger.LogInformation("未找到触发前状态，跳过恢复。ActionSet={ActionSetGuid}", ActionSet.Guid);
+            _logger.LogInformation("未找到触发前状态,跳过恢复。ActionSet={ActionSetGuid}", ActionSet.Guid);
             return;
         }
 
         var automationService = IAppHost.TryGetService<IAutomationService>();
         if (automationService?.Workflows == null)
         {
-            _logger.LogError("无法获取自动化服务，恢复失败");
+            _logger.LogError("无法获取自动化服务,恢复失败");
             return;
         }
 
-        // 通过 Guid 精确查找，避免设置变更或列表顺序变动导致误操作其他自动化
+        // 通过 Guid 精确查找,避免设置变更或列表顺序变动导致误操作其他自动化
         var targetWorkflow = automationService.Workflows
             .FirstOrDefault(w => w.ActionSet.Guid == snapshot.WorkflowGuid);
 
@@ -131,7 +131,7 @@ public class ToggleWorkflowAction(ILogger<ToggleWorkflowAction> logger) : Action
     {
         Workflow? targetWorkflow = null;
 
-        // 1. 尝试通过索引查找，并校验名称是否匹配，防止列表顺序变动后误操作
+        // 1. 尝试通过索引查找,并校验名称是否匹配,防止列表顺序变动后误操作
         if (Settings.TargetWorkflowIndex >= 0 && Settings.TargetWorkflowIndex < automationService.Workflows.Count)
         {
             var candidate = automationService.Workflows[Settings.TargetWorkflowIndex];
@@ -143,12 +143,12 @@ public class ToggleWorkflowAction(ILogger<ToggleWorkflowAction> logger) : Action
             }
             else
             {
-                _logger.LogDebug("索引 {Index} 处的自动化名称不匹配 (期望: {Expected}, 实际: {Actual})，将回退到名称查找",
+                _logger.LogDebug("索引 {Index} 处的自动化名称不匹配 (期望: {Expected}, 实际: {Actual}),将回退到名称查找",
                     Settings.TargetWorkflowIndex, Settings.TargetWorkflowName, candidate.ActionSet.Name);
             }
         }
 
-        // 2. 如果索引找不到或名称不匹配，尝试通过名称查找
+        // 2. 如果索引找不到或名称不匹配,尝试通过名称查找
         if (targetWorkflow == null && !string.IsNullOrEmpty(Settings.TargetWorkflowName))
         {
             targetWorkflow = automationService.Workflows
