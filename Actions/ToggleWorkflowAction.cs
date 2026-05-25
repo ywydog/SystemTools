@@ -119,7 +119,7 @@ public class ToggleWorkflowAction(ILogger<ToggleWorkflowAction> logger) : Action
         Workflow? targetWorkflow = null;
 
         // 1. 尝试通过索引查找
-        if (Settings.TargetWorkflowIndex >= 0 &&; Settings.TargetWorkflowIndex < automationService.Workflows.Count)
+        if (Settings.TargetWorkflowIndex >= 0 && Settings.TargetWorkflowIndex < automationService.Workflows.Count)
         {
             targetWorkflow = automationService.Workflows[Settings.TargetWorkflowIndex];
             _logger.LogDebug("通过索引 {Index} 找到自动化: {Name}",
@@ -127,7 +127,7 @@ public class ToggleWorkflowAction(ILogger<ToggleWorkflowAction> logger) : Action
         }
 
         // 2. 如果索引找不到，尝试通过名称查找
-        if (targetWorkflow == null &&; !string.IsNullOrEmpty(Settings.TargetWorkflowName))
+        if (targetWorkflow == null && !string.IsNullOrEmpty(Settings.TargetWorkflowName))
         {
             targetWorkflow = automationService.Workflows
                 .FirstOrDefault(w => w.ActionSet.Name == Settings.TargetWorkflowName);
