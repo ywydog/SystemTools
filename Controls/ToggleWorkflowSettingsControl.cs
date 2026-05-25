@@ -86,7 +86,7 @@ public class ToggleWorkflowSettingsControl : ActionSettingsControlBase<ToggleWor
         // 恢复说明
         panel.Children.Add(new TextBlock
         {
-            Text = "提示：当触发器支持恢复（如\"上课时\"在放学时恢复），勾选此项会自动将自动化恢复到触发前的状态。",
+            Text = "提示：当触发器支持恢复（如"上课时"在放学时恢复），勾选此项会自动将自动化恢复到触发前的状态。",
             TextWrapping = TextWrapping.Wrap,
             FontSize = 12,
             Opacity = 0.7,
@@ -127,8 +127,17 @@ public class ToggleWorkflowSettingsControl : ActionSettingsControlBase<ToggleWor
         _modeComboBox.SelectionChanged += OnModeSelectionChanged;
         _revertCheckBox.IsCheckedChanged += OnRevertCheckBoxChanged;
 
-        // 恢复设置值
+        // 恢复设置值（仅在此处恢复一次，避免重复绑定后触发事件导致设置被覆盖）
         RestoreSettings();
+    }
+
+    protected override void OnDetachedFromLogicalTree(LogicalTreeAttachmentEventArgs e)
+    {
+        // 解绑事件，防止内存泄漏
+        _workflowComboBox.SelectionChanged -= OnWorkflowSelectionChanged;
+        _modeComboBox.SelectionChanged -= OnModeSelectionChanged;
+        _revertCheckBox.IsCheckedChanged -= OnRevertCheckBoxChanged;
+        base.OnDetachedFromLogicalTree(e);
     }
 
     private void LoadWorkflows()
@@ -170,9 +179,6 @@ public class ToggleWorkflowSettingsControl : ActionSettingsControlBase<ToggleWor
             {
                 _infoTextBlock.IsVisible = false;
             }
-
-            // 恢复之前的选择
-            RestoreSettings();
         }
         catch (Exception ex)
         {
@@ -187,7 +193,7 @@ public class ToggleWorkflowSettingsControl : ActionSettingsControlBase<ToggleWor
         if (Settings == null) return;
 
         // 恢复自动化选择
-        if (Settings.TargetWorkflowIndex >= 0 &amp;&amp; Settings.TargetWorkflowIndex < _workflowComboBox.Items.Count)
+        if (Settings.TargetWorkflowIndex >= 0 && Settings.TargetWorkflowIndex < _workflowComboBox.Items.Count)
         {
             _workflowComboBox.SelectedIndex = Settings.TargetWorkflowIndex;
         }
@@ -196,8 +202,8 @@ public class ToggleWorkflowSettingsControl : ActionSettingsControlBase<ToggleWor
             // 尝试通过名称查找
             for (int i = 0; i < _workflowComboBox.Items.Count; i++)
             {
-                if (_workflowComboBox.Items[i] is ComboBoxItem item &amp;&amp;
-                    item.Tag is Workflow workflow &amp;&amp;
+                if (_workflowComboBox.Items[i] is ComboBoxItem item &&
+                    item.Tag is Workflow workflow &&
                     workflow.ActionSet.Name == Settings.TargetWorkflowName)
                 {
                     _workflowComboBox.SelectedIndex = i;
@@ -222,7 +228,8 @@ public class ToggleWorkflowSettingsControl : ActionSettingsControlBase<ToggleWor
 
     private void OnWorkflowSelectionChanged(object? sender, SelectionChangedEventArgs e)
     {
-        if (_workflowComboBox.SelectedItem is ComboBoxItem item &amp;&amp; item.Tag is Workflow workflow)
+        if (Settings == null) return;
+        if (_workflowComboBox.SelectedItem is ComboBoxItem item && item.Tag is Workflow workflow)
         {
             Settings.TargetWorkflowName = workflow.ActionSet.Name;
             Settings.TargetWorkflowIndex = _workflowComboBox.SelectedIndex;
@@ -237,7 +244,8 @@ public class ToggleWorkflowSettingsControl : ActionSettingsControlBase<ToggleWor
 
     private void OnModeSelectionChanged(object? sender, SelectionChangedEventArgs e)
     {
-        if (_modeComboBox.SelectedItem is ComboBoxItem item &amp;&amp; item.Tag is bool? mode)
+        if (Settings == null) return;
+        if (_modeComboBox.SelectedItem is ComboBoxItem item && item.Tag is bool? mode)
         {
             Settings.EnableMode = mode;
         }
@@ -249,6 +257,7 @@ public class ToggleWorkflowSettingsControl : ActionSettingsControlBase<ToggleWor
 
     private void OnRevertCheckBoxChanged(object? sender, EventArgs e)
     {
+        if (Settings == null) return;
         if (_revertCheckBox.IsChecked.HasValue)
         {
             Settings.RevertToOriginal = _revertCheckBox.IsChecked.Value;
