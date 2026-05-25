@@ -18,6 +18,15 @@ public class ToggleWorkflowAction(ILogger<ToggleWorkflowAction> logger) : Action
 
     private static readonly ConcurrentDictionary<Guid, OriginalStateSnapshot> PreviousSnapshots = new();
 
+    /// <summary>
+    /// 清空所有状态快照，防止插件卸载或重启后内存泄漏。
+    /// 由 Plugin 在应用停止时调用。
+    /// </summary>
+    internal static void ClearSnapshots()
+    {
+        PreviousSnapshots.Clear();
+    }
+
     protected override async Task OnInvoke()
     {
         _logger.LogDebug("ToggleWorkflowAction OnInvoke 开始");
@@ -51,7 +60,8 @@ public class ToggleWorkflowAction(ILogger<ToggleWorkflowAction> logger) : Action
             PreviousSnapshots[ActionSet.Guid] = new OriginalStateSnapshot(
                 actionSet.Name,
                 automationService.Workflows.IndexOf(targetWorkflow),
-                currentStatus);
+                currentStatus,
+                actionSet.Guid);
         }
 
         var (targetStatus, operationDescription) = Settings.EnableMode switch
@@ -63,18 +73,18 @@ public class ToggleWorkflowAction(ILogger<ToggleWorkflowAction> logger) : Action
 
         if (currentStatus == targetStatus)
         {
-            _logger.LogInformation("自动化 \"{WorkflowName}\" 已经是{Operation}状态，无需操作",
+            _logger.LogInformation("自动化 "{WorkflowName}" 已经是{Operation}状态，无需操作",
                 actionSet.Name, operationDescription);
         }
         else
         {
-            _logger.LogInformation("正在{Operation}自动化 \"{WorkflowName}\" (原始: {OriginalStatus} -> 目标: {TargetStatus})",
+            _logger.LogInformation("正在{Operation}自动化 "{WorkflowName}" (原始: {OriginalStatus} -> 目标: {TargetStatus})",
                 operationDescription, actionSet.Name, currentStatus, targetStatus);
 
             actionSet.IsEnabled = targetStatus;
-            automationService.SaveConfig($"通过行动{operationDescription}自动化 \"{actionSet.Name}\"");
+            automationService.SaveConfig($"通过行动{operationDescription}自动化 "{actionSet.Name}"");
 
-            _logger.LogInformation("自动化 \"{WorkflowName}\" 已成功{Operation}",
+            _logger.LogInformation("自动化 "{WorkflowName}" 已成功{Operation}",
                 actionSet.Name, operationDescription);
         }
 
@@ -99,18 +109,21 @@ public class ToggleWorkflowAction(ILogger<ToggleWorkflowAction> logger) : Action
             return;
         }
 
-        var targetWorkflow = FindTargetWorkflow(automationService);
+        // 通过 Guid 精确查找，避免设置变更或列表顺序变动导致误操作其他自动化
+        var targetWorkflow = automationService.Workflows
+            .FirstOrDefault(w => w.ActionSet.Guid == snapshot.WorkflowGuid);
+
         if (targetWorkflow == null)
         {
-            _logger.LogWarning("恢复时未找到目标自动化: {Name}", snapshot.WorkflowName);
+            _logger.LogWarning("恢复时未找到目标自动化: {Name} (Guid={Guid})", snapshot.WorkflowName, snapshot.WorkflowGuid);
             return;
         }
 
         var actionSet = targetWorkflow.ActionSet;
         actionSet.IsEnabled = snapshot.IsEnabled;
-        automationService.SaveConfig($"通过行动恢复自动化 \"{actionSet.Name}\" 到原始状态({snapshot.IsEnabled})");
+        automationService.SaveConfig($"通过行动恢复自动化 "{actionSet.Name}" 到原始状态({snapshot.IsEnabled})");
 
-        _logger.LogInformation("已恢复自动化 \"{WorkflowName}\" 为触发前状态。ActionSet={ActionSetGuid}",
+        _logger.LogInformation("已恢复自动化 "{WorkflowName}" 为触发前状态。ActionSet={ActionSetGuid}",
             actionSet.Name, ActionSet.Guid);
     }
 
@@ -118,23 +131,32 @@ public class ToggleWorkflowAction(ILogger<ToggleWorkflowAction> logger) : Action
     {
         Workflow? targetWorkflow = null;
 
-        // 1. 尝试通过索引查找
-        if (Settings.TargetWorkflowIndex >= 0 &amp;&amp; Settings.TargetWorkflowIndex < automationService.Workflows.Count)
+        // 1. 尝试通过索引查找，并校验名称是否匹配，防止列表顺序变动后误操作
+        if (Settings.TargetWorkflowIndex >= 0 && Settings.TargetWorkflowIndex < automationService.Workflows.Count)
         {
-            targetWorkflow = automationService.Workflows[Settings.TargetWorkflowIndex];
-            _logger.LogDebug("通过索引 {Index} 找到自动化: {Name}",
-                Settings.TargetWorkflowIndex, targetWorkflow.ActionSet.Name);
+            var candidate = automationService.Workflows[Settings.TargetWorkflowIndex];
+            if (candidate.ActionSet.Name == Settings.TargetWorkflowName)
+            {
+                targetWorkflow = candidate;
+                _logger.LogDebug("通过索引 {Index} 找到自动化: {Name}",
+                    Settings.TargetWorkflowIndex, targetWorkflow.ActionSet.Name);
+            }
+            else
+            {
+                _logger.LogDebug("索引 {Index} 处的自动化名称不匹配 (期望: {Expected}, 实际: {Actual})，将回退到名称查找",
+                    Settings.TargetWorkflowIndex, Settings.TargetWorkflowName, candidate.ActionSet.Name);
+            }
         }
 
-        // 2. 如果索引找不到，尝试通过名称查找
-        if (targetWorkflow == null &amp;&amp; !string.IsNullOrEmpty(Settings.TargetWorkflowName))
+        // 2. 如果索引找不到或名称不匹配，尝试通过名称查找
+        if (targetWorkflow == null && !string.IsNullOrEmpty(Settings.TargetWorkflowName))
         {
             targetWorkflow = automationService.Workflows
                 .FirstOrDefault(w => w.ActionSet.Name == Settings.TargetWorkflowName);
 
             if (targetWorkflow != null)
             {
-                _logger.LogDebug("通过名称 \"{Name}\" 找到自动化", Settings.TargetWorkflowName);
+                _logger.LogDebug("通过名称 "{Name}" 找到自动化", Settings.TargetWorkflowName);
                 Settings.TargetWorkflowIndex = automationService.Workflows.IndexOf(targetWorkflow);
             }
         }
@@ -145,5 +167,6 @@ public class ToggleWorkflowAction(ILogger<ToggleWorkflowAction> logger) : Action
     private readonly record struct OriginalStateSnapshot(
         string WorkflowName,
         int WorkflowIndex,
-        bool IsEnabled);
+        bool IsEnabled,
+        Guid WorkflowGuid);
 }
