@@ -8,6 +8,7 @@ using System;
 using System.Collections.ObjectModel;
 using System.Linq;
 using SystemTools.Settings;
+using ClassIsland.Shared;
 using Workflow = ClassIsland.Core.Models.Automation.Workflow;
 
 namespace SystemTools.Controls;
@@ -211,7 +212,7 @@ public class ToggleWorkflowSettingsControl : ActionSettingsControlBase<ToggleWor
         {
             null => 0,  // 切换
             true => 1,  // 启用
-            false => 2, // 禁用
+            false => 2  // 禁用
         };
         _modeComboBox.SelectedIndex = modeIndex;
 
@@ -236,7 +237,7 @@ public class ToggleWorkflowSettingsControl : ActionSettingsControlBase<ToggleWor
 
     private void OnModeSelectionChanged(object? sender, SelectionChangedEventArgs e)
     {
-        if (_modeComboBox.SelectedItem is ComboBoxItem item && item.Tag is bool? mode)
+        if (_modeComboBox.SelectedItem is ComboBoxItem item && item.Tag is bool mode)
         {
             Settings.EnableMode = mode;
         }
