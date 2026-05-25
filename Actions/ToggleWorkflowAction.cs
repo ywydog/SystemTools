@@ -1,3 +1,4 @@
+using ClassIsland.Core;
 using ClassIsland.Core.Abstractions.Automation;
 using ClassIsland.Core.Abstractions.Services;
 using ClassIsland.Core.Attributes;
@@ -7,113 +8,172 @@ using System.Collections.Concurrent;
 using System.Linq;
 using System.Threading.Tasks;
 using SystemTools.Settings;
+using ClassIsland.Shared;
 using Workflow = ClassIsland.Core.Models.Automation.Workflow;
 
 namespace SystemTools.Actions;
 
+/// <summary>
+/// 切换自动化启用状态的行动
+/// </summary>
 [ActionInfo("SystemTools.ToggleWorkflow", "开关自动化", "\uE9A8", true)]
-public class ToggleWorkflowAction(ILogger<ToggleWorkflowAction> logger) : ActionBase<ToggleWorkflowSettings>
+public class ToggleWorkflowAction : ActionBase<ToggleWorkflowSettings>
 {
-    private readonly ILogger<ToggleWorkflowAction> _logger = logger;
+    private static readonly ConcurrentDictionary<Guid, OriginalStateSnapshot> OriginalStates = new();
 
-    private static readonly ConcurrentDictionary<Guid, OriginalStateSnapshot> PreviousSnapshots = new();
+    /// <summary>
+    /// 原始状态快照
+    /// </summary>
+    private readonly record struct OriginalStateSnapshot(
+        string WorkflowName,
+        int WorkflowIndex,
+        bool IsEnabled);
 
     protected override async Task OnInvoke()
     {
-        _logger.LogDebug("ToggleWorkflowAction OnInvoke 开始");
-
         if (Settings == null)
         {
-            _logger.LogWarning("设置为空，无法执行");
             return;
         }
 
-        var automationService = IAppHost.TryGetService<IAutomationService>();
-        if (automationService?.Workflows == null)
+        try
         {
-            _logger.LogError("无法获取自动化服务");
-            throw new InvalidOperationException("无法获取自动化服务，请确保 ClassIsland 已正确加载。");
+            var automationService = IAppHost.TryGetService<IAutomationService>();
+            if (automationService?.Workflows == null)
+            {
+                throw new InvalidOperationException("无法获取自动化服务，请确保 ClassIsland 已正确加载。");
+            }
+
+            var targetWorkflow = FindTargetWorkflow(automationService);
+            if (targetWorkflow == null)
+            {
+                throw new InvalidOperationException($"未找到指定的自动化方案: {Settings.TargetWorkflowName}");
+            }
+
+            var actionSet = targetWorkflow.ActionSet;
+            var currentStatus = actionSet.IsEnabled;
+
+            // 如果启用了恢复功能，保存原始状态
+            if (IsRevertable && Settings.RevertToOriginal)
+            {
+                var snapshot = new OriginalStateSnapshot(
+                    actionSet.Name,
+                    automationService.Workflows.IndexOf(targetWorkflow),
+                    currentStatus);
+
+                OriginalStates[ActionSet.Guid] = snapshot;
+            }
+
+            // 确定目标状态
+            bool targetStatus;
+            string operationDescription;
+
+            switch (Settings.EnableMode)
+            {
+                case true:
+                    targetStatus = true;
+                    operationDescription = "启用";
+                    break;
+                case false:
+                    targetStatus = false;
+                    operationDescription = "禁用";
+                    break;
+                default:
+                    targetStatus = !currentStatus;
+                    operationDescription = targetStatus ? "启用" : "禁用";
+                    break;
+            }
+
+            // 执行状态切换
+            if (currentStatus != targetStatus)
+            {
+                actionSet.IsEnabled = targetStatus;
+                automationService.SaveConfig($"通过行动{operationDescription}自动化 \"{actionSet.Name}\"");
+            }
         }
-
-        var targetWorkflow = FindTargetWorkflow(automationService);
-        if (targetWorkflow == null)
+        catch (Exception)
         {
-            _logger.LogWarning("未找到目标自动化: Index={Index}, Name={Name}",
-                Settings.TargetWorkflowIndex, Settings.TargetWorkflowName);
-            throw new InvalidOperationException($"未找到指定的自动化方案: {Settings.TargetWorkflowName}");
-        }
-
-        var actionSet = targetWorkflow.ActionSet;
-        var currentStatus = actionSet.IsEnabled;
-
-        if (IsRevertable)
-        {
-            PreviousSnapshots[ActionSet.Guid] = new OriginalStateSnapshot(
-                actionSet.Name,
-                automationService.Workflows.IndexOf(targetWorkflow),
-                currentStatus);
-        }
-
-        var (targetStatus, operationDescription) = Settings.EnableMode switch
-        {
-            true => (true, "启用"),
-            false => (false, "禁用"),
-            _ => (!currentStatus, !currentStatus ? "启用" : "禁用")
-        };
-
-        if (currentStatus == targetStatus)
-        {
-            _logger.LogInformation("自动化 \"{WorkflowName}\" 已经是{Operation}状态，无需操作",
-                actionSet.Name, operationDescription);
-        }
-        else
-        {
-            _logger.LogInformation("正在{Operation}自动化 \"{WorkflowName}\" (原始: {OriginalStatus} -> 目标: {TargetStatus})",
-                operationDescription, actionSet.Name, currentStatus, targetStatus);
-
-            actionSet.IsEnabled = targetStatus;
-            automationService.SaveConfig($"通过行动{operationDescription}自动化 \"{actionSet.Name}\"");
-
-            _logger.LogInformation("自动化 \"{WorkflowName}\" 已成功{Operation}",
-                actionSet.Name, operationDescription);
+            throw;
         }
 
         await base.OnInvoke();
-        _logger.LogDebug("ToggleWorkflowAction OnInvoke 完成");
     }
 
     protected override async Task OnRevert()
     {
+        if (Settings == null)
+        {
+            await base.OnRevert();
+            return;
+        }
+
+        // 检查是否启用了自动恢复
+        if (!Settings.RevertToOriginal)
+        {
+            await base.OnRevert();
+            return;
+        }
+
+        try
+        {
+            var automationService = IAppHost.TryGetService<IAutomationService>();
+            if (automationService?.Workflows == null)
+            {
+                throw new InvalidOperationException("无法获取自动化服务。");
+            }
+
+            // 尝试获取原始状态
+            if (!OriginalStates.TryRemove(ActionSet.Guid, out var snapshot))
+            {
+                await base.OnRevert();
+                return;
+            }
+
+            // 查找目标自动化（优先使用索引，回退到名称）
+            Workflow? targetWorkflow = null;
+
+            if (snapshot.WorkflowIndex >= 0 && snapshot.WorkflowIndex < automationService.Workflows.Count)
+            {
+                var workflowByIndex = automationService.Workflows[snapshot.WorkflowIndex];
+                if (workflowByIndex.ActionSet.Name == snapshot.WorkflowName)
+                {
+                    targetWorkflow = workflowByIndex;
+                }
+            }
+
+            if (targetWorkflow == null)
+            {
+                targetWorkflow = automationService.Workflows
+                    .FirstOrDefault(w => w.ActionSet.Name == snapshot.WorkflowName);
+            }
+
+            if (targetWorkflow == null)
+            {
+                await base.OnRevert();
+                return;
+            }
+
+            var actionSet = targetWorkflow.ActionSet;
+            var currentStatus = actionSet.IsEnabled;
+            var originalStatus = snapshot.IsEnabled;
+
+            if (currentStatus != originalStatus)
+            {
+                actionSet.IsEnabled = originalStatus;
+                automationService.SaveConfig($"通过行动恢复自动化 \"{actionSet.Name}\" 到原始状态({originalStatus})");
+            }
+        }
+        catch (Exception)
+        {
+            throw;
+        }
+
         await base.OnRevert();
-
-        if (!PreviousSnapshots.TryRemove(ActionSet.Guid, out var snapshot))
-        {
-            _logger.LogInformation("未找到触发前状态，跳过恢复。ActionSet={ActionSetGuid}", ActionSet.Guid);
-            return;
-        }
-
-        var automationService = IAppHost.TryGetService<IAutomationService>();
-        if (automationService?.Workflows == null)
-        {
-            _logger.LogError("无法获取自动化服务，恢复失败");
-            return;
-        }
-
-        var targetWorkflow = FindTargetWorkflow(automationService);
-        if (targetWorkflow == null)
-        {
-            _logger.LogWarning("恢复时未找到目标自动化: {Name}", snapshot.WorkflowName);
-            return;
-        }
-
-        var actionSet = targetWorkflow.ActionSet;
-        actionSet.IsEnabled = snapshot.IsEnabled;
-        automationService.SaveConfig($"通过行动恢复自动化 \"{actionSet.Name}\" 到原始状态({snapshot.IsEnabled})");
-
-        _logger.LogInformation("已恢复自动化 \"{WorkflowName}\" 为触发前状态。ActionSet={ActionSetGuid}",
-            actionSet.Name, ActionSet.Guid);
     }
 
+    /// <summary>
+    /// 查找目标自动化
+    /// </summary>
     private Workflow? FindTargetWorkflow(IAutomationService automationService)
     {
         Workflow? targetWorkflow = null;
@@ -122,8 +182,6 @@ public class ToggleWorkflowAction(ILogger<ToggleWorkflowAction> logger) : Action
         if (Settings.TargetWorkflowIndex >= 0 && Settings.TargetWorkflowIndex < automationService.Workflows.Count)
         {
             targetWorkflow = automationService.Workflows[Settings.TargetWorkflowIndex];
-            _logger.LogDebug("通过索引 {Index} 找到自动化: {Name}",
-                Settings.TargetWorkflowIndex, targetWorkflow.ActionSet.Name);
         }
 
         // 2. 如果索引找不到，尝试通过名称查找
@@ -134,16 +192,11 @@ public class ToggleWorkflowAction(ILogger<ToggleWorkflowAction> logger) : Action
 
             if (targetWorkflow != null)
             {
-                _logger.LogDebug("通过名称 \"{Name}\" 找到自动化", Settings.TargetWorkflowName);
+                // 更新索引以便下次使用
                 Settings.TargetWorkflowIndex = automationService.Workflows.IndexOf(targetWorkflow);
             }
         }
 
         return targetWorkflow;
     }
-
-    private readonly record struct OriginalStateSnapshot(
-        string WorkflowName,
-        int WorkflowIndex,
-        bool IsEnabled);
 }
