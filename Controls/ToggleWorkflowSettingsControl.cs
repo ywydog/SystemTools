@@ -38,7 +38,7 @@ public class ToggleWorkflowSettingsControl : ActionSettingsControlBase<ToggleWor
         // 说明文字
         panel.Children.Add(new TextBlock
         {
-            Text = "选择一个自动化方案并设置要执行的操作。当触发器支持恢复时，可以自动还原状态。",
+            Text = "选择一个自动化方案并设置要执行的操作。当触发器支持恢复时,可以自动还原状态。",
             TextWrapping = TextWrapping.Wrap,
             Opacity = 0.8
         });
@@ -86,7 +86,7 @@ public class ToggleWorkflowSettingsControl : ActionSettingsControlBase<ToggleWor
         // 恢复说明
         panel.Children.Add(new TextBlock
         {
-            Text = "提示：当触发器支持恢复（如"上课时"在放学时恢复），勾选此项会自动将自动化恢复到触发前的状态。",
+            Text = "提示：当触发器支持恢复（如"上课时"在放学时恢复）,勾选此项会自动将自动化恢复到触发前的状态。",
             TextWrapping = TextWrapping.Wrap,
             FontSize = 12,
             Opacity = 0.7,
@@ -127,13 +127,13 @@ public class ToggleWorkflowSettingsControl : ActionSettingsControlBase<ToggleWor
         _modeComboBox.SelectionChanged += OnModeSelectionChanged;
         _revertCheckBox.IsCheckedChanged += OnRevertCheckBoxChanged;
 
-        // 恢复设置值（仅在此处恢复一次，避免重复绑定后触发事件导致设置被覆盖）
+        // 恢复设置值（仅在此处恢复一次,避免重复绑定后触发事件导致设置被覆盖）
         RestoreSettings();
     }
 
     protected override void OnDetachedFromLogicalTree(LogicalTreeAttachmentEventArgs e)
     {
-        // 解绑事件，防止内存泄漏
+        // 解绑事件,防止内存泄漏
         _workflowComboBox.SelectionChanged -= OnWorkflowSelectionChanged;
         _modeComboBox.SelectionChanged -= OnModeSelectionChanged;
         _revertCheckBox.IsCheckedChanged -= OnRevertCheckBoxChanged;
@@ -147,7 +147,7 @@ public class ToggleWorkflowSettingsControl : ActionSettingsControlBase<ToggleWor
             var automationService = IAppHost.TryGetService<IAutomationService>();
             if (automationService?.Workflows == null)
             {
-                _infoTextBlock.Text = "无法获取自动化服务，请确保 ClassIsland 已正确加载。";
+                _infoTextBlock.Text = "无法获取自动化服务,请确保 ClassIsland 已正确加载。";
                 _infoTextBlock.Foreground = Brushes.Orange;
                 _infoTextBlock.IsVisible = true;
                 return;
@@ -171,7 +171,7 @@ public class ToggleWorkflowSettingsControl : ActionSettingsControlBase<ToggleWor
             if (_workflowComboBox.Items.Count == 0)
             {
                 _workflowComboBox.PlaceholderText = "暂无自动化方案";
-                _infoTextBlock.Text = "当前配置文件中没有任何自动化方案，请先创建自动化。";
+                _infoTextBlock.Text = "当前配置文件中没有任何自动化方案,请先创建自动化。";
                 _infoTextBlock.Foreground = Brushes.Gray;
                 _infoTextBlock.IsVisible = true;
             }
