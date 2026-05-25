@@ -156,7 +156,7 @@ public class ToggleWorkflowAction(ILogger<ToggleWorkflowAction> logger) : Action
 
             if (targetWorkflow != null)
             {
-                _logger.LogDebug("通过名称 "{Name}" 找到自动化", Settings.TargetWorkflowName);
+                _logger.LogDebug("通过名称 \"{Name}\" 找到自动化", Settings.TargetWorkflowName);
                 Settings.TargetWorkflowIndex = automationService.Workflows.IndexOf(targetWorkflow);
             }
         }
