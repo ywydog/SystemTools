@@ -1,4 +1,4 @@
-﻿using System.IO;
+using System.IO;
 using System.Net.Http;
 using System.Security.Cryptography;
 using Avalonia.Threading;
@@ -212,6 +212,7 @@ public partial class SystemToolsSettingsViewModel : ObservableObject, IDisposabl
             ("SystemTools.OpenAppSettings", "打开应用设置", "ClassIsland"),
             ("SystemTools.OpenProfileEditor", "打开档案编辑", "ClassIsland"),
             ("SystemTools.OpenClassSwapWindow", "打开换课窗口", "ClassIsland"),
+            ("SystemTools.ToggleWorkflow", "开关自动化", "ClassIsland"),
         };
 
         if (Settings.EnableFloatingWindowFeature)
