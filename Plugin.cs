@@ -1,4 +1,4 @@
-﻿using Avalonia.Controls;
+using Avalonia.Controls;
 using Avalonia.Threading;
 using AvaloniaEdit.Utils;
 using ClassIsland.Core;
@@ -297,6 +297,8 @@ public class Plugin : PluginBase
         RegisterActionIfEnabled<OpenAppSettingsAction>(services, config, "SystemTools.OpenAppSettings");
         RegisterActionIfEnabled<OpenProfileEditorAction>(services, config, "SystemTools.OpenProfileEditor");
         RegisterActionIfEnabled<OpenClassSwapWindowAction>(services, config, "SystemTools.OpenClassSwapWindow");
+        RegisterActionIfEnabled<ToggleWorkflowAction, ToggleWorkflowSettingsControl>(services, config,
+    "SystemTools.ToggleWorkflow");
     }
 
     private void RegisterBaseTriggers(IServiceCollection services)
@@ -513,7 +515,7 @@ public class Plugin : PluginBase
 
         if (HasAnyActionEnabled(config, "SystemTools.ClearAllNotifications", "SystemTools.RestartAsAdmin",
                 "SystemTools.LoadTemporaryClassPlan", "SystemTools.OpenAppSettings",
-                "SystemTools.OpenProfileEditor", "SystemTools.OpenClassSwapWindow"))
+                "SystemTools.OpenProfileEditor", "SystemTools.OpenClassSwapWindow","SystemTools.ToggleWorkflow"))
         {
             IActionService.ActionMenuTree["SystemTools 行动"].Add(new ActionMenuTreeGroup("ClassIsland…", "\uE5CB"));
             BuildClassIslandMenu(config);
@@ -851,6 +853,8 @@ public class Plugin : PluginBase
             items.Add(new ActionMenuTreeItem("SystemTools.OpenProfileEditor", "打开档案编辑", "\uE699"));
         if (config.IsActionEnabled("SystemTools.OpenClassSwapWindow"))
             items.Add(new ActionMenuTreeItem("SystemTools.OpenClassSwapWindow", "打开换课窗口", "\uE13B"));
+        if (config.IsActionEnabled("SystemTools.ToggleWorkflow"))
+            items.Add(new ActionMenuTreeItem("SystemTools.ToggleWorkflow", "开关自动化", "\uE9A8"));    
 
         if (items.Count > 0)
         {
