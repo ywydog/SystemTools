@@ -187,7 +187,7 @@ public class ToggleWorkflowSettingsControl : ActionSettingsControlBase<ToggleWor
         if (Settings == null) return;
 
         // 恢复自动化选择
-        if (Settings.TargetWorkflowIndex >= 0 &&; Settings.TargetWorkflowIndex < _workflowComboBox.Items.Count)
+        if (Settings.TargetWorkflowIndex >= 0 && Settings.TargetWorkflowIndex < _workflowComboBox.Items.Count)
         {
             _workflowComboBox.SelectedIndex = Settings.TargetWorkflowIndex;
         }
@@ -196,8 +196,8 @@ public class ToggleWorkflowSettingsControl : ActionSettingsControlBase<ToggleWor
             // 尝试通过名称查找
             for (int i = 0; i < _workflowComboBox.Items.Count; i++)
             {
-                if (_workflowComboBox.Items[i] is ComboBoxItem item &&;
-                    item.Tag is Workflow workflow &&;
+                if (_workflowComboBox.Items[i] is ComboBoxItem item &&
+                    item.Tag is Workflow workflow &&
                     workflow.ActionSet.Name == Settings.TargetWorkflowName)
                 {
                     _workflowComboBox.SelectedIndex = i;
@@ -212,7 +212,6 @@ public class ToggleWorkflowSettingsControl : ActionSettingsControlBase<ToggleWor
             null => 0,  // 切换
             true => 1,  // 启用
             false => 2, // 禁用
-            _ => 0
         };
         _modeComboBox.SelectedIndex = modeIndex;
 
@@ -222,7 +221,7 @@ public class ToggleWorkflowSettingsControl : ActionSettingsControlBase<ToggleWor
 
     private void OnWorkflowSelectionChanged(object? sender, SelectionChangedEventArgs e)
     {
-        if (_workflowComboBox.SelectedItem is ComboBoxItem item &&; item.Tag is Workflow workflow)
+        if (_workflowComboBox.SelectedItem is ComboBoxItem item && item.Tag is Workflow workflow)
         {
             Settings.TargetWorkflowName = workflow.ActionSet.Name;
             Settings.TargetWorkflowIndex = _workflowComboBox.SelectedIndex;
@@ -237,7 +236,7 @@ public class ToggleWorkflowSettingsControl : ActionSettingsControlBase<ToggleWor
 
     private void OnModeSelectionChanged(object? sender, SelectionChangedEventArgs e)
     {
-        if (_modeComboBox.SelectedItem is ComboBoxItem item &&; item.Tag is bool? mode)
+        if (_modeComboBox.SelectedItem is ComboBoxItem item && item.Tag is bool? mode)
         {
             Settings.EnableMode = mode;
         }
