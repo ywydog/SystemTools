@@ -1253,6 +1253,18 @@ public class FloatingWindowService
         });
     }
 
+    public void ToggleWindowProfile()
+    {
+        var data = _configHandler.Data;
+        data.FloatingWindowProfileIndex = data.FloatingWindowProfileIndex == 0 ? 1 : 0;
+        _configHandler.Save();
+        Dispatcher.UIThread.Post(() =>
+        {
+            RefreshWindowButtons();
+            ApplyVisibility();
+        });
+    }
+
     public static string ConvertIcon(string raw)
     {
         if (string.IsNullOrWhiteSpace(raw)) return "?";

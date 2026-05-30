@@ -331,6 +331,21 @@ public class MainConfigData : INotifyPropertyChanged
         }
     }
 
+    int _floatingWindowProfileIndex = 0;
+
+    [JsonPropertyName("floatingWindowProfileIndex")]
+    public int FloatingWindowProfileIndex
+    {
+        get => _floatingWindowProfileIndex;
+        set
+        {
+            var normalized = value is 0 or 1 ? value : 0;
+            if (normalized == _floatingWindowProfileIndex) return;
+            _floatingWindowProfileIndex = normalized;
+            OnPropertyChanged();
+        }
+    }
+
     bool _floatingWindowRulesetEnabled = false;
 
     [JsonPropertyName("floatingWindowRulesetEnabled")]
