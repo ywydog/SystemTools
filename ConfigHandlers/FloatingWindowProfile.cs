@@ -8,7 +8,7 @@ namespace SystemTools.ConfigHandlers;
 
 public partial class FloatingWindowProfile : ObservableObject
 {
-    [ObservableProperty] private string _name = "未命名方案";
+    [ObservableProperty] private string _name = "Default";
 
     [ObservableProperty] private bool _showFloatingWindow = true;
 
