@@ -84,6 +84,11 @@ public partial class FloatingWindowEditorSettingsPage : SettingsPageBase
         IAppHost.GetService<FloatingWindowService>().UpdateWindowState();
     }
 
+    private void OnToggleFloatingWindowProfileClick(object? sender, RoutedEventArgs e)
+    {
+        IAppHost.GetService<FloatingWindowService>().ToggleWindowProfile();
+    }
+
     private Point? _floatingDragStartPoint;
     private Border? _floatingDragSourceBorder;
 

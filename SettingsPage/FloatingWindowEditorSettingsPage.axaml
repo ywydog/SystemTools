@@ -35,6 +35,32 @@
                 </controls:SettingsExpander.Footer>
             </controls:SettingsExpander>
 
+            <controls:SettingsExpander IconSource="{ci:FluentIconSource &#xE9A8;}"
+                                       Header="悬浮窗配置方案"
+                                       Description="切换和管理悬浮窗配置方案"
+                                       IsExpanded="True">
+                <StackPanel Margin="12,8,12,12" Spacing="8">
+                    <Grid ColumnDefinitions="*,Auto" VerticalAlignment="Center">
+                        <TextBlock Grid.Column="0"
+                                   Text="{Binding ViewModel.Settings.FloatingWindowProfiles[ViewModel.Settings.FloatingWindowProfileIndex].Name}"
+                                   VerticalAlignment="Center" />
+                        <Button Grid.Column="1"
+                                Content="切换方案"
+                                Click="OnToggleFloatingWindowProfileClick" />
+                    </Grid>
+                    <ItemsControl ItemsSource="{Binding ViewModel.Settings.FloatingWindowProfiles}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Grid ColumnDefinitions="*,Auto" Margin="0,0,0,4">
+                                    <TextBox Grid.Column="0"
+                                             Text="{Binding Name, Mode=TwoWay}" />
+                                </Grid>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
+            </controls:SettingsExpander>
+
             <controls:SettingsExpander IconSource="{ci:FluentIconSource &#xE51E;}"
                                        Header="外观设置"
                                        Description="设置悬浮窗外观"

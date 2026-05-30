@@ -1256,13 +1256,71 @@ public class FloatingWindowService
     public void ToggleWindowProfile()
     {
         var data = _configHandler.Data;
-        data.FloatingWindowProfileIndex = data.FloatingWindowProfileIndex == 0 ? 1 : 0;
+        var currentIndex = data.FloatingWindowProfileIndex;
+        var newIndex = currentIndex == 0 ? 1 : 0;
+
+        SaveCurrentProfile(currentIndex);
+        data.FloatingWindowProfileIndex = newIndex;
+        LoadProfile(newIndex);
         _configHandler.Save();
+
         Dispatcher.UIThread.Post(() =>
         {
             RefreshWindowButtons();
             ApplyVisibility();
+            RecheckWindowLayer();
+            RefreshLayerRecheckMode();
         });
+    }
+
+    private void SaveCurrentProfile(int index)
+    {
+        var data = _configHandler.Data;
+        if (index < 0 || index >= data.FloatingWindowProfiles.Count)
+        {
+            return;
+        }
+
+        var profile = data.FloatingWindowProfiles[index];
+        profile.ShowFloatingWindow = data.ShowFloatingWindow;
+        profile.FloatingWindowHorizontal = data.FloatingWindowHorizontal;
+        profile.FloatingWindowButtonOrder = new List<string>(data.FloatingWindowButtonOrder ?? []);
+        profile.FloatingWindowButtonRows = (data.FloatingWindowButtonRows ?? []).Select(r => new List<string>(r)).ToList();
+        profile.FloatingWindowScale = data.FloatingWindowScale;
+        profile.FloatingWindowPositionX = data.FloatingWindowPositionX;
+        profile.FloatingWindowPositionY = data.FloatingWindowPositionY;
+        profile.FloatingWindowLayer = data.FloatingWindowLayer;
+        profile.FloatingWindowLayerRecheckMode = data.FloatingWindowLayerRecheckMode;
+        profile.FloatingWindowShadowEnabled = data.FloatingWindowShadowEnabled;
+        profile.FloatingWindowDragHandleAlwaysVisible = data.FloatingWindowDragHandleAlwaysVisible;
+        profile.FloatingWindowRulesetEnabled = data.FloatingWindowRulesetEnabled;
+        profile.FloatingWindowRuleset = data.FloatingWindowRuleset;
+        profile.FloatingWindowButtonRulesets = new Dictionary<string, ButtonRulesetConfig>(data.FloatingWindowButtonRulesets ?? []);
+    }
+
+    private void LoadProfile(int index)
+    {
+        var data = _configHandler.Data;
+        if (index < 0 || index >= data.FloatingWindowProfiles.Count)
+        {
+            return;
+        }
+
+        var profile = data.FloatingWindowProfiles[index];
+        data.ShowFloatingWindow = profile.ShowFloatingWindow;
+        data.FloatingWindowHorizontal = profile.FloatingWindowHorizontal;
+        data.FloatingWindowButtonOrder = new List<string>(profile.FloatingWindowButtonOrder ?? []);
+        data.FloatingWindowButtonRows = (profile.FloatingWindowButtonRows ?? []).Select(r => new List<string>(r)).ToList();
+        data.FloatingWindowScale = profile.FloatingWindowScale;
+        data.FloatingWindowPositionX = profile.FloatingWindowPositionX;
+        data.FloatingWindowPositionY = profile.FloatingWindowPositionY;
+        data.FloatingWindowLayer = profile.FloatingWindowLayer;
+        data.FloatingWindowLayerRecheckMode = profile.FloatingWindowLayerRecheckMode;
+        data.FloatingWindowShadowEnabled = profile.FloatingWindowShadowEnabled;
+        data.FloatingWindowDragHandleAlwaysVisible = profile.FloatingWindowDragHandleAlwaysVisible;
+        data.FloatingWindowRulesetEnabled = profile.FloatingWindowRulesetEnabled;
+        data.FloatingWindowRuleset = profile.FloatingWindowRuleset;
+        data.FloatingWindowButtonRulesets = new Dictionary<string, ButtonRulesetConfig>(profile.FloatingWindowButtonRulesets ?? []);
     }
 
     public static string ConvertIcon(string raw)
