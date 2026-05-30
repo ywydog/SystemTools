@@ -227,6 +227,8 @@ public partial class SystemToolsSettingsViewModel : ObservableObject, IDisposabl
         if (Settings.EnableFloatingWindowFeature)
         {
             actions.Add(("SystemTools.ShowFloatingWindow", "显示悬浮窗", "悬浮窗设置"));
+            actions.Add(("SystemTools.ToggleFloatingWindowLayer", "切换悬浮窗置顶/置底", "悬浮窗设置"));
+            actions.Add(("SystemTools.ToggleFloatingWindowProfile", "切换悬浮窗配置方案", "悬浮窗设置"));
         }
 
         foreach (var (id, name, group) in actions)
