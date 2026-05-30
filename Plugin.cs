@@ -283,9 +283,9 @@ public class Plugin : PluginBase
         {
             RegisterActionIfEnabled<ShowFloatingWindowAction, ShowFloatingWindowSettingsControl>(services, config,
                 "SystemTools.ShowFloatingWindow");
-            RegisterActionIfEnabled<ToggleFloatingWindowLayerAction>(services, config,
+            RegisterActionIfEnabled<ToggleFloatingWindowLayerAction, ToggleFloatingWindowLayerSettingsControl>(services, config,
                 "SystemTools.ToggleFloatingWindowLayer");
-            RegisterActionIfEnabled<ToggleFloatingWindowProfileAction>(services, config,
+            RegisterActionIfEnabled<ToggleFloatingWindowProfileAction, ToggleFloatingWindowProfileSettingsControl>(services, config,
                 "SystemTools.ToggleFloatingWindowProfile");
         }
 
