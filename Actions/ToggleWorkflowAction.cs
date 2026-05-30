@@ -98,6 +98,13 @@ public class ToggleWorkflowAction(ILogger<ToggleWorkflowAction> logger) : Action
         {
             await base.OnRevert();
 
+            if (Settings == null || !Settings.RevertToOriginal)
+            {
+                _logger.LogDebug("RevertToOriginal 为 false，跳过恢复");
+                PreviousSnapshots.TryRemove(ActionSet.Guid, out _);
+                return;
+            }
+
             if (!PreviousSnapshots.TryRemove(ActionSet.Guid, out var snapshot))
             {
                 _logger.LogWarning("未找到触发前状态，跳过恢复。ActionSet={ActionSetGuid}", ActionSet.Guid);
