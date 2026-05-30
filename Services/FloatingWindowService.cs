@@ -422,7 +422,7 @@ public class FloatingWindowService
     private void ApplyVisibility()
     {
         EnsureWindow();
-        if (_window == null || _window.IsDisposed)
+        if (_window == null)
         {
             return;
         }
@@ -441,13 +441,19 @@ public class FloatingWindowService
                     _stackPanel = null;
                     _windowContainer = null;
                     EnsureWindow();
-                    _window?.Show();
+                    if (_window != null)
+                    {
+                        _window.Show();
+                    }
                 }
             }
         }
         else
         {
-            _window.Hide();
+            if (_window != null)
+            {
+                _window.Hide();
+            }
         }
     }
 
