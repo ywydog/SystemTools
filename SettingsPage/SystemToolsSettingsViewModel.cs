@@ -461,6 +461,59 @@ public partial class SystemToolsSettingsViewModel : ObservableObject, IDisposabl
         }
     }
 
+    public void AddFloatingWindowProfile()
+    {
+        var data = _configHandler.Data;
+        var currentProfile = data.FloatingWindowProfiles[data.FloatingWindowProfileIndex];
+        var newProfile = new FloatingWindowProfile
+        {
+            Name = $"Profile {data.FloatingWindowProfiles.Count + 1}",
+            ShowFloatingWindow = currentProfile.ShowFloatingWindow,
+            FloatingWindowHorizontal = currentProfile.FloatingWindowHorizontal,
+            FloatingWindowButtonOrder = new List<string>(currentProfile.FloatingWindowButtonOrder ?? []),
+            FloatingWindowButtonRows = (currentProfile.FloatingWindowButtonRows ?? []).Select(r => new List<string>(r)).ToList(),
+            FloatingWindowScale = currentProfile.FloatingWindowScale,
+            FloatingWindowPositionX = currentProfile.FloatingWindowPositionX,
+            FloatingWindowPositionY = currentProfile.FloatingWindowPositionY,
+            FloatingWindowLayer = currentProfile.FloatingWindowLayer,
+            FloatingWindowLayerRecheckMode = currentProfile.FloatingWindowLayerRecheckMode,
+            FloatingWindowShadowEnabled = currentProfile.FloatingWindowShadowEnabled,
+            FloatingWindowDragHandleAlwaysVisible = currentProfile.FloatingWindowDragHandleAlwaysVisible,
+            FloatingWindowRulesetEnabled = currentProfile.FloatingWindowRulesetEnabled,
+            FloatingWindowRuleset = currentProfile.FloatingWindowRuleset,
+            FloatingWindowButtonRulesets = new Dictionary<string, ButtonRulesetConfig>(currentProfile.FloatingWindowButtonRulesets ?? [])
+        };
+        data.FloatingWindowProfiles.Add(newProfile);
+        _configHandler.Save();
+    }
+
+    public void RemoveFloatingWindowProfile(int index)
+    {
+        var data = _configHandler.Data;
+        if (index < 0 || index >= data.FloatingWindowProfiles.Count || data.FloatingWindowProfiles.Count <= 1)
+        {
+            return;
+        }
+
+        data.FloatingWindowProfiles.RemoveAt(index);
+        if (data.FloatingWindowProfileIndex >= data.FloatingWindowProfiles.Count)
+        {
+            data.FloatingWindowProfileIndex = data.FloatingWindowProfiles.Count - 1;
+        }
+        _configHandler.Save();
+    }
+
+    public void SwitchFloatingWindowProfile(int index)
+    {
+        var data = _configHandler.Data;
+        if (index < 0 || index >= data.FloatingWindowProfiles.Count || index == data.FloatingWindowProfileIndex)
+        {
+            return;
+        }
+
+        _floatingWindowService.SwitchToProfile(index);
+    }
+
     public void Dispose()
     {
         _floatingWindowService.EntriesChanged -= _entriesChangedHandler;

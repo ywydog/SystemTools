@@ -54,10 +54,18 @@
                                 <Grid ColumnDefinitions="*,Auto" Margin="0,0,0,4">
                                     <TextBox Grid.Column="0"
                                              Text="{Binding Name, Mode=TwoWay}" />
+                                    <Button Grid.Column="1"
+                                            Content="删除"
+                                            Theme="{StaticResource TransparentButton}"
+                                            Click="OnRemoveFloatingWindowProfileClick"
+                                            Tag="{Binding $self.DataContext, RelativeSource={RelativeSource AncestorType=ItemsControl}}" />
                                 </Grid>
                             </DataTemplate>
                         </ItemsControl.ItemTemplate>
                     </ItemsControl>
+                    <Button Content="添加方案"
+                            HorizontalAlignment="Left"
+                            Click="OnAddFloatingWindowProfileClick" />
                 </StackPanel>
             </controls:SettingsExpander>
 

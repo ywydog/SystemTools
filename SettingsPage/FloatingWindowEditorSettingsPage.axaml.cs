@@ -89,6 +89,27 @@ public partial class FloatingWindowEditorSettingsPage : SettingsPageBase
         IAppHost.GetService<FloatingWindowService>().ToggleWindowProfile();
     }
 
+    private void OnAddFloatingWindowProfileClick(object? sender, RoutedEventArgs e)
+    {
+        ViewModel.AddFloatingWindowProfile();
+    }
+
+    private void OnRemoveFloatingWindowProfileClick(object? sender, RoutedEventArgs e)
+    {
+        if (sender is not Button { DataContext: FloatingWindowProfile profile })
+        {
+            return;
+        }
+
+        var index = ViewModel.Settings.FloatingWindowProfiles.IndexOf(profile);
+        if (index < 0)
+        {
+            return;
+        }
+
+        ViewModel.RemoveFloatingWindowProfile(index);
+    }
+
     private Point? _floatingDragStartPoint;
     private Border? _floatingDragSourceBorder;
 

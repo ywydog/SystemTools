@@ -1256,9 +1256,27 @@ public class FloatingWindowService
     public void ToggleWindowProfile()
     {
         var data = _configHandler.Data;
-        var currentIndex = data.FloatingWindowProfileIndex;
-        var newIndex = currentIndex == 0 ? 1 : 0;
+        var count = data.FloatingWindowProfiles.Count;
+        if (count <= 1)
+        {
+            return;
+        }
 
+        var currentIndex = data.FloatingWindowProfileIndex;
+        var newIndex = (currentIndex + 1) % count;
+        SwitchToProfile(newIndex);
+    }
+
+    public void SwitchToProfile(int newIndex)
+    {
+        var data = _configHandler.Data;
+        var count = data.FloatingWindowProfiles.Count;
+        if (count == 0 || newIndex < 0 || newIndex >= count)
+        {
+            return;
+        }
+
+        var currentIndex = data.FloatingWindowProfileIndex;
         SaveCurrentProfile(currentIndex);
         data.FloatingWindowProfileIndex = newIndex;
         LoadProfile(newIndex);
