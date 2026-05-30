@@ -479,7 +479,7 @@ public class FloatingWindowService
 
         _stackPanel.Children.Clear();
 
-        if (_isTouchDeviceDetected)
+        if (_isTouchDeviceDetected || _configHandler.Data.FloatingWindowDragHandleAlwaysVisible)
         {
             _touchDragHandle = CreateTouchDragHandle(scale, contentForeground);
             _stackPanel.Children.Add(_touchDragHandle);

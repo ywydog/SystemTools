@@ -345,6 +345,20 @@ public class MainConfigData : INotifyPropertyChanged
         }
     }
 
+    bool _floatingWindowDragHandleAlwaysVisible = false;
+
+    [JsonPropertyName("floatingWindowDragHandleAlwaysVisible")]
+    public bool FloatingWindowDragHandleAlwaysVisible
+    {
+        get => _floatingWindowDragHandleAlwaysVisible;
+        set
+        {
+            if (value == _floatingWindowDragHandleAlwaysVisible) return;
+            _floatingWindowDragHandleAlwaysVisible = value;
+            OnPropertyChanged();
+        }
+    }
+
     [JsonPropertyName("floatingWindowRuleset")]
     public Ruleset FloatingWindowRuleset { get; set; } = new();
 

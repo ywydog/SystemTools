@@ -140,6 +140,14 @@
                         <ToggleSwitch IsChecked="{Binding ViewModel.Settings.FloatingWindowShadowEnabled, Mode=TwoWay}" />
                     </controls:SettingsExpanderItem.Footer>
                 </controls:SettingsExpanderItem>
+
+                <controls:SettingsExpanderItem IconSource="{ci:FluentIconSource &#xE7C3;}"
+                                               Content="一直显示拖动把手"
+                                               Description="即使未检测到触摸设备也显示拖动把手">
+                    <controls:SettingsExpanderItem.Footer>
+                        <ToggleSwitch IsChecked="{Binding ViewModel.Settings.FloatingWindowDragHandleAlwaysVisible, Mode=TwoWay}" />
+                    </controls:SettingsExpanderItem.Footer>
+                </controls:SettingsExpanderItem>
             </controls:SettingsExpander>
 
             <controls:SettingsExpander IconSource="{ci:FluentIconSource &#xEA2F;}"
