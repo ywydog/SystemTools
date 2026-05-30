@@ -334,8 +334,8 @@ public class MainConfigData : INotifyPropertyChanged
     [JsonPropertyName("floatingWindowProfiles")]
     public List<FloatingWindowProfile> FloatingWindowProfiles { get; set; } = new()
     {
-        new FloatingWindowProfile { Name = "方案 1" },
-        new FloatingWindowProfile { Name = "方案 2" }
+        new FloatingWindowProfile { Name = "Default" },
+        new FloatingWindowProfile { Name = "Profile 2" }
     };
 
     int _floatingWindowProfileIndex = 0;
