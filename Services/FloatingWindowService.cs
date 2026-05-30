@@ -1270,6 +1270,22 @@ public class FloatingWindowService
         });
     }
 
+    public void SetWindowLayer(int layer)
+    {
+        var data = _configHandler.Data;
+        data.FloatingWindowLayer = layer == 1 ? 1 : 0;
+        _configHandler.Save();
+        Dispatcher.UIThread.Post(() =>
+        {
+            if (_window != null)
+            {
+                _window.Topmost = data.FloatingWindowLayer == 1;
+            }
+            RecheckWindowLayer();
+            RefreshLayerRecheckMode();
+        });
+    }
+
     public void ToggleWindowProfile()
     {
         var data = _configHandler.Data;

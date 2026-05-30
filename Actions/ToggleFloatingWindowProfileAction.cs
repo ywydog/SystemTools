@@ -5,11 +5,15 @@ using ClassIsland.Core.Attributes;
 using ClassIsland.Shared;
 using Microsoft.Extensions.Logging;
 using SystemTools.Services;
+using SystemTools.Settings;
 
 namespace SystemTools.Actions;
 
+/// <summary>
+/// 切换悬浮窗配置方案行动
+/// </summary>
 [ActionInfo("SystemTools.ToggleFloatingWindowProfile", "切换悬浮窗配置方案", "\uE9A8", false)]
-public class ToggleFloatingWindowProfileAction(ILogger<ToggleFloatingWindowProfileAction> logger) : ActionBase
+public class ToggleFloatingWindowProfileAction(ILogger<ToggleFloatingWindowProfileAction> logger) : ActionBase<ToggleFloatingWindowProfileSettings>
 {
     private readonly ILogger<ToggleFloatingWindowProfileAction> _logger = logger;
 
@@ -19,8 +23,20 @@ public class ToggleFloatingWindowProfileAction(ILogger<ToggleFloatingWindowProfi
 
         try
         {
-            IAppHost.GetService<FloatingWindowService>().ToggleWindowProfile();
-            _logger.LogInformation("已切换悬浮窗配置方案");
+            var service = IAppHost.GetService<FloatingWindowService>();
+
+            // 根据设置决定是切换到下一个还是切换到指定方案
+            // TargetProfileIndex: -1=切换到下一个, 其他=指定方案索引
+            if (Settings.TargetProfileIndex >= 0)
+            {
+                service.SwitchToProfile(Settings.TargetProfileIndex);
+                _logger.LogInformation("已切换到悬浮窗配置方案索引: {Index}", Settings.TargetProfileIndex);
+            }
+            else
+            {
+                service.ToggleWindowProfile();
+                _logger.LogInformation("已切换到下一个悬浮窗配置方案");
+            }
         }
         catch (Exception ex)
         {

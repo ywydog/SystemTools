@@ -1,11 +1,12 @@
 using Avalonia.Controls;
-using Avalonia.Data;
-using Avalonia.Controls.Primitives;
 using ClassIsland.Core.Abstractions.Controls;
 using SystemTools.Settings;
 
 namespace SystemTools.Controls;
 
+/// <summary>
+/// 切换悬浮窗层级行动的设置控件
+/// </summary>
 public class ToggleFloatingWindowLayerSettingsControl : ActionSettingsControlBase<ToggleFloatingWindowLayerSettings>
 {
     private ComboBox _layerComboBox;
