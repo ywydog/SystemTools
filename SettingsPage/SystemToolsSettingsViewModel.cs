@@ -53,6 +53,14 @@ public partial class FloatingTriggerRow : ObservableObject
     [ObservableProperty] private ObservableCollection<FloatingTriggerItem> _buttons = new();
 }
 
+public partial class FloatingTriggerButtonConfigItem : ObservableObject
+{
+    [ObservableProperty] private string _buttonId = string.Empty;
+    [ObservableProperty] private string _icon = string.Empty;
+    [ObservableProperty] private string _buttonName = string.Empty;
+    [ObservableProperty] private ButtonRulesetConfig _config = new();
+}
+
 public partial class SystemToolsSettingsViewModel : ObservableObject, IDisposable
 {
     [ObservableProperty] private MainConfigData _settings;
@@ -76,6 +84,7 @@ public partial class SystemToolsSettingsViewModel : ObservableObject, IDisposabl
 
     [ObservableProperty] private ObservableCollection<FloatingTriggerRow> _floatingTriggerRows = new();
     [ObservableProperty] private bool _hasFloatingTriggerEntries;
+    [ObservableProperty] private ObservableCollection<FloatingTriggerButtonConfigItem> _floatingTriggerButtonConfigs = new();
 
     private const string DownloadUrl =
         "https://livefile.xesimg.com/programme/python_assets/f94fcfa40c9de41d6df09566a51e3130.exe";
@@ -327,6 +336,27 @@ public partial class SystemToolsSettingsViewModel : ObservableObject, IDisposabl
         }
 
         PersistFloatingTriggerRows(updateWindow: false, forceSave: false);
+        RefreshFloatingTriggerButtonConfigs(entries);
+    }
+
+    public void RefreshFloatingTriggerButtonConfigs(Dictionary<string, FloatingWindowEntry> entries)
+    {
+        FloatingTriggerButtonConfigs.Clear();
+        foreach (var entry in entries.Values)
+        {
+            if (!Settings.FloatingWindowButtonRulesets.TryGetValue(entry.ButtonId, out var config))
+            {
+                config = new ButtonRulesetConfig();
+                Settings.FloatingWindowButtonRulesets[entry.ButtonId] = config;
+            }
+            FloatingTriggerButtonConfigs.Add(new FloatingTriggerButtonConfigItem
+            {
+                ButtonId = entry.ButtonId,
+                Icon = entry.Icon,
+                ButtonName = entry.LayoutName,
+                Config = config
+            });
+        }
     }
 
     public void AddFloatingTriggerRow()

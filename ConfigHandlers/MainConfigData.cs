@@ -4,6 +4,7 @@ using System.Runtime.CompilerServices;
 using System.Text.Json.Serialization;
 using System.Collections.Generic;
 using CommunityToolkit.Mvvm.ComponentModel;
+using ClassIsland.Core.Models.Ruleset;
 
 namespace SystemTools.ConfigHandlers;
 
@@ -329,6 +330,26 @@ public class MainConfigData : INotifyPropertyChanged
             OnPropertyChanged();
         }
     }
+
+    bool _floatingWindowRulesetEnabled = false;
+
+    [JsonPropertyName("floatingWindowRulesetEnabled")]
+    public bool FloatingWindowRulesetEnabled
+    {
+        get => _floatingWindowRulesetEnabled;
+        set
+        {
+            if (value == _floatingWindowRulesetEnabled) return;
+            _floatingWindowRulesetEnabled = value;
+            OnPropertyChanged();
+        }
+    }
+
+    [JsonPropertyName("floatingWindowRuleset")]
+    public Ruleset FloatingWindowRuleset { get; set; } = new();
+
+    [JsonPropertyName("floatingWindowButtonRulesets")]
+    public Dictionary<string, ButtonRulesetConfig> FloatingWindowButtonRulesets { get; set; } = new();
 
         // 行动功能启用状态（Key: 行动ID, Value: 是否启用）
     [JsonPropertyName("enabledActions")] public Dictionary<string, bool> EnabledActions { get; set; } = new();

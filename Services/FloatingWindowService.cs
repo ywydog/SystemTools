@@ -7,6 +7,7 @@ using Avalonia.Media;
 using Avalonia.Styling;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
+using ClassIsland.Core.Abstractions.Services;
 using ClassIsland.Core.Controls;
 using System;
 using System.Collections.Generic;
@@ -63,6 +64,7 @@ public class FloatingWindowService
     private LowLevelMouseProc? _lowLevelMouseProc;
     private DispatcherTimer LayerRecheck50MsTimer { get; } = new() { Interval = TimeSpan.FromMilliseconds(50) };
     private DispatcherTimer LayerRecheck1MsTimer { get; } = new() { Interval = TimeSpan.FromMilliseconds(1) };
+    private DispatcherTimer RulesetCheckTimer { get; } = new() { Interval = TimeSpan.FromSeconds(1) };
 
     private delegate void WinEventProc(IntPtr hWinEventHook, uint @event, IntPtr hwnd, int idObject, int idChild, uint idEventThread,
         uint dwmsEventTime);
@@ -102,6 +104,7 @@ public class FloatingWindowService
             EnsureLayerRecheckHooks();
             EnsureGlobalInputHooks();
             SubscribeThemeChanged();
+            StartRulesetCheckTimer();
             ApplyVisibility();
             RefreshLayerRecheckMode();
             RecheckWindowLayer();
@@ -122,6 +125,7 @@ public class FloatingWindowService
 
             LayerRecheck50MsTimer.Stop();
             LayerRecheck1MsTimer.Stop();
+            RulesetCheckTimer.Stop();
             RemoveLayerRecheckHooks();
             RemoveGlobalInputHooks();
             UnsubscribeThemeChanged();
@@ -321,6 +325,99 @@ public class FloatingWindowService
         RecheckWindowLayer();
     }
 
+    private bool _rulesetHidingWindow = false;
+    private readonly HashSet<string> _rulesetHiddenButtons = new();
+
+    private void StartRulesetCheckTimer()
+    {
+        RulesetCheckTimer.Tick -= OnRulesetCheckTimerTick;
+        RulesetCheckTimer.Tick += OnRulesetCheckTimerTick;
+        RulesetCheckTimer.Start();
+    }
+
+    private void OnRulesetCheckTimerTick(object? sender, EventArgs e)
+    {
+        CheckFloatingWindowRuleset();
+        CheckButtonRulesets();
+    }
+
+    private void CheckFloatingWindowRuleset()
+    {
+        var data = _configHandler.Data;
+        if (!data.FloatingWindowRulesetEnabled)
+        {
+            if (_rulesetHidingWindow)
+            {
+                _rulesetHidingWindow = false;
+                ApplyVisibility();
+            }
+            return;
+        }
+
+        var rulesetService = IAppHost.TryGetService<IRulesetService>();
+        if (rulesetService == null)
+        {
+            return;
+        }
+
+        var isSatisfied = rulesetService.IsRulesetSatisfied(data.FloatingWindowRuleset);
+        var shouldHide = !isSatisfied;
+
+        if (shouldHide != _rulesetHidingWindow)
+        {
+            _rulesetHidingWindow = shouldHide;
+            ApplyVisibility();
+        }
+    }
+
+    private void CheckButtonRulesets()
+    {
+        var data = _configHandler.Data;
+        var rulesetService = IAppHost.TryGetService<IRulesetService>();
+        if (rulesetService == null)
+        {
+            return;
+        }
+
+        var changed = false;
+        foreach (var entry in _entries.Values)
+        {
+            if (!data.FloatingWindowButtonRulesets.TryGetValue(entry.ButtonId, out var config))
+            {
+                continue;
+            }
+
+            var shouldHide = false;
+            if (!config.IsVisible)
+            {
+                shouldHide = true;
+            }
+            else if (config.RulesetEnabled)
+            {
+                shouldHide = !rulesetService.IsRulesetSatisfied(config.Ruleset);
+            }
+
+            var wasHidden = _rulesetHiddenButtons.Contains(entry.ButtonId);
+            if (shouldHide != wasHidden)
+            {
+                if (shouldHide)
+                {
+                    _rulesetHiddenButtons.Add(entry.ButtonId);
+                }
+                else
+                {
+                    _rulesetHiddenButtons.Remove(entry.ButtonId);
+                }
+                changed = true;
+            }
+        }
+
+        if (changed)
+        {
+            Dispatcher.UIThread.Post(RefreshWindowButtons);
+        }
+    }
+
     private void ApplyVisibility()
     {
         EnsureWindow();
@@ -329,7 +426,7 @@ public class FloatingWindowService
             return;
         }
 
-        if (_configHandler.Data.ShowFloatingWindow && _entries.Count > 0)
+        if (_configHandler.Data.ShowFloatingWindow && _entries.Count > 0 && !_rulesetHidingWindow)
         {
             if (!_window.IsVisible)
             {
@@ -506,7 +603,9 @@ public class FloatingWindowService
 
     private List<List<FloatingWindowEntry>> GetOrderedRows()
     {
-        var values = _entries.Values.ToDictionary(x => x.ButtonId, x => x);
+        var values = _entries.Values
+            .Where(x => !_rulesetHiddenButtons.Contains(x.ButtonId))
+            .ToDictionary(x => x.ButtonId, x => x);
         var order = _configHandler.Data.FloatingWindowButtonOrder ?? [];
 
         var orderedIds = values.Keys
@@ -1135,6 +1234,22 @@ public class FloatingWindowService
 
         _window.Topmost = true;
         PInvoke.SetWindowPos(hwnd, HwndTopmost, 0, 0, 0, 0, flags);
+    }
+
+    public void ToggleWindowLayer()
+    {
+        var data = _configHandler.Data;
+        data.FloatingWindowLayer = data.FloatingWindowLayer == 1 ? 0 : 1;
+        _configHandler.Save();
+        Dispatcher.UIThread.Post(() =>
+        {
+            if (_window != null)
+            {
+                _window.Topmost = data.FloatingWindowLayer == 1;
+            }
+            RecheckWindowLayer();
+            RefreshLayerRecheckMode();
+        });
     }
 
     public static string ConvertIcon(string raw)

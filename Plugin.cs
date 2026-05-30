@@ -283,6 +283,8 @@ public class Plugin : PluginBase
         {
             RegisterActionIfEnabled<ShowFloatingWindowAction, ShowFloatingWindowSettingsControl>(services, config,
                 "SystemTools.ShowFloatingWindow");
+            RegisterActionIfEnabled<ToggleFloatingWindowLayerAction>(services, config,
+                "SystemTools.ToggleFloatingWindowLayer");
         }
 
         // 其他工具
@@ -821,6 +823,8 @@ public class Plugin : PluginBase
 
         if (config.EnableFloatingWindowFeature && config.IsActionEnabled("SystemTools.ShowFloatingWindow"))
             items.Add(new ActionMenuTreeItem("SystemTools.ShowFloatingWindow", "显示悬浮窗", "\uEA37"));
+        if (config.EnableFloatingWindowFeature && config.IsActionEnabled("SystemTools.ToggleFloatingWindowLayer"))
+            items.Add(new ActionMenuTreeItem("SystemTools.ToggleFloatingWindowLayer", "切换悬浮窗置顶/置底", "\uE9A8"));
 
         if (items.Count > 0)
         {
