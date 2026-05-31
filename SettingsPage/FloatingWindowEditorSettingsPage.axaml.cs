@@ -122,6 +122,46 @@ public partial class FloatingWindowEditorSettingsPage : SettingsPageBase
         ViewModel.RemoveFloatingWindowProfile(profileName);
     }
 
+    private void OnRemoveCurrentProfileClick(object? sender, RoutedEventArgs e)
+    {
+        var currentName = ViewModel.SelectedFloatingWindowProfile;
+        if (string.IsNullOrWhiteSpace(currentName))
+        {
+            return;
+        }
+
+        ViewModel.RemoveFloatingWindowProfile(currentName);
+    }
+
+    private void OnInsertRowBelowClick(object? sender, RoutedEventArgs e)
+    {
+        if (sender is not Control control)
+        {
+            return;
+        }
+
+        var row = control.GetVisualAncestors()
+            .OfType<Border>()
+            .Select(b => b.DataContext)
+            .OfType<FloatingTriggerRow>()
+            .FirstOrDefault();
+
+        if (row == null)
+        {
+            return;
+        }
+
+        var index = ViewModel.FloatingTriggerRows.IndexOf(row);
+        if (index < 0)
+        {
+            return;
+        }
+
+        var newRow = new FloatingTriggerRow();
+        ViewModel.FloatingTriggerRows.Insert(index + 1, newRow);
+        ViewModel.PersistFloatingTriggerRows();
+    }
+
     private Point? _floatingDragStartPoint;
     private Border? _floatingDragSourceBorder;
 
