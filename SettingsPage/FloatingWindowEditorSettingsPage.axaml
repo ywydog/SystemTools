@@ -58,7 +58,7 @@
                                             Content="删除"
                                             Theme="{StaticResource TransparentButton}"
                                             Click="OnRemoveFloatingWindowProfileClick"
-                                            Tag="{Binding $self.DataContext, RelativeSource={RelativeSource AncestorType=ItemsControl}}" />
+                                            DataContext="{Binding}" />
                                 </Grid>
                             </DataTemplate>
                         </ItemsControl.ItemTemplate>

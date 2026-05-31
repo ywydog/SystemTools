@@ -4,10 +4,23 @@ using CommunityToolkit.Mvvm.ComponentModel;
 
 namespace SystemTools.ConfigHandlers;
 
-public partial class ButtonRulesetConfig : ObservableRecipient
+/// <summary>
+/// 悬浮窗按钮的规则集配置
+/// </summary>
+public partial class ButtonRulesetConfig : ObservableObject
 {
-    [ObservableProperty] private bool _isVisible = true;
-    [ObservableProperty] private int _position = -1;
-    [ObservableProperty] private bool _rulesetEnabled = false;
-    [JsonPropertyName("ruleset")] public Ruleset Ruleset { get; set; } = new();
+    [ObservableProperty]
+    [JsonPropertyName("isVisible")]
+    private bool _isVisible = true;
+
+    [ObservableProperty]
+    [JsonPropertyName("position")]
+    private int _position = -1;
+
+    [ObservableProperty]
+    [JsonPropertyName("rulesetEnabled")]
+    private bool _rulesetEnabled = false;
+
+    [JsonPropertyName("ruleset")]
+    public Ruleset Ruleset { get; set; } = new();
 }

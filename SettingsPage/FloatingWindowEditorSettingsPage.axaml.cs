@@ -96,7 +96,13 @@ public partial class FloatingWindowEditorSettingsPage : SettingsPageBase
 
     private void OnRemoveFloatingWindowProfileClick(object? sender, RoutedEventArgs e)
     {
-        if (sender is not Button { DataContext: FloatingWindowProfile profile })
+        if (sender is not Button button)
+        {
+            return;
+        }
+
+        // 从 Button 的 DataContext 获取对应的 FloatingWindowProfile
+        if (button.DataContext is not FloatingWindowProfile profile)
         {
             return;
         }

@@ -1338,6 +1338,9 @@ public class FloatingWindowService
         profile.FloatingWindowButtonOrder = new List<string>(data.FloatingWindowButtonOrder ?? []);
         profile.FloatingWindowButtonRows = (data.FloatingWindowButtonRows ?? []).Select(r => new List<string>(r)).ToList();
         profile.FloatingWindowScale = data.FloatingWindowScale;
+        profile.FloatingWindowIconSize = data.FloatingWindowIconSize;
+        profile.FloatingWindowTextSize = data.FloatingWindowTextSize;
+        profile.FloatingWindowOpacity = data.FloatingWindowOpacity;
         profile.FloatingWindowPositionX = data.FloatingWindowPositionX;
         profile.FloatingWindowPositionY = data.FloatingWindowPositionY;
         profile.FloatingWindowLayer = data.FloatingWindowLayer;
@@ -1363,6 +1366,9 @@ public class FloatingWindowService
         data.FloatingWindowButtonOrder = new List<string>(profile.FloatingWindowButtonOrder ?? []);
         data.FloatingWindowButtonRows = (profile.FloatingWindowButtonRows ?? []).Select(r => new List<string>(r)).ToList();
         data.FloatingWindowScale = profile.FloatingWindowScale;
+        data.FloatingWindowIconSize = profile.FloatingWindowIconSize;
+        data.FloatingWindowTextSize = profile.FloatingWindowTextSize;
+        data.FloatingWindowOpacity = profile.FloatingWindowOpacity;
         data.FloatingWindowPositionX = profile.FloatingWindowPositionX;
         data.FloatingWindowPositionY = profile.FloatingWindowPositionY;
         data.FloatingWindowLayer = profile.FloatingWindowLayer;
