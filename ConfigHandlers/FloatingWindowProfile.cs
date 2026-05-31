@@ -77,4 +77,7 @@ public partial class FloatingWindowProfile : ObservableObject
 
     [JsonPropertyName("floatingWindowButtonRulesets")]
     public Dictionary<string, ButtonRulesetConfig> FloatingWindowButtonRulesets { get; set; } = new();
+
+    [JsonPropertyName("floatingWindowRowRulesets")]
+    public List<RowRulesetConfig> FloatingWindowRowRulesets { get; set; } = new();
 }

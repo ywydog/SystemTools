@@ -387,6 +387,9 @@ public class MainConfigData : INotifyPropertyChanged
     [JsonPropertyName("floatingWindowButtonRulesets")]
     public Dictionary<string, ButtonRulesetConfig> FloatingWindowButtonRulesets { get; set; } = new();
 
+    [JsonPropertyName("floatingWindowRowRulesets")]
+    public List<RowRulesetConfig> FloatingWindowRowRulesets { get; set; } = new();
+
         // 行动功能启用状态（Key: 行动ID, Value: 是否启用）
     [JsonPropertyName("enabledActions")] public Dictionary<string, bool> EnabledActions { get; set; } = new();
 

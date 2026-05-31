@@ -376,6 +376,46 @@
                 </StackPanel>
             </controls:SettingsExpander>
 
+            <controls:SettingsExpander IconSource="{ci:FluentIconSource &#xE9A8;}"
+                                       Header="悬浮窗行配置"
+                                       Description="配置每行的显示状态和规则集"
+                                       IsExpanded="False">
+                <StackPanel Margin="12,8,12,12" Spacing="8">
+                    <ItemsControl ItemsSource="{Binding ViewModel.FloatingTriggerRowConfigs}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Border BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}"
+                                        BorderThickness="1"
+                                        CornerRadius="6"
+                                        Padding="12"
+                                        Margin="0,0,0,8">
+                                    <StackPanel Spacing="8">
+                                        <Grid ColumnDefinitions="Auto,*,Auto">
+                                            <TextBlock Grid.Column="0" Text="第" VerticalAlignment="Center" Margin="0,0,4,0" />
+                                            <TextBlock Grid.Column="1" Text="{Binding RowIndex}" VerticalAlignment="Center" FontWeight="SemiBold" />
+                                            <TextBlock Grid.Column="2" Text="行" VerticalAlignment="Center" Margin="4,0,0,0" />
+                                            <ToggleSwitch Grid.Column="3"
+                                                          OnContent="显示" OffContent="隐藏"
+                                                          IsChecked="{Binding Config.IsVisible, Mode=TwoWay}" />
+                                        </Grid>
+                                        <controls:SettingsExpanderItem IconSource="{ci:FluentIconSource &#xE9A8;}"
+                                                                       Content="启用规则集"
+                                                                       Description="启用后，当规则集不满足时此行将自动隐藏">
+                                            <controls:SettingsExpanderItem.Footer>
+                                                <ToggleSwitch IsChecked="{Binding Config.RulesetEnabled, Mode=TwoWay}" />
+                                            </controls:SettingsExpanderItem.Footer>
+                                        </controls:SettingsExpanderItem>
+                                        <ruleset:RulesetControl Ruleset="{Binding Config.Ruleset}"
+                                                                ShowTitle="False"
+                                                                IsEnabled="{Binding Config.RulesetEnabled}" />
+                                    </StackPanel>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
+            </controls:SettingsExpander>
+
             <TextBlock Text="Programmer_Wang ©2026"
                        Foreground="Gray"
                        FontSize="12"

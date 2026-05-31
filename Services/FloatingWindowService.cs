@@ -328,6 +328,7 @@ public class FloatingWindowService
 
     private bool _rulesetHidingWindow = false;
     private readonly HashSet<string> _rulesetHiddenButtons = new();
+    private readonly HashSet<int> _rulesetHiddenRows = new();
 
     private void StartRulesetCheckTimer()
     {
@@ -340,6 +341,7 @@ public class FloatingWindowService
     {
         CheckFloatingWindowRuleset();
         CheckButtonRulesets();
+        CheckRowRulesets();
     }
 
     private void CheckFloatingWindowRuleset()
@@ -408,6 +410,61 @@ public class FloatingWindowService
                 else
                 {
                     _rulesetHiddenButtons.Remove(entry.ButtonId);
+                }
+                changed = true;
+            }
+        }
+
+        if (changed)
+        {
+            Dispatcher.UIThread.Post(RefreshWindowButtons);
+        }
+    }
+
+    private void CheckRowRulesets()
+    {
+        var data = _configHandler.Data;
+        var rowConfigs = data.FloatingWindowRowRulesets;
+        if (rowConfigs == null || rowConfigs.Count == 0)
+        {
+            if (_rulesetHiddenRows.Count > 0)
+            {
+                _rulesetHiddenRows.Clear();
+                Dispatcher.UIThread.Post(RefreshWindowButtons);
+            }
+            return;
+        }
+
+        var rulesetService = IAppHost.TryGetService<IRulesetService>();
+        if (rulesetService == null)
+        {
+            return;
+        }
+
+        var changed = false;
+        for (int i = 0; i < rowConfigs.Count; i++)
+        {
+            var config = rowConfigs[i];
+            var shouldHide = false;
+            if (!config.IsVisible)
+            {
+                shouldHide = true;
+            }
+            else if (config.RulesetEnabled)
+            {
+                shouldHide = !rulesetService.IsRulesetSatisfied(config.Ruleset);
+            }
+
+            var wasHidden = _rulesetHiddenRows.Contains(i);
+            if (shouldHide != wasHidden)
+            {
+                if (shouldHide)
+                {
+                    _rulesetHiddenRows.Add(i);
+                }
+                else
+                {
+                    _rulesetHiddenRows.Remove(i);
                 }
                 changed = true;
             }
@@ -518,8 +575,15 @@ public class FloatingWindowService
             _touchDragHandle = null;
         }
 
+        int rowIndex = 0;
         foreach (var rowEntries in GetOrderedRows())
         {
+            if (_rulesetHiddenRows.Contains(rowIndex))
+            {
+                rowIndex++;
+                continue;
+            }
+
             var rowPanel = new StackPanel
             {
                 Orientation = Orientation.Horizontal,
@@ -630,6 +694,8 @@ public class FloatingWindowService
             {
                 _stackPanel.Children.Add(rowPanel);
             }
+
+            rowIndex++;
         }
     }
 
@@ -1372,6 +1438,7 @@ public class FloatingWindowService
         profile.FloatingWindowRulesetEnabled = data.FloatingWindowRulesetEnabled;
         profile.FloatingWindowRuleset = data.FloatingWindowRuleset;
         profile.FloatingWindowButtonRulesets = new Dictionary<string, ButtonRulesetConfig>(data.FloatingWindowButtonRulesets ?? []);
+        profile.FloatingWindowRowRulesets = new List<RowRulesetConfig>(data.FloatingWindowRowRulesets ?? []);
     }
 
     private void LoadProfile(int index)
@@ -1400,6 +1467,7 @@ public class FloatingWindowService
         data.FloatingWindowRulesetEnabled = profile.FloatingWindowRulesetEnabled;
         data.FloatingWindowRuleset = profile.FloatingWindowRuleset;
         data.FloatingWindowButtonRulesets = new Dictionary<string, ButtonRulesetConfig>(profile.FloatingWindowButtonRulesets ?? []);
+        data.FloatingWindowRowRulesets = new List<RowRulesetConfig>(profile.FloatingWindowRowRulesets ?? []);
     }
 
     private static IBrush? TryParseColor(string colorString)

@@ -61,6 +61,12 @@ public partial class FloatingTriggerButtonConfigItem : ObservableObject
     [ObservableProperty] private ButtonRulesetConfig _config = new();
 }
 
+public partial class FloatingTriggerRowConfigItem : ObservableObject
+{
+    [ObservableProperty] private int _rowIndex = 0;
+    [ObservableProperty] private RowRulesetConfig _config = new();
+}
+
 public partial class SystemToolsSettingsViewModel : ObservableObject, IDisposable
 {
     [ObservableProperty] private MainConfigData _settings;
@@ -85,6 +91,7 @@ public partial class SystemToolsSettingsViewModel : ObservableObject, IDisposabl
     [ObservableProperty] private ObservableCollection<FloatingTriggerRow> _floatingTriggerRows = new();
     [ObservableProperty] private bool _hasFloatingTriggerEntries;
     [ObservableProperty] private ObservableCollection<FloatingTriggerButtonConfigItem> _floatingTriggerButtonConfigs = new();
+    [ObservableProperty] private ObservableCollection<FloatingTriggerRowConfigItem> _floatingTriggerRowConfigs = new();
 
     private const string DownloadUrl =
         "https://livefile.xesimg.com/programme/python_assets/f94fcfa40c9de41d6df09566a51e3130.exe";
@@ -339,6 +346,7 @@ public partial class SystemToolsSettingsViewModel : ObservableObject, IDisposabl
 
         PersistFloatingTriggerRows(updateWindow: false, forceSave: false);
         RefreshFloatingTriggerButtonConfigs(entries);
+        RefreshFloatingTriggerRowConfigs();
     }
 
     public void RefreshFloatingTriggerButtonConfigs(Dictionary<string, FloatingWindowEntry> entries)
@@ -357,6 +365,28 @@ public partial class SystemToolsSettingsViewModel : ObservableObject, IDisposabl
                 Icon = entry.Icon,
                 ButtonName = entry.LayoutName,
                 Config = config
+            });
+        }
+    }
+
+    public void RefreshFloatingTriggerRowConfigs()
+    {
+        FloatingTriggerRowConfigs.Clear();
+        var rowConfigs = Settings.FloatingWindowRowRulesets ?? [];
+        var rowCount = FloatingTriggerRows.Count;
+
+        // 确保配置列表长度与行数一致
+        while (rowConfigs.Count < rowCount)
+        {
+            rowConfigs.Add(new RowRulesetConfig());
+        }
+
+        for (int i = 0; i < rowCount; i++)
+        {
+            FloatingTriggerRowConfigs.Add(new FloatingTriggerRowConfigItem
+            {
+                RowIndex = i + 1,
+                Config = rowConfigs[i]
             });
         }
     }
@@ -484,7 +514,8 @@ public partial class SystemToolsSettingsViewModel : ObservableObject, IDisposabl
             FloatingWindowDragHandleAlwaysVisible = currentProfile.FloatingWindowDragHandleAlwaysVisible,
             FloatingWindowRulesetEnabled = currentProfile.FloatingWindowRulesetEnabled,
             FloatingWindowRuleset = currentProfile.FloatingWindowRuleset,
-            FloatingWindowButtonRulesets = new Dictionary<string, ButtonRulesetConfig>(currentProfile.FloatingWindowButtonRulesets ?? [])
+            FloatingWindowButtonRulesets = new Dictionary<string, ButtonRulesetConfig>(currentProfile.FloatingWindowButtonRulesets ?? []),
+            FloatingWindowRowRulesets = new List<RowRulesetConfig>(currentProfile.FloatingWindowRowRulesets ?? [])
         };
         data.FloatingWindowProfiles.Add(newProfile);
         _configHandler.Save();
