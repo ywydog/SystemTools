@@ -235,7 +235,7 @@
                                           HorizontalAlignment="Stretch">
                                 <ItemsControl.ItemsPanel>
                                     <ItemsPanelTemplate>
-                                        <WrapPanel HorizontalAlignment="Center" Spacing="8" />
+                                        <WrapPanel HorizontalAlignment="Center" />
                                     </ItemsPanelTemplate>
                                 </ItemsControl.ItemsPanel>
                                 <ItemsControl.ItemTemplate>
@@ -244,6 +244,7 @@
                                                 CornerRadius="8"
                                                 Padding="10,8"
                                                 Width="160"
+                                                Margin="4"
                                                 PointerPressed="OnFloatingTriggerItemPointerPressed"
                                                 PointerMoved="OnFloatingTriggerItemPointerMoved"
                                                 PointerReleased="OnFloatingTriggerItemPointerReleased"

@@ -109,8 +109,8 @@ public class Plugin : PluginBase
         RegisterBaseRules(services);
         RegisterBaseComponents(services);
 
-        var experimentalEnabled = GlobalConstants.MainConfig.Data.EnableExperimentalFeatures;
-        var ffmpegEnabled = GlobalConstants.MainConfig.Data.EnableFfmpegFeatures;
+        var experimentalEnabled = GlobalConstants.MainConfig?.Data.EnableExperimentalFeatures ?? false;
+        var ffmpegEnabled = GlobalConstants.MainConfig?.Data.EnableFfmpegFeatures ?? false;
 
         AppBase.Current.AppStarted += (o, args) =>
         {
