@@ -48,7 +48,6 @@ public class Plugin : PluginBase
 {
     private ILogger<Plugin>? _logger;
     private NativeMenuItem? _toggleFloatingWindowMenuItem;
-    private int _toggleMenuRegisterRetryCount;
     private bool _faceRecognitionRegistered = false;
     private bool _ffmpegDisabledDueToMissingDependency;
     private bool _faceRecognitionDisabledDueToMissingDependency;
@@ -77,7 +76,7 @@ public class Plugin : PluginBase
         // ========== 注册可选人脸识别 ==========
         if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
         {
-            if (GlobalConstants.MainConfig.Data.EnableFaceRecognition)
+            if (GlobalConstants.MainConfig?.Data.EnableFaceRecognition == true)
             {
                 if (DependencyPaths.HasFaceRecognitionDependencies())
                 {

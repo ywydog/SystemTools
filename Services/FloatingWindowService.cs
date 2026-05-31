@@ -591,7 +591,7 @@ public class FloatingWindowService
                     button.Width = double.NaN;
                 }
 
-                EventHandler<Avalonia.VisualTree.AvaloniaPropertyChangedEventArgs>? layoutUpdatedHandler = null;
+                EventHandler? layoutUpdatedHandler = null;
                 layoutUpdatedHandler = (_, _) =>
                 {
                     if (entry.IsRevertStyleActive)
