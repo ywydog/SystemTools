@@ -237,8 +237,8 @@ public class FloatingWindowService
         _stackPanel = new StackPanel { Margin = new Thickness(6), Spacing = 6 };
         _window = new Window
         {
-            Width = 1,
-            Height = 1,
+            Width = 64,
+            Height = 64,
             ShowActivated = false,
             Topmost = _configHandler.Data.FloatingWindowLayer == 1,
             SystemDecorations = SystemDecorations.None,
@@ -248,7 +248,7 @@ public class FloatingWindowService
             SizeToContent = SizeToContent.WidthAndHeight,
             Content = _windowContainer = new Border
             {
-                Background = new SolidColorBrush(Color.Parse("#CC1F1F1F")),
+                Background = TryParseColor("#CC1F1F1F") ?? new SolidColorBrush(Color.FromArgb(0xCC, 0x1F, 0x1F, 0x1F)),
                 CornerRadius = new CornerRadius(8),
                 Child = _stackPanel
             }
@@ -427,7 +427,9 @@ public class FloatingWindowService
             return;
         }
 
-        if (_configHandler.Data.ShowFloatingWindow && _entries.Count > 0 && !_rulesetHidingWindow)
+        var shouldShow = _configHandler.Data.ShowFloatingWindow && _entries.Count > 0 && !_rulesetHidingWindow;
+
+        if (shouldShow)
         {
             if (!_window.IsVisible)
             {
@@ -450,9 +452,18 @@ public class FloatingWindowService
         }
         else
         {
-            if (_window != null)
+            if (_window != null && _window.IsVisible)
             {
-                _window.Hide();
+                try
+                {
+                    _window.Hide();
+                }
+                catch (InvalidOperationException)
+                {
+                    _window = null;
+                    _stackPanel = null;
+                    _windowContainer = null;
+                }
             }
         }
     }
@@ -580,7 +591,8 @@ public class FloatingWindowService
                     button.Width = double.NaN;
                 }
 
-                button.LayoutUpdated += (_, _) =>
+                EventHandler<Avalonia.VisualTree.AvaloniaPropertyChangedEventArgs>? layoutUpdatedHandler = null;
+                layoutUpdatedHandler = (_, _) =>
                 {
                     if (entry.IsRevertStyleActive)
                     {
@@ -591,8 +603,10 @@ public class FloatingWindowService
                     if (width > 0)
                     {
                         _buttonWidthCache[entry.ButtonId] = width;
+                        button.LayoutUpdated -= layoutUpdatedHandler;
                     }
                 };
+                button.LayoutUpdated += layoutUpdatedHandler;
 
                 button.PointerPressed += (_, e) =>
                 {
@@ -640,26 +654,34 @@ public class FloatingWindowService
 
         foreach (var row in _configHandler.Data.FloatingWindowButtonRows ?? [])
         {
-            var items = row
-                .Where(id => values.ContainsKey(id) && used.Add(id))
-                .Select(id => values[id])
-                .ToList();
+            var items = new List<FloatingWindowEntry>();
+            foreach (var id in row)
+            {
+                if (values.TryGetValue(id, out var entry) && used.Add(id))
+                {
+                    items.Add(entry);
+                }
+            }
             if (items.Count > 0)
             {
                 rows.Add(items);
             }
         }
 
-        var missing = orderedIds
-            .Where(id => !used.Contains(id))
-            .Select(id => values[id])
-            .ToList();
+        var missing = new List<FloatingWindowEntry>();
+        foreach (var id in orderedIds)
+        {
+            if (!used.Contains(id) && values.TryGetValue(id, out var entry))
+            {
+                missing.Add(entry);
+            }
+        }
 
         if (rows.Count == 0)
         {
             rows.Add(missing);
         }
-        else
+        else if (missing.Count > 0)
         {
             rows[0].AddRange(missing);
         }
@@ -1380,9 +1402,21 @@ public class FloatingWindowService
         data.FloatingWindowButtonRulesets = new Dictionary<string, ButtonRulesetConfig>(profile.FloatingWindowButtonRulesets ?? []);
     }
 
+    private static IBrush? TryParseColor(string colorString)
+    {
+        try
+        {
+            return new SolidColorBrush(Color.Parse(colorString));
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
     public static string ConvertIcon(string raw)
     {
-        if (string.IsNullOrWhiteSpace(raw)) return "?";
+        if (string.IsNullOrWhiteSpace(raw)) return "\uEA37";
         var v = raw.Trim();
         if (v.StartsWith("/u", StringComparison.OrdinalIgnoreCase) || v.StartsWith("\\u", StringComparison.OrdinalIgnoreCase))
         {
