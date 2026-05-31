@@ -716,49 +716,22 @@ public class FloatingWindowService
         var values = _entries.Values
             .Where(x => !_rulesetHiddenButtons.Contains(x.ButtonId))
             .ToDictionary(x => x.ButtonId, x => x);
-        var order = profile.FloatingWindowButtonOrder ?? [];
 
-        var orderedIds = values.Keys
-            .OrderBy(id =>
-            {
-                var index = order.IndexOf(id);
-                return index < 0 ? int.MaxValue : index;
-            })
-            .ThenBy(id => id)
-            .ToList();
-
-        var used = new HashSet<string>();
         var rows = new List<List<FloatingWindowEntry>>();
 
+        // 只显示 FloatingWindowButtonRows 中明确配置的按钮
+        // 未配置的按钮不会自动显示，需要用户在设置页面手动添加
         foreach (var row in profile.FloatingWindowButtonRows ?? [])
         {
             var items = new List<FloatingWindowEntry>();
             foreach (var id in row)
             {
-                if (values.TryGetValue(id, out var entry) && used.Add(id))
+                if (values.TryGetValue(id, out var entry))
                 {
                     items.Add(entry);
                 }
             }
             rows.Add(items);
-        }
-
-        var missing = new List<FloatingWindowEntry>();
-        foreach (var id in orderedIds)
-        {
-            if (!used.Contains(id) && values.TryGetValue(id, out var entry))
-            {
-                missing.Add(entry);
-            }
-        }
-
-        if (rows.Count == 0)
-        {
-            rows.Add(missing);
-        }
-        else if (missing.Count > 0)
-        {
-            rows[0].AddRange(missing);
         }
 
         if (rows.Count == 0)

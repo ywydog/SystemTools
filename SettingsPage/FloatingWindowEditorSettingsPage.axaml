@@ -257,7 +257,7 @@
 
             <controls:SettingsExpander IconSource="{ci:FluentIconSource &#xEA37;}"
                                        Header="悬浮窗按钮布局"
-                                       Description="您可在下方通过拖拽调整行内按钮顺序，或添加行以实现纵列排布等功能"
+                                       Description="从下方可用按钮池拖拽按钮到上方行中，或调整行内按钮顺序"
                                        IsExpanded="True">
                 <StackPanel Margin="12,8,12,12" Spacing="8">
                     <Grid>
@@ -309,7 +309,7 @@
                                                             DragDrop.AllowDrop="True"
                                                             DragDrop.DragOver="OnFloatingTriggerItemDragOver"
                                                             DragDrop.Drop="OnFloatingTriggerItemDrop">
-                                                            <Grid ColumnDefinitions="Auto,*" ColumnSpacing="8">
+                                                            <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="8">
                                                                 <Border Grid.Column="0"
                                                                         Tag="{Binding ButtonId}"
                                                                         Padding="6,2"
@@ -327,6 +327,13 @@
                                                                     <TextBlock Text="{Binding Icon}" />
                                                                     <TextBlock Text="{Binding ButtonName}" />
                                                                 </StackPanel>
+                                                                <Button Grid.Column="2"
+                                                                        Content="✕"
+                                                                        FontSize="10"
+                                                                        Padding="4,0"
+                                                                        Theme="{StaticResource TransparentButton}"
+                                                                        Click="OnRemoveTriggerFromRowClick"
+                                                                        Tag="{Binding ButtonId}" />
                                                             </Grid>
                                                         </Border>
                                                     </DataTemplate>
@@ -338,6 +345,46 @@
                             </DataTemplate>
                         </ItemsControl.ItemTemplate>
                     </ItemsControl>
+
+                    <TextBlock Text="可用按钮池（拖拽到上方行中）"
+                               Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                               FontWeight="SemiBold"
+                               Margin="0,8,0,0" />
+                    <Border MinHeight="52"
+                            CornerRadius="6"
+                            Background="{DynamicResource SubtleFillColorTertiaryBrush}"
+                            Padding="6"
+                            DragDrop.AllowDrop="True"
+                            DragDrop.DragOver="OnFloatingTriggerRowDragOver"
+                            DragDrop.Drop="OnAvailablePoolDrop">
+                        <ItemsControl ItemsSource="{Binding ViewModel.AvailableFloatingTriggerItems}"
+                                      HorizontalAlignment="Stretch"
+                                      VerticalAlignment="Center">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <StackPanel Orientation="Horizontal"
+                                                HorizontalAlignment="Center" Spacing="14" />
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Border Background="{DynamicResource SubtleFillColorSecondaryBrush}"
+                                            CornerRadius="6"
+                                            Padding="8,4"
+                                            Margin="0,0,2,0"
+                                            PointerPressed="OnFloatingTriggerItemPointerPressed"
+                                            PointerMoved="OnFloatingTriggerItemPointerMoved"
+                                            PointerReleased="OnFloatingTriggerItemPointerReleased"
+                                            Tag="{Binding ButtonId}">
+                                        <StackPanel Orientation="Horizontal" Spacing="6">
+                                            <TextBlock Text="{Binding Icon}" />
+                                            <TextBlock Text="{Binding ButtonName}" />
+                                        </StackPanel>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </Border>
                 </StackPanel>
             </controls:SettingsExpander>
 

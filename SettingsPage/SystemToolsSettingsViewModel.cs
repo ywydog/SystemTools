@@ -93,6 +93,9 @@ public partial class SystemToolsSettingsViewModel : ObservableObject, IDisposabl
     [ObservableProperty] private ObservableCollection<FloatingTriggerButtonConfigItem> _floatingTriggerButtonConfigs = new();
     [ObservableProperty] private ObservableCollection<FloatingTriggerRowConfigItem> _floatingTriggerRowConfigs = new();
 
+    // 可用按钮池（未添加到悬浮窗的按钮）
+    [ObservableProperty] private ObservableCollection<FloatingTriggerItem> _availableFloatingTriggerItems = new();
+
     // 悬浮窗配置方案
     [ObservableProperty] private ObservableCollection<string> _floatingWindowProfileNames = new();
     [ObservableProperty] private string _selectedFloatingWindowProfile = "Default";
@@ -310,45 +313,19 @@ public partial class SystemToolsSettingsViewModel : ObservableObject, IDisposabl
             _floatingWindowService.ProfileManager.SaveProfile();
         }
 
-        var order = profile.FloatingWindowButtonOrder ?? [];
-
-        var orderedIds = entries.Keys
-            .OrderBy(id =>
-            {
-                var i = order.IndexOf(id);
-                return i < 0 ? int.MaxValue : i;
-            })
-            .ThenBy(id => id)
-            .ToList();
-
-        var used = new HashSet<string>();
-        var normalizedRows = new List<List<string>>();
-
+        // 收集已配置的按钮ID
+        var configuredIds = new HashSet<string>();
         foreach (var row in profile.FloatingWindowButtonRows ?? [])
         {
-            var normalizedRow = row
-                .Where(id => entries.ContainsKey(id) && used.Add(id))
-                .ToList();
-            normalizedRows.Add(normalizedRow);
+            foreach (var id in row)
+            {
+                configuredIds.Add(id);
+            }
         }
 
-        var missing = orderedIds.Where(id => !used.Contains(id)).ToList();
-        if (normalizedRows.Count == 0)
-        {
-            normalizedRows.Add(missing);
-        }
-        else
-        {
-            normalizedRows[0].AddRange(missing);
-        }
-
-        if (normalizedRows.Count == 0)
-        {
-            normalizedRows.Add([]);
-        }
-
+        // 构建已配置的行显示
         FloatingTriggerRows.Clear();
-        foreach (var row in normalizedRows)
+        foreach (var row in profile.FloatingWindowButtonRows ?? [])
         {
             var vmRow = new FloatingTriggerRow();
             foreach (var id in row)
@@ -367,7 +344,26 @@ public partial class SystemToolsSettingsViewModel : ObservableObject, IDisposabl
             FloatingTriggerRows.Add(vmRow);
         }
 
-        PersistFloatingTriggerRows(updateWindow: false, forceSave: false);
+        if (FloatingTriggerRows.Count == 0)
+        {
+            FloatingTriggerRows.Add(new FloatingTriggerRow());
+        }
+
+        // 构建可用按钮池（未配置的按钮）
+        AvailableFloatingTriggerItems.Clear();
+        foreach (var entry in entries.Values)
+        {
+            if (!configuredIds.Contains(entry.ButtonId))
+            {
+                AvailableFloatingTriggerItems.Add(new FloatingTriggerItem
+                {
+                    ButtonId = entry.ButtonId,
+                    Icon = entry.Icon,
+                    ButtonName = entry.LayoutName
+                });
+            }
+        }
+
         RefreshFloatingTriggerButtonConfigs(entries);
         RefreshFloatingTriggerRowConfigs();
     }
@@ -480,6 +476,57 @@ public partial class SystemToolsSettingsViewModel : ObservableObject, IDisposabl
         destinationRow.Buttons.Insert(targetIndex, item);
         PersistFloatingTriggerRows();
         return true;
+    }
+
+    /// <summary>
+    /// 从可用按钮池添加按钮到指定行
+    /// </summary>
+    public bool AddTriggerFromPool(string buttonId, int targetRowIndex, int targetIndex)
+    {
+        if (string.IsNullOrWhiteSpace(buttonId) || FloatingTriggerRows.Count == 0)
+        {
+            return false;
+        }
+
+        var poolItem = AvailableFloatingTriggerItems.FirstOrDefault(x => x.ButtonId == buttonId);
+        if (poolItem == null)
+        {
+            return false;
+        }
+
+        targetRowIndex = Math.Clamp(targetRowIndex, 0, FloatingTriggerRows.Count - 1);
+        var destinationRow = FloatingTriggerRows[targetRowIndex];
+        targetIndex = Math.Clamp(targetIndex, 0, destinationRow.Buttons.Count);
+
+        AvailableFloatingTriggerItems.Remove(poolItem);
+        destinationRow.Buttons.Insert(targetIndex, poolItem);
+        PersistFloatingTriggerRows();
+        return true;
+    }
+
+    /// <summary>
+    /// 将按钮从行中移除，放回可用按钮池
+    /// </summary>
+    public bool RemoveTriggerToPool(string buttonId)
+    {
+        if (string.IsNullOrWhiteSpace(buttonId))
+        {
+            return false;
+        }
+
+        foreach (var row in FloatingTriggerRows)
+        {
+            var item = row.Buttons.FirstOrDefault(x => x.ButtonId == buttonId);
+            if (item != null)
+            {
+                row.Buttons.Remove(item);
+                AvailableFloatingTriggerItems.Add(item);
+                PersistFloatingTriggerRows();
+                return true;
+            }
+        }
+
+        return false;
     }
 
     public void PersistFloatingTriggerRows(bool updateWindow = true, bool forceSave = true)

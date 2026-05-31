@@ -318,4 +318,30 @@ public partial class FloatingWindowEditorSettingsPage : SettingsPageBase
 
         ViewModel.MoveFloatingTrigger(buttonId, rowIndex, targetIndex);
     }
+
+    private void OnRemoveTriggerFromRowClick(object? sender, RoutedEventArgs e)
+    {
+        if (sender is not Button button || button.Tag is not string buttonId)
+        {
+            return;
+        }
+
+        ViewModel.RemoveTriggerToPool(buttonId);
+    }
+
+    private void OnAvailablePoolDrop(object? sender, DragEventArgs e)
+    {
+        if (!TryGetDragButtonId(e, out var buttonId) || sender is not Control senderControl)
+        {
+            return;
+        }
+
+        // 从按钮池拖拽到行区域：添加到第一行末尾
+        if (ViewModel.FloatingTriggerRows.Count == 0)
+        {
+            ViewModel.AddFloatingTriggerRow();
+        }
+
+        ViewModel.AddTriggerFromPool(buttonId, 0, ViewModel.FloatingTriggerRows[0].Buttons.Count);
+    }
 }
