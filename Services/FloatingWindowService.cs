@@ -690,10 +690,7 @@ public class FloatingWindowService
                 rowPanel.Children.Add(button);
             }
 
-            if (rowPanel.Children.Count > 0)
-            {
-                _stackPanel.Children.Add(rowPanel);
-            }
+            _stackPanel.Children.Add(rowPanel);
 
             rowIndex++;
         }
@@ -728,10 +725,7 @@ public class FloatingWindowService
                     items.Add(entry);
                 }
             }
-            if (items.Count > 0)
-            {
-                rows.Add(items);
-            }
+            rows.Add(items);
         }
 
         var missing = new List<FloatingWindowEntry>();

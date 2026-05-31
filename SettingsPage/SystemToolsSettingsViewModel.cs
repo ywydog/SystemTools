@@ -306,10 +306,7 @@ public partial class SystemToolsSettingsViewModel : ObservableObject, IDisposabl
             var normalizedRow = row
                 .Where(id => entries.ContainsKey(id) && used.Add(id))
                 .ToList();
-            if (normalizedRow.Count > 0)
-            {
-                normalizedRows.Add(normalizedRow);
-            }
+            normalizedRows.Add(normalizedRow);
         }
 
         var missing = orderedIds.Where(id => !used.Contains(id)).ToList();
@@ -333,7 +330,10 @@ public partial class SystemToolsSettingsViewModel : ObservableObject, IDisposabl
             var vmRow = new FloatingTriggerRow();
             foreach (var id in row)
             {
-                var entry = entries[id];
+                if (!entries.TryGetValue(id, out var entry))
+                {
+                    continue;
+                }
                 vmRow.Buttons.Add(new FloatingTriggerItem
                 {
                     ButtonId = entry.ButtonId,
