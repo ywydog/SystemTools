@@ -5,7 +5,6 @@ using ClassIsland.Core.Attributes;
 using Microsoft.Extensions.Logging;
 using SystemTools.Services;
 using SystemTools.Settings;
-using SystemTools.Shared;
 
 namespace SystemTools.Actions;
 
@@ -24,8 +23,9 @@ public class ShowFloatingWindowAction(
         try
         {
             var shouldShow = Settings.ShowFloatingWindow;
-            GlobalConstants.MainConfig!.Data.ShowFloatingWindow = shouldShow;
-            GlobalConstants.MainConfig.Save();
+            var profile = _floatingWindowService.ProfileManager.CurrentProfile;
+            profile.ShowFloatingWindow = shouldShow;
+            _floatingWindowService.ProfileManager.SaveProfile();
             _floatingWindowService.UpdateWindowState();
 
             _logger.LogInformation("悬浮窗状态已更新为: {State}", shouldShow ? "开启" : "关闭");

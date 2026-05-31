@@ -1,4 +1,4 @@
-﻿using Avalonia;
+using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
@@ -39,6 +39,7 @@ public class FloatingWindowService
     private static readonly TimeSpan TouchLikeMouseGracePeriod = TimeSpan.FromMilliseconds(250);
 
     private readonly MainConfigHandler _configHandler;
+    private readonly FloatingWindowProfileManager _profileManager;
     private readonly Dictionary<FloatingWindowTrigger, FloatingWindowEntry> _entries = new();
     private Window? _window;
     private StackPanel? _stackPanel;
@@ -90,17 +91,21 @@ public class FloatingWindowService
 
     public event EventHandler? EntriesChanged;
 
-    public FloatingWindowService(MainConfigHandler configHandler)
+    public FloatingWindowService(MainConfigHandler configHandler, FloatingWindowProfileManager profileManager)
     {
         _configHandler = configHandler;
+        _profileManager = profileManager;
     }
 
     public IReadOnlyList<FloatingWindowEntry> Entries => _entries.Values.ToList();
+
+    public FloatingWindowProfileManager ProfileManager => _profileManager;
 
     public void Start()
     {
         Dispatcher.UIThread.Post(() =>
         {
+            _profileManager.LoadProfile(_configHandler.Data.CurrentFloatingWindowProfile);
             EnsureWindow();
             EnsureLayerRecheckHooks();
             EnsureGlobalInputHooks();
@@ -240,7 +245,7 @@ public class FloatingWindowService
             Width = 64,
             Height = 64,
             ShowActivated = false,
-            Topmost = _configHandler.Data.FloatingWindowLayer == 1,
+            Topmost = _profileManager.CurrentProfile.FloatingWindowLayer == 1,
             SystemDecorations = SystemDecorations.None,
             Background = Brushes.Transparent,
             CanResize = false,
@@ -346,8 +351,8 @@ public class FloatingWindowService
 
     private void CheckFloatingWindowRuleset()
     {
-        var data = _configHandler.Data;
-        if (!data.FloatingWindowRulesetEnabled)
+        var profile = _profileManager.CurrentProfile;
+        if (!profile.FloatingWindowRulesetEnabled)
         {
             if (_rulesetHidingWindow)
             {
@@ -363,7 +368,7 @@ public class FloatingWindowService
             return;
         }
 
-        var isSatisfied = rulesetService.IsRulesetSatisfied(data.FloatingWindowRuleset);
+        var isSatisfied = rulesetService.IsRulesetSatisfied(profile.FloatingWindowRuleset);
         var shouldHide = !isSatisfied;
 
         if (shouldHide != _rulesetHidingWindow)
@@ -375,7 +380,7 @@ public class FloatingWindowService
 
     private void CheckButtonRulesets()
     {
-        var data = _configHandler.Data;
+        var profile = _profileManager.CurrentProfile;
         var rulesetService = IAppHost.TryGetService<IRulesetService>();
         if (rulesetService == null)
         {
@@ -385,7 +390,7 @@ public class FloatingWindowService
         var changed = false;
         foreach (var entry in _entries.Values)
         {
-            if (!data.FloatingWindowButtonRulesets.TryGetValue(entry.ButtonId, out var config))
+            if (!profile.FloatingWindowButtonRulesets.TryGetValue(entry.ButtonId, out var config))
             {
                 continue;
             }
@@ -423,8 +428,8 @@ public class FloatingWindowService
 
     private void CheckRowRulesets()
     {
-        var data = _configHandler.Data;
-        var rowConfigs = data.FloatingWindowRowRulesets;
+        var profile = _profileManager.CurrentProfile;
+        var rowConfigs = profile.FloatingWindowRowRulesets;
         if (rowConfigs == null || rowConfigs.Count == 0)
         {
             if (_rulesetHiddenRows.Count > 0)
@@ -484,7 +489,8 @@ public class FloatingWindowService
             return;
         }
 
-        var shouldShow = _configHandler.Data.ShowFloatingWindow && _entries.Count > 0 && !_rulesetHidingWindow;
+        var profile = _profileManager.CurrentProfile;
+        var shouldShow = profile.ShowFloatingWindow && _entries.Count > 0 && !_rulesetHidingWindow;
 
         if (shouldShow)
         {
@@ -532,10 +538,11 @@ public class FloatingWindowService
             return;
         }
 
-        var scale = Math.Clamp(_configHandler.Data.FloatingWindowScale, 0.5, 2.0);
-        var iconSize = Math.Clamp(_configHandler.Data.FloatingWindowIconSize, 15, 50) * scale;
-        var textSize = Math.Clamp(_configHandler.Data.FloatingWindowTextSize, 8, 30) * scale;
-        var opacity = Math.Clamp(_configHandler.Data.FloatingWindowOpacity, 10, 100);
+        var profile = _profileManager.CurrentProfile;
+        var scale = Math.Clamp(profile.FloatingWindowScale, 0.5, 2.0);
+        var iconSize = Math.Clamp(profile.FloatingWindowIconSize, 15, 50) * scale;
+        var textSize = Math.Clamp(profile.FloatingWindowTextSize, 8, 30) * scale;
+        var opacity = Math.Clamp(profile.FloatingWindowOpacity, 10, 100);
         var alpha = (byte)Math.Round(255 * (opacity / 100.0));
         var isLightTheme = IsLightTheme();
         var windowBackground = isLightTheme
@@ -546,7 +553,7 @@ public class FloatingWindowService
         if (_windowContainer != null)
         {
             _windowContainer.Background = windowBackground;
-            _windowContainer.BoxShadow = _configHandler.Data.FloatingWindowShadowEnabled
+            _windowContainer.BoxShadow = profile.FloatingWindowShadowEnabled
                 ? new BoxShadows(new BoxShadow
                 {
                     OffsetX = 0,
@@ -565,7 +572,7 @@ public class FloatingWindowService
 
         _stackPanel.Children.Clear();
 
-        if (_isTouchDeviceDetected || _configHandler.Data.FloatingWindowDragHandleAlwaysVisible)
+        if (_isTouchDeviceDetected || profile.FloatingWindowDragHandleAlwaysVisible)
         {
             _touchDragHandle = CreateTouchDragHandle(scale, contentForeground);
             _stackPanel.Children.Add(_touchDragHandle);
@@ -651,7 +658,6 @@ public class FloatingWindowService
                 }
                 else
                 {
-                    // 保持自动布局，允许文本变更/缩放后重新测量自然宽度。
                     button.Width = double.NaN;
                 }
 
@@ -698,10 +704,19 @@ public class FloatingWindowService
 
     private List<List<FloatingWindowEntry>> GetOrderedRows()
     {
+        var profile = _profileManager.CurrentProfile;
+        var validButtonIds = _entries.Values.Select(x => x.ButtonId).ToHashSet();
+
+        // 清理不存在的按钮ID
+        if (profile.PruneInvalidButtonIds(validButtonIds))
+        {
+            _profileManager.SaveProfile();
+        }
+
         var values = _entries.Values
             .Where(x => !_rulesetHiddenButtons.Contains(x.ButtonId))
             .ToDictionary(x => x.ButtonId, x => x);
-        var order = _configHandler.Data.FloatingWindowButtonOrder ?? [];
+        var order = profile.FloatingWindowButtonOrder ?? [];
 
         var orderedIds = values.Keys
             .OrderBy(id =>
@@ -715,7 +730,7 @@ public class FloatingWindowService
         var used = new HashSet<string>();
         var rows = new List<List<FloatingWindowEntry>>();
 
-        foreach (var row in _configHandler.Data.FloatingWindowButtonRows ?? [])
+        foreach (var row in profile.FloatingWindowButtonRows ?? [])
         {
             var items = new List<FloatingWindowEntry>();
             foreach (var id in row)
@@ -1028,7 +1043,6 @@ public class FloatingWindowService
         }
         else if (message == WmLButtonDown || message == WmRButtonDown)
         {
-            // 仅在明确的鼠标点击操作时切回鼠标模式，避免触屏后被背景鼠标移动事件自动恢复。
             SetTouchInputMode(false);
         }
 
@@ -1126,7 +1140,8 @@ public class FloatingWindowService
             return;
         }
 
-        var configured = new PixelPoint(_configHandler.Data.FloatingWindowPositionX, _configHandler.Data.FloatingWindowPositionY);
+        var profile = _profileManager.CurrentProfile;
+        var configured = new PixelPoint(profile.FloatingWindowPositionX, profile.FloatingWindowPositionY);
         var rect = GetWindowRect(configured);
         var target = IsWindowInsideAnyScreen(rect) ? ClampToVisibleScreen(configured) : GetCenteredPositionOnPrimaryScreen();
 
@@ -1136,23 +1151,24 @@ public class FloatingWindowService
 
     private void SavePosition(PixelPoint position, bool forceSave = false)
     {
+        var profile = _profileManager.CurrentProfile;
         var changed = false;
 
-        if (_configHandler.Data.FloatingWindowPositionX != position.X)
+        if (profile.FloatingWindowPositionX != position.X)
         {
-            _configHandler.Data.FloatingWindowPositionX = position.X;
+            profile.FloatingWindowPositionX = position.X;
             changed = true;
         }
 
-        if (_configHandler.Data.FloatingWindowPositionY != position.Y)
+        if (profile.FloatingWindowPositionY != position.Y)
         {
-            _configHandler.Data.FloatingWindowPositionY = position.Y;
+            profile.FloatingWindowPositionY = position.Y;
             changed = true;
         }
 
         if (forceSave || changed)
         {
-            _configHandler.Save();
+            _profileManager.SaveProfile();
         }
     }
 
@@ -1186,7 +1202,8 @@ public class FloatingWindowService
 
     private void RefreshLayerRecheckMode()
     {
-        var mode = _configHandler.Data.FloatingWindowLayerRecheckMode;
+        var profile = _profileManager.CurrentProfile;
+        var mode = profile.FloatingWindowLayerRecheckMode;
         var useReorderHook = mode == 0;
         var useForegroundHook = mode == 1;
 
@@ -1270,7 +1287,7 @@ public class FloatingWindowService
 
     private void OnLayerRecheck50MsTimerTick(object? sender, EventArgs e)
     {
-        if (_configHandler.Data.FloatingWindowLayerRecheckMode == 2)
+        if (_profileManager.CurrentProfile.FloatingWindowLayerRecheckMode == 2)
         {
             RecheckWindowLayer();
         }
@@ -1278,7 +1295,7 @@ public class FloatingWindowService
 
     private void OnLayerRecheck1MsTimerTick(object? sender, EventArgs e)
     {
-        if (_configHandler.Data.FloatingWindowLayerRecheckMode == 3)
+        if (_profileManager.CurrentProfile.FloatingWindowLayerRecheckMode == 3)
         {
             RecheckWindowLayer();
         }
@@ -1292,7 +1309,7 @@ public class FloatingWindowService
             return;
         }
 
-        var mode = _configHandler.Data.FloatingWindowLayerRecheckMode;
+        var mode = _profileManager.CurrentProfile.FloatingWindowLayerRecheckMode;
         var shouldRecheck = (@event == EventObjectReorder && mode == 0) ||
                             (@event == EventSystemForeground && mode == 1);
         if (!shouldRecheck)
@@ -1325,7 +1342,7 @@ public class FloatingWindowService
                     SET_WINDOW_POS_FLAGS.SWP_NOSENDCHANGING;
         var hwnd = new HWND(handle);
 
-        if (_configHandler.Data.FloatingWindowLayer == 0)
+        if (_profileManager.CurrentProfile.FloatingWindowLayer == 0)
         {
             _window.Topmost = false;
             PInvoke.SetWindowPos(hwnd, HwndBottom, 0, 0, 0, 0, flags);
@@ -1338,14 +1355,14 @@ public class FloatingWindowService
 
     public void ToggleWindowLayer()
     {
-        var data = _configHandler.Data;
-        data.FloatingWindowLayer = data.FloatingWindowLayer == 1 ? 0 : 1;
-        _configHandler.Save();
+        var profile = _profileManager.CurrentProfile;
+        profile.FloatingWindowLayer = profile.FloatingWindowLayer == 1 ? 0 : 1;
+        _profileManager.SaveProfile();
         Dispatcher.UIThread.Post(() =>
         {
             if (_window != null)
             {
-                _window.Topmost = data.FloatingWindowLayer == 1;
+                _window.Topmost = profile.FloatingWindowLayer == 1;
             }
             RecheckWindowLayer();
             RefreshLayerRecheckMode();
@@ -1354,14 +1371,14 @@ public class FloatingWindowService
 
     public void SetWindowLayer(int layer)
     {
-        var data = _configHandler.Data;
-        data.FloatingWindowLayer = layer == 1 ? 1 : 0;
-        _configHandler.Save();
+        var profile = _profileManager.CurrentProfile;
+        profile.FloatingWindowLayer = layer == 1 ? 1 : 0;
+        _profileManager.SaveProfile();
         Dispatcher.UIThread.Post(() =>
         {
             if (_window != null)
             {
-                _window.Topmost = data.FloatingWindowLayer == 1;
+                _window.Topmost = profile.FloatingWindowLayer == 1;
             }
             RecheckWindowLayer();
             RefreshLayerRecheckMode();
@@ -1370,31 +1387,40 @@ public class FloatingWindowService
 
     public void ToggleWindowProfile()
     {
-        var data = _configHandler.Data;
-        var count = data.FloatingWindowProfiles.Count;
-        if (count <= 1)
+        var names = _profileManager.GetProfileNames();
+        if (names.Count <= 1)
         {
             return;
         }
 
-        var currentIndex = data.FloatingWindowProfileIndex;
-        var newIndex = (currentIndex + 1) % count;
-        SwitchToProfile(newIndex);
+        var currentName = _profileManager.CurrentProfileName;
+        var currentIndex = names.IndexOf(currentName);
+        if (currentIndex < 0)
+        {
+            currentIndex = 0;
+        }
+
+        var newIndex = (currentIndex + 1) % names.Count;
+        var newName = names[newIndex];
+        SwitchToProfile(newName);
     }
 
-    public void SwitchToProfile(int newIndex)
+    public void SwitchToProfile(string profileName)
     {
-        var data = _configHandler.Data;
-        var count = data.FloatingWindowProfiles.Count;
-        if (count == 0 || newIndex < 0 || newIndex >= count)
+        if (string.IsNullOrWhiteSpace(profileName))
         {
             return;
         }
 
-        var currentIndex = data.FloatingWindowProfileIndex;
-        SaveCurrentProfile(currentIndex);
-        data.FloatingWindowProfileIndex = newIndex;
-        LoadProfile(newIndex);
+        var names = _profileManager.GetProfileNames();
+        if (!names.Contains(profileName))
+        {
+            return;
+        }
+
+        _profileManager.SaveProfile();
+        _profileManager.LoadProfile(profileName);
+        _configHandler.Data.CurrentFloatingWindowProfile = profileName;
         _configHandler.Save();
 
         Dispatcher.UIThread.Post(() =>
@@ -1404,64 +1430,6 @@ public class FloatingWindowService
             RecheckWindowLayer();
             RefreshLayerRecheckMode();
         });
-    }
-
-    private void SaveCurrentProfile(int index)
-    {
-        var data = _configHandler.Data;
-        if (index < 0 || index >= data.FloatingWindowProfiles.Count)
-        {
-            return;
-        }
-
-        var profile = data.FloatingWindowProfiles[index];
-        profile.ShowFloatingWindow = data.ShowFloatingWindow;
-        profile.FloatingWindowHorizontal = data.FloatingWindowHorizontal;
-        profile.FloatingWindowButtonOrder = new List<string>(data.FloatingWindowButtonOrder ?? []);
-        profile.FloatingWindowButtonRows = (data.FloatingWindowButtonRows ?? []).Select(r => new List<string>(r)).ToList();
-        profile.FloatingWindowScale = data.FloatingWindowScale;
-        profile.FloatingWindowIconSize = data.FloatingWindowIconSize;
-        profile.FloatingWindowTextSize = data.FloatingWindowTextSize;
-        profile.FloatingWindowOpacity = data.FloatingWindowOpacity;
-        profile.FloatingWindowPositionX = data.FloatingWindowPositionX;
-        profile.FloatingWindowPositionY = data.FloatingWindowPositionY;
-        profile.FloatingWindowLayer = data.FloatingWindowLayer;
-        profile.FloatingWindowLayerRecheckMode = data.FloatingWindowLayerRecheckMode;
-        profile.FloatingWindowShadowEnabled = data.FloatingWindowShadowEnabled;
-        profile.FloatingWindowDragHandleAlwaysVisible = data.FloatingWindowDragHandleAlwaysVisible;
-        profile.FloatingWindowRulesetEnabled = data.FloatingWindowRulesetEnabled;
-        profile.FloatingWindowRuleset = data.FloatingWindowRuleset;
-        profile.FloatingWindowButtonRulesets = new Dictionary<string, ButtonRulesetConfig>(data.FloatingWindowButtonRulesets ?? []);
-        profile.FloatingWindowRowRulesets = new List<RowRulesetConfig>(data.FloatingWindowRowRulesets ?? []);
-    }
-
-    private void LoadProfile(int index)
-    {
-        var data = _configHandler.Data;
-        if (index < 0 || index >= data.FloatingWindowProfiles.Count)
-        {
-            return;
-        }
-
-        var profile = data.FloatingWindowProfiles[index];
-        data.ShowFloatingWindow = profile.ShowFloatingWindow;
-        data.FloatingWindowHorizontal = profile.FloatingWindowHorizontal;
-        data.FloatingWindowButtonOrder = new List<string>(profile.FloatingWindowButtonOrder ?? []);
-        data.FloatingWindowButtonRows = (profile.FloatingWindowButtonRows ?? []).Select(r => new List<string>(r)).ToList();
-        data.FloatingWindowScale = profile.FloatingWindowScale;
-        data.FloatingWindowIconSize = profile.FloatingWindowIconSize;
-        data.FloatingWindowTextSize = profile.FloatingWindowTextSize;
-        data.FloatingWindowOpacity = profile.FloatingWindowOpacity;
-        data.FloatingWindowPositionX = profile.FloatingWindowPositionX;
-        data.FloatingWindowPositionY = profile.FloatingWindowPositionY;
-        data.FloatingWindowLayer = profile.FloatingWindowLayer;
-        data.FloatingWindowLayerRecheckMode = profile.FloatingWindowLayerRecheckMode;
-        data.FloatingWindowShadowEnabled = profile.FloatingWindowShadowEnabled;
-        data.FloatingWindowDragHandleAlwaysVisible = profile.FloatingWindowDragHandleAlwaysVisible;
-        data.FloatingWindowRulesetEnabled = profile.FloatingWindowRulesetEnabled;
-        data.FloatingWindowRuleset = profile.FloatingWindowRuleset;
-        data.FloatingWindowButtonRulesets = new Dictionary<string, ButtonRulesetConfig>(profile.FloatingWindowButtonRulesets ?? []);
-        data.FloatingWindowRowRulesets = new List<RowRulesetConfig>(profile.FloatingWindowRowRulesets ?? []);
     }
 
     private static IBrush? TryParseColor(string colorString)

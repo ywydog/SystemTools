@@ -69,6 +69,7 @@ public class Plugin : PluginBase
 
         services.AddLogging();
         services.AddSingleton(GlobalConstants.MainConfig);
+        services.AddSingleton<FloatingWindowProfileManager>(_ => new FloatingWindowProfileManager(PluginConfigFolder));
         services.AddSingleton<FloatingWindowService>();
         services.AddSingleton<AdaptiveThemeSyncService>();
         services.AddSingleton<UsbAutoPlayService>();
@@ -113,6 +114,9 @@ public class Plugin : PluginBase
 
         AppBase.Current.AppStarted += (o, args) =>
         {
+            // 迁移旧版悬浮窗配置到文件存储
+            IAppHost.GetService<FloatingWindowProfileManager>().MigrateFromLegacyConfig(GlobalConstants.MainConfig!.Data);
+
             if (GlobalConstants.MainConfig?.Data.EnableFloatingWindowFeature == true)
             {
                 IAppHost.GetService<FloatingWindowService>().Start();
@@ -937,13 +941,15 @@ public class Plugin : PluginBase
                     return;
                 }
 
-                data.ShowFloatingWindow = !data.ShowFloatingWindow;
+                var profile = IAppHost.GetService<FloatingWindowService>().ProfileManager.CurrentProfile;
+                profile.ShowFloatingWindow = !profile.ShowFloatingWindow;
+                IAppHost.GetService<FloatingWindowService>().ProfileManager.SaveProfile();
                 IAppHost.GetService<FloatingWindowService>().UpdateWindowState();
                 UpdateFloatingWindowTrayMenuHeader();
-                GlobalConstants.MainConfig?.Save();
             };
 
-            config.PropertyChanged += OnMainConfigDataPropertyChanged;
+            // 监听主配置变化以更新托盘菜单
+        config.PropertyChanged += OnMainConfigDataPropertyChanged;
         }
 
         if (!config.EnableFloatingWindowFeature)
@@ -982,7 +988,7 @@ public class Plugin : PluginBase
 
     private void OnMainConfigDataPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
-        if (e.PropertyName is not (nameof(MainConfigData.ShowFloatingWindow) or nameof(MainConfigData.EnableFloatingWindowFeature)))
+        if (e.PropertyName is not nameof(MainConfigData.EnableFloatingWindowFeature))
         {
             return;
         }
@@ -997,7 +1003,8 @@ public class Plugin : PluginBase
             return;
         }
 
-        _toggleFloatingWindowMenuItem.Header = GlobalConstants.MainConfig?.Data.ShowFloatingWindow == true
+        var profile = IAppHost.GetService<FloatingWindowService>().ProfileManager.CurrentProfile;
+        _toggleFloatingWindowMenuItem.Header = profile.ShowFloatingWindow
             ? "隐藏悬浮窗"
             : "显示悬浮窗";
     }

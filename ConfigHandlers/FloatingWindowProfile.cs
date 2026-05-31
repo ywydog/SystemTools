@@ -80,4 +80,39 @@ public partial class FloatingWindowProfile : ObservableObject
 
     [JsonPropertyName("floatingWindowRowRulesets")]
     public List<RowRulesetConfig> FloatingWindowRowRulesets { get; set; } = new();
+
+    /// <summary>
+    /// 清理不存在的按钮ID，返回是否有变更
+    /// </summary>
+    public bool PruneInvalidButtonIds(IEnumerable<string> validButtonIds)
+    {
+        var validSet = validButtonIds.ToHashSet();
+        var changed = false;
+
+        var newOrder = FloatingWindowButtonOrder.Where(id => validSet.Contains(id)).ToList();
+        if (newOrder.Count != FloatingWindowButtonOrder.Count)
+        {
+            FloatingWindowButtonOrder = newOrder;
+            changed = true;
+        }
+
+        var newRows = FloatingWindowButtonRows
+            .Select(row => row.Where(id => validSet.Contains(id)).ToList())
+            .ToList();
+        if (newRows.Count != FloatingWindowButtonRows.Count ||
+            newRows.Zip(FloatingWindowButtonRows, (a, b) => a.SequenceEqual(b)).Any(x => !x))
+        {
+            FloatingWindowButtonRows = newRows;
+            changed = true;
+        }
+
+        var invalidButtonConfigs = FloatingWindowButtonRulesets.Keys.Where(id => !validSet.Contains(id)).ToList();
+        foreach (var id in invalidButtonConfigs)
+        {
+            FloatingWindowButtonRulesets.Remove(id);
+            changed = true;
+        }
+
+        return changed;
+    }
 }

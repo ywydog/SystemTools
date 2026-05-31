@@ -1,7 +1,7 @@
 using Avalonia.Controls;
 using ClassIsland.Core.Abstractions.Controls;
 using SystemTools.Settings;
-using SystemTools.ConfigHandlers;
+using SystemTools.Services;
 using ClassIsland.Shared;
 
 namespace SystemTools.Controls;
@@ -46,19 +46,19 @@ public class ToggleFloatingWindowProfileSettingsControl : ActionSettingsControlB
     private void LoadProfiles()
     {
         _profileComboBox.Items.Clear();
-        _profileComboBox.Items.Add(new ComboBoxItem { Content = "切换到下一个", Tag = -1 });
+        _profileComboBox.Items.Add(new ComboBoxItem { Content = "切换到下一个", Tag = null });
 
         try
         {
-            var configHandler = IAppHost.GetService<MainConfigHandler>();
-            var profiles = configHandler.Data.FloatingWindowProfiles;
+            var profileManager = IAppHost.GetService<FloatingWindowService>().ProfileManager;
+            var profileNames = profileManager.GetProfileNames();
 
-            for (int i = 0; i < profiles.Count; i++)
+            foreach (var name in profileNames)
             {
                 _profileComboBox.Items.Add(new ComboBoxItem
                 {
-                    Content = profiles[i].Name,
-                    Tag = i
+                    Content = name,
+                    Tag = name
                 });
             }
         }
@@ -83,22 +83,27 @@ public class ToggleFloatingWindowProfileSettingsControl : ActionSettingsControlB
     {
         if (Settings == null) return;
 
-        var targetIndex = Settings.TargetProfileIndex;
-        if (targetIndex >= 0 && targetIndex + 1 < _profileComboBox.Items.Count)
+        var targetName = Settings.TargetProfileName;
+        if (!string.IsNullOrWhiteSpace(targetName))
         {
-            _profileComboBox.SelectedIndex = targetIndex + 1;
+            for (int i = 1; i < _profileComboBox.Items.Count; i++)
+            {
+                if (_profileComboBox.Items[i] is ComboBoxItem item && item.Tag is string name && name == targetName)
+                {
+                    _profileComboBox.SelectedIndex = i;
+                    return;
+                }
+            }
         }
-        else
-        {
-            _profileComboBox.SelectedIndex = 0;
-        }
+
+        _profileComboBox.SelectedIndex = 0;
     }
 
     private void OnProfileSelectionChanged(object? sender, SelectionChangedEventArgs e)
     {
-        if (_profileComboBox.SelectedItem is ComboBoxItem item && item.Tag is int index)
+        if (_profileComboBox.SelectedItem is ComboBoxItem item)
         {
-            Settings.TargetProfileIndex = index;
+            Settings.TargetProfileName = item.Tag as string;
         }
     }
 }

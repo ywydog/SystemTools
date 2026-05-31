@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.ComponentModel;
 using System.IO;
 using System.Linq;
@@ -31,13 +31,15 @@ public partial class FloatingWindowEditorSettingsPage : SettingsPageBase
                                                                        .LocalApplicationData), "ClassIsland", "Plugins",
                                                                    "SystemTools"));
 
+        var profileManager = new FloatingWindowProfileManager(GlobalConstants.PluginConfigFolder!);
         ViewModel = new SystemToolsSettingsViewModel(GlobalConstants.MainConfig,
             IAppHost.GetService<FloatingWindowService>());
         DataContext = this;
         InitializeComponent();
 
+        ViewModel.RefreshFloatingWindowProfiles();
         ViewModel.RefreshFloatingTriggers();
-        ViewModel.Settings.PropertyChanged += OnSettingsPropertyChanged;
+        ViewModel.CurrentFloatingWindowProfile.PropertyChanged += OnProfilePropertyChanged;
     }
 
     public SystemToolsSettingsViewModel ViewModel { get; }
@@ -52,22 +54,21 @@ public partial class FloatingWindowEditorSettingsPage : SettingsPageBase
             return;
         }
 
-        ViewModel.Settings.PropertyChanged -= OnSettingsPropertyChanged;
+        ViewModel.CurrentFloatingWindowProfile.PropertyChanged -= OnProfilePropertyChanged;
         ViewModel.Dispose();
         _isDisposed = true;
     }
 
-    private void OnSettingsPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    private void OnProfilePropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
-        if (e.PropertyName is nameof(MainConfigData.ShowFloatingWindow)
-            or nameof(MainConfigData.FloatingWindowScale)
-            or nameof(MainConfigData.FloatingWindowIconSize)
-            or nameof(MainConfigData.FloatingWindowTextSize)
-            or nameof(MainConfigData.FloatingWindowOpacity)
-            or nameof(MainConfigData.FloatingWindowTheme)
-            or nameof(MainConfigData.FloatingWindowShadowEnabled)
-            or nameof(MainConfigData.FloatingWindowLayer)
-            or nameof(MainConfigData.FloatingWindowLayerRecheckMode))
+        if (e.PropertyName is nameof(FloatingWindowProfile.ShowFloatingWindow)
+            or nameof(FloatingWindowProfile.FloatingWindowScale)
+            or nameof(FloatingWindowProfile.FloatingWindowIconSize)
+            or nameof(FloatingWindowProfile.FloatingWindowTextSize)
+            or nameof(FloatingWindowProfile.FloatingWindowOpacity)
+            or nameof(FloatingWindowProfile.FloatingWindowShadowEnabled)
+            or nameof(FloatingWindowProfile.FloatingWindowLayer)
+            or nameof(FloatingWindowProfile.FloatingWindowLayerRecheckMode))
         {
             IAppHost.GetService<FloatingWindowService>().UpdateWindowState();
         }
@@ -77,16 +78,28 @@ public partial class FloatingWindowEditorSettingsPage : SettingsPageBase
     {
         if (!ViewModel.HasFloatingTriggerEntries)
         {
-            ViewModel.Settings.ShowFloatingWindow = false;
+            ViewModel.CurrentFloatingWindowProfile.ShowFloatingWindow = false;
         }
 
         ViewModel.RefreshFloatingTriggers();
         IAppHost.GetService<FloatingWindowService>().UpdateWindowState();
     }
 
+    private void OnFloatingWindowProfileSelectionChanged(object? sender, SelectionChangedEventArgs e)
+    {
+        if (sender is not ComboBox comboBox || comboBox.SelectedItem is not string profileName)
+        {
+            return;
+        }
+
+        ViewModel.SwitchFloatingWindowProfile(profileName);
+    }
+
     private void OnToggleFloatingWindowProfileClick(object? sender, RoutedEventArgs e)
     {
         IAppHost.GetService<FloatingWindowService>().ToggleWindowProfile();
+        ViewModel.RefreshFloatingWindowProfiles();
+        ViewModel.RefreshFloatingTriggers();
     }
 
     private void OnAddFloatingWindowProfileClick(object? sender, RoutedEventArgs e)
@@ -101,19 +114,13 @@ public partial class FloatingWindowEditorSettingsPage : SettingsPageBase
             return;
         }
 
-        // 从 Button 的 DataContext 获取对应的 FloatingWindowProfile
-        if (button.DataContext is not FloatingWindowProfile profile)
+        var profileName = button.Tag as string;
+        if (string.IsNullOrWhiteSpace(profileName))
         {
             return;
         }
 
-        var index = ViewModel.Settings.FloatingWindowProfiles.IndexOf(profile);
-        if (index < 0)
-        {
-            return;
-        }
-
-        ViewModel.RemoveFloatingWindowProfile(index);
+        ViewModel.RemoveFloatingWindowProfile(profileName);
     }
 
     private Point? _floatingDragStartPoint;

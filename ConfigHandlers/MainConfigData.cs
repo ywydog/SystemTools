@@ -331,24 +331,16 @@ public class MainConfigData : INotifyPropertyChanged
         }
     }
 
-    [JsonPropertyName("floatingWindowProfiles")]
-    public List<FloatingWindowProfile> FloatingWindowProfiles { get; set; } = new()
-    {
-        new FloatingWindowProfile { Name = "Default" }
-    };
+    string _currentFloatingWindowProfile = "Default";
 
-    int _floatingWindowProfileIndex = 0;
-
-    [JsonPropertyName("floatingWindowProfileIndex")]
-    public int FloatingWindowProfileIndex
+    [JsonPropertyName("currentFloatingWindowProfile")]
+    public string CurrentFloatingWindowProfile
     {
-        get => _floatingWindowProfileIndex;
+        get => _currentFloatingWindowProfile;
         set
         {
-            var count = FloatingWindowProfiles?.Count ?? 1;
-            var normalized = Math.Clamp(value, 0, Math.Max(0, count - 1));
-            if (normalized == _floatingWindowProfileIndex) return;
-            _floatingWindowProfileIndex = normalized;
+            if (string.Equals(value, _currentFloatingWindowProfile, StringComparison.Ordinal)) return;
+            _currentFloatingWindowProfile = value;
             OnPropertyChanged();
         }
     }

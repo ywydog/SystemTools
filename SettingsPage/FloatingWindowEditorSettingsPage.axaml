@@ -29,7 +29,7 @@
             <controls:SettingsExpander IconSource="{ci:FluentIconSource &#xEA37;}"
                                        Header="显示悬浮窗">
                 <controls:SettingsExpander.Footer>
-                    <ToggleSwitch IsChecked="{Binding ViewModel.Settings.ShowFloatingWindow, Mode=TwoWay}"
+                    <ToggleSwitch IsChecked="{Binding ViewModel.CurrentFloatingWindowProfile.ShowFloatingWindow, Mode=TwoWay}"
                                   IsEnabled="{Binding ViewModel.HasFloatingTriggerEntries}"
                                   Click="OnFloatingWindowConfigChanged" />
                 </controls:SettingsExpander.Footer>
@@ -41,24 +41,28 @@
                                        IsExpanded="True">
                 <StackPanel Margin="12,8,12,12" Spacing="8">
                     <Grid ColumnDefinitions="*,Auto" VerticalAlignment="Center">
-                        <TextBlock Grid.Column="0"
-                                   Text="{Binding ViewModel.Settings.FloatingWindowProfiles[ViewModel.Settings.FloatingWindowProfileIndex].Name}"
-                                   VerticalAlignment="Center" />
+                        <ComboBox Grid.Column="0"
+                                  ItemsSource="{Binding ViewModel.FloatingWindowProfileNames}"
+                                  SelectedItem="{Binding ViewModel.SelectedFloatingWindowProfile, Mode=TwoWay}"
+                                  SelectionChanged="OnFloatingWindowProfileSelectionChanged"
+                                  HorizontalAlignment="Stretch" />
                         <Button Grid.Column="1"
-                                Content="切换方案"
-                                Click="OnToggleFloatingWindowProfileClick" />
+                                Content="切换"
+                                Click="OnToggleFloatingWindowProfileClick"
+                                Margin="8,0,0,0" />
                     </Grid>
-                    <ItemsControl ItemsSource="{Binding ViewModel.Settings.FloatingWindowProfiles}">
+                    <ItemsControl ItemsSource="{Binding ViewModel.FloatingWindowProfileNames}">
                         <ItemsControl.ItemTemplate>
                             <DataTemplate>
                                 <Grid ColumnDefinitions="*,Auto" Margin="0,0,0,4">
-                                    <TextBox Grid.Column="0"
-                                             Text="{Binding Name, Mode=TwoWay}" />
+                                    <TextBlock Grid.Column="0"
+                                               Text="{Binding}"
+                                               VerticalAlignment="Center" />
                                     <Button Grid.Column="1"
                                             Content="删除"
                                             Theme="{StaticResource TransparentButton}"
                                             Click="OnRemoveFloatingWindowProfileClick"
-                                            DataContext="{Binding}" />
+                                            Tag="{Binding}" />
                                 </Grid>
                             </DataTemplate>
                         </ItemsControl.ItemTemplate>
@@ -84,9 +88,9 @@
                                     Maximum="2"
                                     TickFrequency="0.1"
                                     IsSnapToTickEnabled="True"
-                                    Value="{Binding ViewModel.Settings.FloatingWindowScale, Mode=TwoWay}" />
+                                    Value="{Binding ViewModel.CurrentFloatingWindowProfile.FloatingWindowScale, Mode=TwoWay}" />
                             <TextBlock
-                                Text="{Binding ViewModel.Settings.FloatingWindowScale, StringFormat='{}{0:F1}x'}"
+                                Text="{Binding ViewModel.CurrentFloatingWindowProfile.FloatingWindowScale, StringFormat='{}{0:F1}x'}"
                                 Width="46"
                                 VerticalAlignment="Center" />
                         </StackPanel>
@@ -103,9 +107,9 @@
                                     Maximum="50"
                                     TickFrequency="1"
                                     IsSnapToTickEnabled="True"
-                                    Value="{Binding ViewModel.Settings.FloatingWindowIconSize, Mode=TwoWay}" />
+                                    Value="{Binding ViewModel.CurrentFloatingWindowProfile.FloatingWindowIconSize, Mode=TwoWay}" />
                             <TextBlock
-                                Text="{Binding ViewModel.Settings.FloatingWindowIconSize, StringFormat='{}{0}px'}"
+                                Text="{Binding ViewModel.CurrentFloatingWindowProfile.FloatingWindowIconSize, StringFormat='{}{0}px'}"
                                 Width="46"
                                 VerticalAlignment="Center" />
                         </StackPanel>
@@ -122,9 +126,9 @@
                                     Maximum="25"
                                     TickFrequency="1"
                                     IsSnapToTickEnabled="True"
-                                    Value="{Binding ViewModel.Settings.FloatingWindowTextSize, Mode=TwoWay}" />
+                                    Value="{Binding ViewModel.CurrentFloatingWindowProfile.FloatingWindowTextSize, Mode=TwoWay}" />
                             <TextBlock
-                                Text="{Binding ViewModel.Settings.FloatingWindowTextSize, StringFormat='{}{0}px'}"
+                                Text="{Binding ViewModel.CurrentFloatingWindowProfile.FloatingWindowTextSize, StringFormat='{}{0}px'}"
                                 Width="46"
                                 VerticalAlignment="Center" />
                         </StackPanel>
@@ -141,8 +145,8 @@
                                     Maximum="100"
                                     TickFrequency="1"
                                     IsSnapToTickEnabled="True"
-                                    Value="{Binding ViewModel.Settings.FloatingWindowOpacity, Mode=TwoWay}" />
-                            <TextBlock Text="{Binding ViewModel.Settings.FloatingWindowOpacity, StringFormat='{}{0}%'}"
+                                    Value="{Binding ViewModel.CurrentFloatingWindowProfile.FloatingWindowOpacity, Mode=TwoWay}" />
+                            <TextBlock Text="{Binding ViewModel.CurrentFloatingWindowProfile.FloatingWindowOpacity, StringFormat='{}{0}%'}"
                                        Width="46"
                                        VerticalAlignment="Center" />
                         </StackPanel>
@@ -171,7 +175,7 @@
                                                Content="阴影效果"
                                                Description="悬浮窗阴影效果">
                     <controls:SettingsExpanderItem.Footer>
-                        <ToggleSwitch IsChecked="{Binding ViewModel.Settings.FloatingWindowShadowEnabled, Mode=TwoWay}" />
+                        <ToggleSwitch IsChecked="{Binding ViewModel.CurrentFloatingWindowProfile.FloatingWindowShadowEnabled, Mode=TwoWay}" />
                     </controls:SettingsExpanderItem.Footer>
                 </controls:SettingsExpanderItem>
 
@@ -179,7 +183,7 @@
                                                Content="一直显示拖动把手"
                                                Description="即使未检测到触摸设备也显示拖动把手">
                     <controls:SettingsExpanderItem.Footer>
-                        <ToggleSwitch IsChecked="{Binding ViewModel.Settings.FloatingWindowDragHandleAlwaysVisible, Mode=TwoWay}" />
+                        <ToggleSwitch IsChecked="{Binding ViewModel.CurrentFloatingWindowProfile.FloatingWindowDragHandleAlwaysVisible, Mode=TwoWay}" />
                     </controls:SettingsExpanderItem.Footer>
                 </controls:SettingsExpanderItem>
             </controls:SettingsExpander>
@@ -189,7 +193,7 @@
                                        Description="悬浮窗在屏幕上的层级。置底则会显示在所有窗口的后方，置顶则将显示在所有窗口的前方。"
                                        IsExpanded="True">
                 <controls:SettingsExpander.Footer>
-                    <ComboBox SelectedIndex="{Binding ViewModel.Settings.FloatingWindowLayer, Mode=TwoWay}">
+                    <ComboBox SelectedIndex="{Binding ViewModel.CurrentFloatingWindowProfile.FloatingWindowLayer, Mode=TwoWay}">
                         <ComboBoxItem>
                             <ci:IconText Glyph="&#xE0CB;" Text="置底" />
                         </ComboBoxItem>
@@ -203,7 +207,7 @@
                                                Description="在什么时候重新设置悬浮窗层级。请注意，较高的频率可能会产生较高的性能占用并导致悬浮窗闪烁。">
                     <controls:SettingsExpanderItem.Footer>
                         <ComboBox
-                            SelectedIndex="{Binding ViewModel.Settings.FloatingWindowLayerRecheckMode, Mode=TwoWay}">
+                            SelectedIndex="{Binding ViewModel.CurrentFloatingWindowProfile.FloatingWindowLayerRecheckMode, Mode=TwoWay}">
                             <ComboBoxItem>窗口层级变化时</ComboBoxItem>
                             <ComboBoxItem>前台窗口变化时</ComboBoxItem>
                             <ComboBoxItem>
@@ -242,12 +246,12 @@
                                                    Content="启用规则集"
                                                    Description="启用后，当规则集不满足时悬浮窗将自动隐藏">
                         <controls:SettingsExpanderItem.Footer>
-                            <ToggleSwitch IsChecked="{Binding ViewModel.Settings.FloatingWindowRulesetEnabled, Mode=TwoWay}" />
+                            <ToggleSwitch IsChecked="{Binding ViewModel.CurrentFloatingWindowProfile.FloatingWindowRulesetEnabled, Mode=TwoWay}" />
                         </controls:SettingsExpanderItem.Footer>
                     </controls:SettingsExpanderItem>
-                    <ruleset:RulesetControl Ruleset="{Binding ViewModel.Settings.FloatingWindowRuleset}"
+                    <ruleset:RulesetControl Ruleset="{Binding ViewModel.CurrentFloatingWindowProfile.FloatingWindowRuleset}"
                                             ShowTitle="False"
-                                            IsEnabled="{Binding ViewModel.Settings.FloatingWindowRulesetEnabled}" />
+                                            IsEnabled="{Binding ViewModel.CurrentFloatingWindowProfile.FloatingWindowRulesetEnabled}" />
                 </StackPanel>
             </controls:SettingsExpander>
 

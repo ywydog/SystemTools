@@ -8,8 +8,8 @@ namespace SystemTools.Settings;
 public class ToggleFloatingWindowProfileSettings
 {
     /// <summary>
-    /// 目标配置方案索引。-1 表示切换到下一个，其他值表示指定方案索引。
+    /// 目标配置方案名称。null 表示切换到下一个，其他值表示指定方案名称。
     /// </summary>
-    [JsonPropertyName("targetProfileIndex")]
-    public int TargetProfileIndex { get; set; } = -1;
+    [JsonPropertyName("targetProfileName")]
+    public string? TargetProfileName { get; set; }
 }
