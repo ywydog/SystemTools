@@ -51,6 +51,9 @@ public partial class FloatingTriggerItem : ObservableObject
 public partial class FloatingTriggerRow : ObservableObject
 {
     [ObservableProperty] private ObservableCollection<FloatingTriggerItem> _buttons = new();
+    [ObservableProperty] private int _rowIndex = 0;
+    [ObservableProperty] private RowRulesetConfig _rowRuleset = new();
+    [ObservableProperty] private bool _isRulesetExpanded = false;
 }
 
 public partial class FloatingTriggerButtonConfigItem : ObservableObject
@@ -59,12 +62,6 @@ public partial class FloatingTriggerButtonConfigItem : ObservableObject
     [ObservableProperty] private string _icon = string.Empty;
     [ObservableProperty] private string _buttonName = string.Empty;
     [ObservableProperty] private ButtonRulesetConfig _config = new();
-}
-
-public partial class FloatingTriggerRowConfigItem : ObservableObject
-{
-    [ObservableProperty] private int _rowIndex = 0;
-    [ObservableProperty] private RowRulesetConfig _config = new();
 }
 
 public partial class SystemToolsSettingsViewModel : ObservableObject, IDisposable
@@ -91,7 +88,6 @@ public partial class SystemToolsSettingsViewModel : ObservableObject, IDisposabl
     [ObservableProperty] private ObservableCollection<FloatingTriggerRow> _floatingTriggerRows = new();
     [ObservableProperty] private bool _hasFloatingTriggerEntries;
     [ObservableProperty] private ObservableCollection<FloatingTriggerButtonConfigItem> _floatingTriggerButtonConfigs = new();
-    [ObservableProperty] private ObservableCollection<FloatingTriggerRowConfigItem> _floatingTriggerRowConfigs = new();
 
     // 可用按钮池（未添加到悬浮窗的按钮）
     [ObservableProperty] private ObservableCollection<FloatingTriggerItem> _availableFloatingTriggerItems = new();
@@ -325,9 +321,19 @@ public partial class SystemToolsSettingsViewModel : ObservableObject, IDisposabl
 
         // 构建已配置的行显示
         FloatingTriggerRows.Clear();
+        var rowConfigs = profile.FloatingWindowRowRulesets;
+        var rowIndex = 0;
         foreach (var row in profile.FloatingWindowButtonRows ?? [])
         {
-            var vmRow = new FloatingTriggerRow();
+            while (rowConfigs.Count <= rowIndex)
+            {
+                rowConfigs.Add(new RowRulesetConfig());
+            }
+            var vmRow = new FloatingTriggerRow
+            {
+                RowIndex = rowIndex + 1,
+                RowRuleset = rowConfigs[rowIndex]
+            };
             foreach (var id in row)
             {
                 if (!entries.TryGetValue(id, out var entry))
@@ -342,11 +348,20 @@ public partial class SystemToolsSettingsViewModel : ObservableObject, IDisposabl
                 });
             }
             FloatingTriggerRows.Add(vmRow);
+            rowIndex++;
         }
 
         if (FloatingTriggerRows.Count == 0)
         {
-            FloatingTriggerRows.Add(new FloatingTriggerRow());
+            if (rowConfigs.Count == 0)
+            {
+                rowConfigs.Add(new RowRulesetConfig());
+            }
+            FloatingTriggerRows.Add(new FloatingTriggerRow
+            {
+                RowIndex = 1,
+                RowRuleset = rowConfigs[0]
+            });
         }
 
         // 构建可用按钮池（未配置的按钮）
@@ -365,7 +380,6 @@ public partial class SystemToolsSettingsViewModel : ObservableObject, IDisposabl
         }
 
         RefreshFloatingTriggerButtonConfigs(entries);
-        RefreshFloatingTriggerRowConfigs();
     }
 
     public void RefreshFloatingTriggerButtonConfigs(Dictionary<string, FloatingWindowEntry> entries)
@@ -389,31 +403,39 @@ public partial class SystemToolsSettingsViewModel : ObservableObject, IDisposabl
         }
     }
 
-    public void RefreshFloatingTriggerRowConfigs()
-    {
-        FloatingTriggerRowConfigs.Clear();
-        var profile = CurrentFloatingWindowProfile;
-        var rowConfigs = profile.FloatingWindowRowRulesets;
-        var rowCount = FloatingTriggerRows.Count;
-
-        while (rowConfigs.Count < rowCount)
-        {
-            rowConfigs.Add(new RowRulesetConfig());
-        }
-
-        for (int i = 0; i < rowCount; i++)
-        {
-            FloatingTriggerRowConfigs.Add(new FloatingTriggerRowConfigItem
-            {
-                RowIndex = i + 1,
-                Config = rowConfigs[i]
-            });
-        }
-    }
-
     public void AddFloatingTriggerRow()
     {
-        FloatingTriggerRows.Add(new FloatingTriggerRow());
+        var profile = CurrentFloatingWindowProfile;
+        var rowRulesets = profile.FloatingWindowRowRulesets;
+        rowRulesets.Add(new RowRulesetConfig());
+        var newRow = new FloatingTriggerRow
+        {
+            RowIndex = FloatingTriggerRows.Count + 1,
+            RowRuleset = rowRulesets[rowRulesets.Count - 1]
+        };
+        FloatingTriggerRows.Add(newRow);
+        PersistFloatingTriggerRows();
+    }
+
+    public void InsertFloatingTriggerRow(int insertIndex)
+    {
+        var profile = CurrentFloatingWindowProfile;
+        var rowRulesets = profile.FloatingWindowRowRulesets;
+        insertIndex = Math.Clamp(insertIndex, 0, FloatingTriggerRows.Count);
+        rowRulesets.Insert(insertIndex, new RowRulesetConfig());
+        var newRow = new FloatingTriggerRow
+        {
+            RowIndex = insertIndex + 1,
+            RowRuleset = rowRulesets[insertIndex]
+        };
+        FloatingTriggerRows.Insert(insertIndex, newRow);
+
+        // 重新计算后续行的索引
+        for (int i = insertIndex; i < FloatingTriggerRows.Count; i++)
+        {
+            FloatingTriggerRows[i].RowIndex = i + 1;
+        }
+
         PersistFloatingTriggerRows();
     }
 
@@ -432,6 +454,13 @@ public partial class SystemToolsSettingsViewModel : ObservableObject, IDisposabl
         }
 
         FloatingTriggerRows.RemoveAt(index);
+
+        // 重新计算行索引
+        for (int i = 0; i < FloatingTriggerRows.Count; i++)
+        {
+            FloatingTriggerRows[i].RowIndex = i + 1;
+        }
+
         PersistFloatingTriggerRows();
         return true;
     }
@@ -550,6 +579,22 @@ public partial class SystemToolsSettingsViewModel : ObservableObject, IDisposabl
         if (orderChanged)
         {
             profile.FloatingWindowButtonOrder = newOrder;
+        }
+
+        // 同步行规则集：确保 FloatingWindowRowRulesets 与行数一致
+        var rowRulesets = profile.FloatingWindowRowRulesets;
+        while (rowRulesets.Count < FloatingTriggerRows.Count)
+        {
+            rowRulesets.Add(new RowRulesetConfig());
+        }
+        while (rowRulesets.Count > FloatingTriggerRows.Count)
+        {
+            rowRulesets.RemoveAt(rowRulesets.Count - 1);
+        }
+        // 同步每行的 RowRuleset 引用（确保ViewModel中的修改反映到profile）
+        for (int i = 0; i < FloatingTriggerRows.Count; i++)
+        {
+            FloatingTriggerRows[i].RowRuleset = rowRulesets[i];
         }
 
         if (forceSave && (rowsChanged || orderChanged))

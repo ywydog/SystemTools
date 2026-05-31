@@ -157,9 +157,28 @@ public partial class FloatingWindowEditorSettingsPage : SettingsPageBase
             return;
         }
 
-        var newRow = new FloatingTriggerRow();
-        ViewModel.FloatingTriggerRows.Insert(index + 1, newRow);
-        ViewModel.PersistFloatingTriggerRows();
+        ViewModel.InsertFloatingTriggerRow(index + 1);
+    }
+
+    private void OnToggleRowRulesetClick(object? sender, RoutedEventArgs e)
+    {
+        if (sender is not Control control)
+        {
+            return;
+        }
+
+        var row = control.GetVisualAncestors()
+            .OfType<Border>()
+            .Select(b => b.DataContext)
+            .OfType<FloatingTriggerRow>()
+            .FirstOrDefault();
+
+        if (row == null)
+        {
+            return;
+        }
+
+        row.IsRulesetExpanded = !row.IsRulesetExpanded;
     }
 
     private Point? _floatingDragStartPoint;

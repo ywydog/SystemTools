@@ -75,9 +75,9 @@
                                         DragDrop.AllowDrop="True"
                                         DragDrop.DragOver="OnFloatingTriggerRowDragOver"
                                         DragDrop.Drop="OnFloatingTriggerRowDrop">
-                                    <Grid ColumnDefinitions="Auto,*,Auto" VerticalAlignment="Center">
+                                    <Grid RowDefinitions="Auto,Auto" ColumnDefinitions="Auto,*,Auto" VerticalAlignment="Center">
                                         <!-- 行拖拽把手 -->
-                                        <Border Grid.Column="0"
+                                        <Border Grid.Row="0" Grid.Column="0"
                                                 Padding="4,0"
                                                 Margin="-4,0,4,0"
                                                 VerticalAlignment="Center">
@@ -88,7 +88,7 @@
                                         </Border>
 
                                         <!-- 按钮列表 -->
-                                        <Border Grid.Column="1"
+                                        <Border Grid.Row="0" Grid.Column="1"
                                                 MinHeight="44"
                                                 CornerRadius="6"
                                                 Background="{DynamicResource SubtleFillColorTertiaryBrush}"
@@ -159,12 +159,17 @@
                                             </ItemsControl>
                                         </Border>
 
-                                        <!-- 行操作 -->
-                                        <StackPanel Grid.Column="2"
+                                        <!-- 行操作 + 规则集 -->
+                                        <StackPanel Grid.Row="0" Grid.Column="2"
                                                     Orientation="Horizontal"
                                                     Spacing="2"
                                                     VerticalAlignment="Center"
                                                     Margin="4,0,0,0">
+                                            <!-- 行规则集折叠按钮 -->
+                                            <Button Content="{ci:FluentIcon &#xE9A8;}"
+                                                    ToolTip.Tip="行规则集"
+                                                    Click="OnToggleRowRulesetClick"
+                                                    Theme="{StaticResource TransparentButton}" />
                                             <Button Content="{ci:FluentIcon &#xE00D;}"
                                                     ToolTip.Tip="在下方插入一行"
                                                     Click="OnInsertRowBelowClick"
@@ -175,6 +180,37 @@
                                                     Click="OnRemoveFloatingTriggerRowClick"
                                                     Theme="{StaticResource TransparentButton}" />
                                         </StackPanel>
+
+                                        <!-- 行规则集展开区域 -->
+                                        <Border Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="3"
+                                                IsVisible="{Binding IsRulesetExpanded}"
+                                                Margin="24,6,0,0"
+                                                Background="{DynamicResource SubtleFillColorSecondaryBrush}"
+                                                CornerRadius="6"
+                                                Padding="10,8">
+                                            <StackPanel Spacing="6">
+                                                <Grid ColumnDefinitions="*,Auto">
+                                                    <TextBlock Grid.Column="0"
+                                                               Text="{Binding RowIndex, StringFormat='第 {0} 行规则集'}"
+                                                               FontWeight="SemiBold"
+                                                               VerticalAlignment="Center" />
+                                                    <ToggleSwitch Grid.Column="1"
+                                                                  OnContent="显示" OffContent="隐藏"
+                                                                  IsChecked="{Binding RowRuleset.IsVisible, Mode=TwoWay}" />
+                                                </Grid>
+                                                <Grid ColumnDefinitions="*,Auto">
+                                                    <TextBlock Grid.Column="0" Text="启用规则集控制"
+                                                               Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                                                               FontSize="12"
+                                                               VerticalAlignment="Center" />
+                                                    <ToggleSwitch Grid.Column="1"
+                                                                  IsChecked="{Binding RowRuleset.RulesetEnabled, Mode=TwoWay}" />
+                                                </Grid>
+                                                <ruleset:RulesetControl Ruleset="{Binding RowRuleset.Ruleset}"
+                                                                        ShowTitle="False"
+                                                                        IsEnabled="{Binding RowRuleset.RulesetEnabled}" />
+                                            </StackPanel>
+                                        </Border>
                                     </Grid>
                                 </Border>
                             </DataTemplate>
@@ -412,7 +448,7 @@
             <!-- 规则集设置 -->
             <controls:SettingsExpander IconSource="{ci:FluentIconSource &#xE9A8;}"
                                        Header="规则集设置"
-                                       Description="悬浮窗、按钮和行的显示/隐藏规则"
+                                       Description="悬浮窗和按钮的显示/隐藏规则（行规则集已移至每行右侧）"
                                        IsExpanded="False">
                 <StackPanel Margin="12,8,12,12" Spacing="12">
                     <!-- 悬浮窗规则集 -->
@@ -477,47 +513,6 @@
                         </StackPanel>
                     </Border>
 
-                    <!-- 行规则集 -->
-                    <Border BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}"
-                            BorderThickness="1"
-                            CornerRadius="8"
-                            Padding="12">
-                        <StackPanel Spacing="8">
-                            <TextBlock Text="行规则集" FontWeight="SemiBold" />
-                            <ItemsControl ItemsSource="{Binding ViewModel.FloatingTriggerRowConfigs}">
-                                <ItemsControl.ItemTemplate>
-                                    <DataTemplate>
-                                        <Border Background="{DynamicResource SubtleFillColorSecondaryBrush}"
-                                                CornerRadius="6"
-                                                Padding="10,8"
-                                                Margin="0,0,0,6">
-                                            <StackPanel Spacing="6">
-                                                <Grid ColumnDefinitions="Auto,Auto,Auto,*,Auto">
-                                                    <TextBlock Grid.Column="0" Text="第" VerticalAlignment="Center" Margin="0,0,4,0" />
-                                                    <TextBlock Grid.Column="1" Text="{Binding RowIndex}" VerticalAlignment="Center" FontWeight="SemiBold" />
-                                                    <TextBlock Grid.Column="2" Text="行" VerticalAlignment="Center" Margin="4,0,8,0" />
-                                                    <ToggleSwitch Grid.Column="4"
-                                                                  OnContent="显示" OffContent="隐藏"
-                                                                  IsChecked="{Binding Config.IsVisible, Mode=TwoWay}" />
-                                                </Grid>
-                                                <Grid ColumnDefinitions="*,Auto">
-                                                    <TextBlock Grid.Column="0" Text="启用规则集控制"
-                                                               Foreground="{DynamicResource TextFillColorSecondaryBrush}"
-                                                               FontSize="12"
-                                                               VerticalAlignment="Center" />
-                                                    <ToggleSwitch Grid.Column="1"
-                                                                  IsChecked="{Binding Config.RulesetEnabled, Mode=TwoWay}" />
-                                                </Grid>
-                                                <ruleset:RulesetControl Ruleset="{Binding Config.Ruleset}"
-                                                                        ShowTitle="False"
-                                                                        IsEnabled="{Binding Config.RulesetEnabled}" />
-                                            </StackPanel>
-                                        </Border>
-                                    </DataTemplate>
-                                </ItemsControl.ItemTemplate>
-                            </ItemsControl>
-                        </StackPanel>
-                    </Border>
                 </StackPanel>
             </controls:SettingsExpander>
 
