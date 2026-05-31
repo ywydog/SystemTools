@@ -390,11 +390,11 @@
                                         Padding="12"
                                         Margin="0,0,0,8">
                                     <StackPanel Spacing="8">
-                                        <Grid ColumnDefinitions="Auto,*,Auto">
+                                        <Grid ColumnDefinitions="Auto,Auto,Auto,*,Auto">
                                             <TextBlock Grid.Column="0" Text="第" VerticalAlignment="Center" Margin="0,0,4,0" />
                                             <TextBlock Grid.Column="1" Text="{Binding RowIndex}" VerticalAlignment="Center" FontWeight="SemiBold" />
-                                            <TextBlock Grid.Column="2" Text="行" VerticalAlignment="Center" Margin="4,0,0,0" />
-                                            <ToggleSwitch Grid.Column="3"
+                                            <TextBlock Grid.Column="2" Text="行" VerticalAlignment="Center" Margin="4,0,8,0" />
+                                            <ToggleSwitch Grid.Column="4"
                                                           OnContent="显示" OffContent="隐藏"
                                                           IsChecked="{Binding Config.IsVisible, Mode=TwoWay}" />
                                         </Grid>
