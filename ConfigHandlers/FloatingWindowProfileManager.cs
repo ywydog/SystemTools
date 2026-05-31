@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using ClassIsland.Shared.Helpers;
+using SystemTools.Shared;
 
 namespace SystemTools.ConfigHandlers;
 
@@ -35,9 +36,9 @@ public class FloatingWindowProfileManager
         FloatingWindowRowRulesets = new List<RowRulesetConfig>()
     };
 
-    public FloatingWindowProfileManager(string pluginConfigFolder)
+    public FloatingWindowProfileManager()
     {
-        _profilesDirectory = Path.Combine(pluginConfigFolder, "FloatingWindowProfiles");
+        _profilesDirectory = Path.Combine(DependencyPaths.GetDependencyRoot(), "FloatingWindowProfiles");
         if (!Directory.Exists(_profilesDirectory))
         {
             Directory.CreateDirectory(_profilesDirectory);

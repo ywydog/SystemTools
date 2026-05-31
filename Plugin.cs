@@ -69,7 +69,7 @@ public class Plugin : PluginBase
 
         services.AddLogging();
         services.AddSingleton(GlobalConstants.MainConfig);
-        services.AddSingleton<FloatingWindowProfileManager>(_ => new FloatingWindowProfileManager(PluginConfigFolder));
+        services.AddSingleton<FloatingWindowProfileManager>();
         services.AddSingleton<FloatingWindowService>();
         services.AddSingleton<AdaptiveThemeSyncService>();
         services.AddSingleton<UsbAutoPlayService>();

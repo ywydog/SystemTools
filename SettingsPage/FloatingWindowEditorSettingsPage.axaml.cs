@@ -31,7 +31,6 @@ public partial class FloatingWindowEditorSettingsPage : SettingsPageBase
                                                                        .LocalApplicationData), "ClassIsland", "Plugins",
                                                                    "SystemTools"));
 
-        var profileManager = new FloatingWindowProfileManager(GlobalConstants.PluginConfigFolder!);
         ViewModel = new SystemToolsSettingsViewModel(GlobalConstants.MainConfig,
             IAppHost.GetService<FloatingWindowService>());
         DataContext = this;
