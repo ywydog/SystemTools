@@ -94,7 +94,7 @@ public class Plugin : PluginBase
         // ========== 注册设置页面 ==========
         services.AddSettingsPage<SystemToolsSettingsPage>();
         services.AddSettingsPage<MoreFeaturesOptionsSettingsPage>();
-        if (GlobalConstants.MainConfig.Data.EnableFloatingWindowFeature)
+        if (GlobalConstants.MainConfig?.Data.EnableFloatingWindowFeature == true)
         {
             services.AddSettingsPage<FloatingWindowEditorSettingsPage>();
         }
@@ -132,7 +132,7 @@ public class Plugin : PluginBase
                 _logger?.LogWarning("[SystemTools]FFmpeg 功能已自动关闭：缺少依赖文件 ffmpeg.exe。");
             }
 
-            if (GlobalConstants.MainConfig.Data.EnableFaceRecognition)
+            if (GlobalConstants.MainConfig?.Data.EnableFaceRecognition == true)
             {
                 if (_faceRecognitionRegistered)
                 {

@@ -109,6 +109,7 @@ public class FloatingWindowProfileManager
         var names = Directory.GetFiles(_profilesDirectory, "*.json")
             .Select(Path.GetFileNameWithoutExtension)
             .Where(x => !string.IsNullOrWhiteSpace(x))
+            .Select(x => x!)
             .ToList();
 
         if (names.Count == 0)

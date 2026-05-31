@@ -1394,7 +1394,15 @@ public class FloatingWindowService
         }
 
         var currentName = _profileManager.CurrentProfileName;
-        var currentIndex = names.IndexOf(currentName);
+        var currentIndex = -1;
+        for (int i = 0; i < names.Count; i++)
+        {
+            if (string.Equals(names[i], currentName, StringComparison.OrdinalIgnoreCase))
+            {
+                currentIndex = i;
+                break;
+            }
+        }
         if (currentIndex < 0)
         {
             currentIndex = 0;
