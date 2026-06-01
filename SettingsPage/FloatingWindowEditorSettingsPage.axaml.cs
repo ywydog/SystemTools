@@ -53,6 +53,9 @@ public partial class FloatingWindowEditorSettingsPage : SettingsPageBase
             return;
         }
 
+        // 页面卸载时确保所有配置（包括规则集）都已保存
+        IAppHost.GetService<FloatingWindowService>().ProfileManager.SaveProfile();
+
         ViewModel.CurrentFloatingWindowProfile.PropertyChanged -= OnProfilePropertyChanged;
         ViewModel.Dispose();
         _isDisposed = true;
@@ -67,7 +70,10 @@ public partial class FloatingWindowEditorSettingsPage : SettingsPageBase
             or nameof(FloatingWindowProfile.FloatingWindowOpacity)
             or nameof(FloatingWindowProfile.FloatingWindowShadowEnabled)
             or nameof(FloatingWindowProfile.FloatingWindowLayer)
-            or nameof(FloatingWindowProfile.FloatingWindowLayerRecheckMode))
+            or nameof(FloatingWindowProfile.FloatingWindowLayerRecheckMode)
+            or nameof(FloatingWindowProfile.FloatingWindowRulesetEnabled)
+            or nameof(FloatingWindowProfile.FloatingWindowDragHandleAlwaysVisible)
+            or nameof(FloatingWindowProfile.FloatingWindowHorizontal))
         {
             IAppHost.GetService<FloatingWindowService>().ProfileManager.SaveProfile();
             IAppHost.GetService<FloatingWindowService>().UpdateWindowState();

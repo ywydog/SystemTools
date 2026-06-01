@@ -147,8 +147,9 @@
                                                                                 Orientation="Horizontal"
                                                                                 Spacing="4"
                                                                                 VerticalAlignment="Center">
-                                                                        <TextBlock Text="{Binding Icon}"
-                                                                                   FontSize="14" />
+                                                                        <ci:FluentIcon Glyph="{Binding Icon}"
+                                                                                       FontSize="14"
+                                                                                       VerticalAlignment="Center" />
                                                                         <TextBlock Text="{Binding ButtonName}"
                                                                                    FontSize="13"
                                                                                    VerticalAlignment="Center" />
@@ -166,7 +167,7 @@
                                                                             Content="{ci:FluentIcon &#xE61D;}"
                                                                             FontSize="10"
                                                                             Padding="2,0"
-                                                                            Foreground="IndianRed"
+                                                                            Foreground="{DynamicResource SystemFillColorCriticalBrush}"
                                                                             Theme="{StaticResource TransparentButton}"
                                                                             Click="OnRemoveTriggerFromRowClick"
                                                                             Tag="{Binding ButtonId}" />
@@ -216,7 +217,7 @@
                                                     Theme="{StaticResource TransparentButton}" />
                                             <Button Content="{ci:FluentIcon &#xE61D;}"
                                                     ToolTip.Tip="删除行"
-                                                    Foreground="IndianRed"
+                                                    Foreground="{DynamicResource SystemFillColorCriticalBrush}"
                                                     Click="OnRemoveFloatingTriggerRowClick"
                                                     Theme="{StaticResource TransparentButton}" />
                                         </StackPanel>
@@ -224,7 +225,7 @@
                                         <!-- 行规则集展开区域 -->
                                         <Border Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="3"
                                                 IsVisible="{Binding IsRulesetExpanded}"
-                                                Margin="24,6,0,0"
+                                                Margin="24,6,0,6"
                                                 Background="{DynamicResource SubtleFillColorSecondaryBrush}"
                                                 CornerRadius="6"
                                                 Padding="10,8">
@@ -302,10 +303,10 @@
                                                                VerticalAlignment="Center"
                                                                HorizontalAlignment="Center" />
                                                 </Border>
-                                                <TextBlock Grid.Column="1"
-                                                           Text="{Binding Icon}"
-                                                           FontSize="24"
-                                                           VerticalAlignment="Center" />
+                                                <ci:FluentIcon Grid.Column="1"
+                                                               Glyph="{Binding Icon}"
+                                                               FontSize="24"
+                                                               VerticalAlignment="Center" />
                                                 <StackPanel Grid.Column="2"
                                                             VerticalAlignment="Center"
                                                             Spacing="1">
@@ -499,7 +500,7 @@
             </controls:SettingsExpander>
 
             <!-- 规则集设置 -->
-            <controls:SettingsExpander IconSource="{ci:FluentIconSource &#xE9A8;}"
+            <controls:SettingsExpander IconSource="{ci:FluentIconSource &#xE713;}"
                                        Header="规则集设置"
                                        Description="悬浮窗和按钮的显示/隐藏规则（行规则集已移至每行右侧）"
                                        IsExpanded="False">

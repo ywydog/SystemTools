@@ -329,6 +329,7 @@ public partial class SystemToolsSettingsViewModel : ObservableObject, IDisposabl
                 RowIndex = rowIndex + 1,
                 RowRuleset = rowConfigs[rowIndex]
             };
+            vmRow.RowRuleset.PropertyChanged += OnRowRulesetPropertyChanged;
             foreach (var id in row)
             {
                 if (!entries.TryGetValue(id, out var entry))
@@ -360,11 +361,13 @@ public partial class SystemToolsSettingsViewModel : ObservableObject, IDisposabl
             {
                 rowConfigs.Add(new RowRulesetConfig());
             }
-            FloatingTriggerRows.Add(new FloatingTriggerRow
+            var emptyRow = new FloatingTriggerRow
             {
                 RowIndex = 1,
                 RowRuleset = rowConfigs[0]
-            });
+            };
+            emptyRow.RowRuleset.PropertyChanged += OnRowRulesetPropertyChanged;
+            FloatingTriggerRows.Add(emptyRow);
         }
 
         // 构建可用按钮池（未配置的按钮）
@@ -385,6 +388,12 @@ public partial class SystemToolsSettingsViewModel : ObservableObject, IDisposabl
     }
 
     private void OnButtonConfigPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        _floatingWindowService.ProfileManager.SaveProfile();
+        _floatingWindowService.UpdateWindowState();
+    }
+
+    private void OnRowRulesetPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
         _floatingWindowService.ProfileManager.SaveProfile();
         _floatingWindowService.UpdateWindowState();
