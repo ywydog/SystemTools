@@ -2,6 +2,7 @@ using System;
 using System.Threading.Tasks;
 using ClassIsland.Core.Abstractions.Automation;
 using ClassIsland.Core.Attributes;
+using ClassIsland.Shared;
 using Microsoft.Extensions.Logging;
 using SystemTools.Services;
 using SystemTools.Settings;
