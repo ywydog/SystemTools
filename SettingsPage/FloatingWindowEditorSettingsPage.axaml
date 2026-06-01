@@ -182,7 +182,7 @@
                                                                     Padding="10,8">
                                                                 <StackPanel Spacing="6">
                                                                     <Grid ColumnDefinitions="*,Auto">
-                                                                        <TextBlock Grid.Column="0" Text="启用规则集控制"
+                                                                        <TextBlock Grid.Column="0" Text="满足规则时隐藏"
                                                                                    Foreground="{DynamicResource TextFillColorSecondaryBrush}"
                                                                                    FontSize="12"
                                                                                    VerticalAlignment="Center" />
@@ -240,7 +240,7 @@
                                                                   IsChecked="{Binding RowRuleset.IsVisible, Mode=TwoWay}" />
                                                 </Grid>
                                                 <Grid ColumnDefinitions="*,Auto">
-                                                    <TextBlock Grid.Column="0" Text="启用规则集控制"
+                                                    <TextBlock Grid.Column="0" Text="满足规则时隐藏"
                                                                Foreground="{DynamicResource TextFillColorSecondaryBrush}"
                                                                FontSize="12"
                                                                VerticalAlignment="Center" />
@@ -517,7 +517,7 @@
                                               OnContent="启用" OffContent="禁用"
                                               IsChecked="{Binding ViewModel.CurrentFloatingWindowProfile.FloatingWindowRulesetEnabled, Mode=TwoWay}" />
                             </Grid>
-                            <TextBlock Text="启用后，当规则集不满足时悬浮窗将自动隐藏"
+                            <TextBlock Text="启用后，当规则集满足时悬浮窗将自动隐藏"
                                        Foreground="{DynamicResource TextFillColorSecondaryBrush}"
                                        FontSize="12" />
                             <ruleset:RulesetControl Ruleset="{Binding ViewModel.CurrentFloatingWindowProfile.FloatingWindowRuleset}"

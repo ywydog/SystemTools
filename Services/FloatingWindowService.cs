@@ -66,7 +66,6 @@ public class FloatingWindowService
     private LowLevelMouseProc? _lowLevelMouseProc;
     private DispatcherTimer LayerRecheck50MsTimer { get; } = new() { Interval = TimeSpan.FromMilliseconds(50) };
     private DispatcherTimer LayerRecheck1MsTimer { get; } = new() { Interval = TimeSpan.FromMilliseconds(1) };
-    private DispatcherTimer RulesetCheckTimer { get; } = new() { Interval = TimeSpan.FromSeconds(1) };
 
     private delegate void WinEventProc(IntPtr hWinEventHook, uint @event, IntPtr hwnd, int idObject, int idChild, uint idEventThread,
         uint dwmsEventTime);
@@ -110,7 +109,7 @@ public class FloatingWindowService
             EnsureLayerRecheckHooks();
             EnsureGlobalInputHooks();
             SubscribeThemeChanged();
-            StartRulesetCheckTimer();
+            SubscribeRulesetStatusChanged();
             ApplyVisibility();
             RefreshLayerRecheckMode();
             RecheckWindowLayer();
@@ -131,10 +130,10 @@ public class FloatingWindowService
 
             LayerRecheck50MsTimer.Stop();
             LayerRecheck1MsTimer.Stop();
-            RulesetCheckTimer.Stop();
             RemoveLayerRecheckHooks();
             RemoveGlobalInputHooks();
             UnsubscribeThemeChanged();
+            UnsubscribeRulesetStatusChanged();
         });
     }
 
@@ -335,14 +334,30 @@ public class FloatingWindowService
     private readonly HashSet<string> _rulesetHiddenButtons = new();
     private readonly HashSet<int> _rulesetHiddenRows = new();
 
-    private void StartRulesetCheckTimer()
+    private void SubscribeRulesetStatusChanged()
     {
-        RulesetCheckTimer.Tick -= OnRulesetCheckTimerTick;
-        RulesetCheckTimer.Tick += OnRulesetCheckTimerTick;
-        RulesetCheckTimer.Start();
+        var rulesetService = IAppHost.TryGetService<IRulesetService>();
+        if (rulesetService == null)
+        {
+            return;
+        }
+
+        rulesetService.StatusUpdated -= OnRulesetStatusUpdated;
+        rulesetService.StatusUpdated += OnRulesetStatusUpdated;
     }
 
-    private void OnRulesetCheckTimerTick(object? sender, EventArgs e)
+    private void UnsubscribeRulesetStatusChanged()
+    {
+        var rulesetService = IAppHost.TryGetService<IRulesetService>();
+        if (rulesetService == null)
+        {
+            return;
+        }
+
+        rulesetService.StatusUpdated -= OnRulesetStatusUpdated;
+    }
+
+    private void OnRulesetStatusUpdated(object? sender, EventArgs e)
     {
         CheckFloatingWindowRuleset();
         CheckButtonRulesets();
@@ -369,7 +384,7 @@ public class FloatingWindowService
         }
 
         var isSatisfied = rulesetService.IsRulesetSatisfied(profile.FloatingWindowRuleset);
-        var shouldHide = !isSatisfied;
+        var shouldHide = isSatisfied;
 
         if (shouldHide != _rulesetHidingWindow)
         {
@@ -402,7 +417,7 @@ public class FloatingWindowService
             }
             else if (config.RulesetEnabled)
             {
-                shouldHide = !rulesetService.IsRulesetSatisfied(config.Ruleset);
+                shouldHide = rulesetService.IsRulesetSatisfied(config.Ruleset);
             }
 
             var wasHidden = _rulesetHiddenButtons.Contains(entry.ButtonId);
@@ -457,7 +472,7 @@ public class FloatingWindowService
             }
             else if (config.RulesetEnabled)
             {
-                shouldHide = !rulesetService.IsRulesetSatisfied(config.Ruleset);
+                shouldHide = rulesetService.IsRulesetSatisfied(config.Ruleset);
             }
 
             var wasHidden = _rulesetHiddenRows.Contains(i);
