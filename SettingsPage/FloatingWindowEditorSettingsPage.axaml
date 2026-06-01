@@ -10,12 +10,12 @@
                      mc:Ignorable="d"
                      d:DesignHeight="450"
                      d:DesignWidth="800">
-    <ci:SettingsPageBase.Resources>
+    <ci:SettingsPageBase.Styles>
         <Style Selector="Border.dragging">
             <Setter Property="Opacity" Value="0.6" />
             <Setter Property="BoxShadow" Value="0 4 12 0 #40000000" />
         </Style>
-    </ci:SettingsPageBase.Resources>
+    </ci:SettingsPageBase.Styles>
     <ScrollViewer>
         <StackPanel Classes="settings-container animated-intro">
             <Label FontSize="20"
