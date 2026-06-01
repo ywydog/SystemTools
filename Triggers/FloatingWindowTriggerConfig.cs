@@ -15,7 +15,7 @@ public partial class FloatingWindowTriggerConfig : ObservableObject
 
     [ObservableProperty]
     [JsonPropertyName("icon")]
-    private string _icon = "\uEA37";
+    private string _icon = "/uEA37";
 
     [ObservableProperty]
     [JsonPropertyName("buttonName")]
