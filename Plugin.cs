@@ -866,7 +866,7 @@ public class Plugin : PluginBase
         if (config.IsActionEnabled("SystemTools.OpenClassSwapWindow"))
             items.Add(new ActionMenuTreeItem("SystemTools.OpenClassSwapWindow", "打开换课窗口", "\uE13B"));
         if (config.IsActionEnabled("SystemTools.ToggleWorkflow"))
-            items.Add(new ActionMenuTreeItem("SystemTools.ToggleWorkflow", "开关自动化", "\uE9A8"));    
+            items.Add(new ActionMenuTreeItem("SystemTools.ToggleWorkflow", "开关自动化", "\uE8B8"));    
 
         if (items.Count > 0)
         {
