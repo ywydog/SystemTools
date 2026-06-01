@@ -155,7 +155,7 @@
                                                                     </StackPanel>
                                                                     <!-- 规则集按钮 -->
                                                                     <Button Grid.Column="2"
-                                                                            Content="{ci:FluentIcon &#xE9A8;}"
+                                                                            Content="{ci:FluentIcon &#xE713;}"
                                                                             FontSize="10"
                                                                             Padding="2,0"
                                                                             ToolTip.Tip="规则集"
@@ -206,7 +206,7 @@
                                                     VerticalAlignment="Center"
                                                     Margin="4,0,0,0">
                                             <!-- 行规则集折叠按钮 -->
-                                            <Button Content="{ci:FluentIcon &#xE9A8;}"
+                                            <Button Content="{ci:FluentIcon &#xE713;}"
                                                     ToolTip.Tip="行规则集"
                                                     Click="OnToggleRowRulesetClick"
                                                     Theme="{StaticResource TransparentButton}" />
