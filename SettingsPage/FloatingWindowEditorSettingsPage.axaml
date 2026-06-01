@@ -10,6 +10,12 @@
                      mc:Ignorable="d"
                      d:DesignHeight="450"
                      d:DesignWidth="800">
+    <ci:SettingsPageBase.Resources>
+        <Style Selector="Border.dragging">
+            <Setter Property="Opacity" Value="0.6" />
+            <Setter Property="BoxShadow" Value="0 4 12 0 #40000000" />
+        </Style>
+    </ci:SettingsPageBase.Resources>
     <ScrollViewer>
         <StackPanel Classes="settings-container animated-intro">
             <Label FontSize="20"
@@ -108,52 +114,86 @@
                                                 </ItemsControl.ItemsPanel>
                                                 <ItemsControl.ItemTemplate>
                                                     <DataTemplate>
-                                                        <Border Background="{DynamicResource SubtleFillColorSecondaryBrush}"
-                                                                CornerRadius="6"
-                                                                Padding="8,4"
-                                                                Margin="0,0,2,0"
-                                                                DragDrop.AllowDrop="True"
-                                                                DragDrop.DragOver="OnFloatingTriggerItemDragOver"
-                                                                DragDrop.Drop="OnFloatingTriggerItemDrop">
-                                                            <Grid ColumnDefinitions="Auto,*,Auto"
-                                                                  ColumnSpacing="6">
-                                                                <!-- 拖拽把手 -->
-                                                                <Border Grid.Column="0"
-                                                                        Tag="{Binding ButtonId}"
-                                                                        Padding="4,2"
-                                                                        CornerRadius="4"
-                                                                        Background="{DynamicResource SubtleFillColorTertiaryBrush}"
-                                                                        PointerPressed="OnFloatingTriggerItemPointerPressed"
-                                                                        PointerMoved="OnFloatingTriggerItemPointerMoved"
-                                                                        PointerReleased="OnFloatingTriggerItemPointerReleased">
-                                                                    <TextBlock Text="⋮"
-                                                                               FontSize="12"
-                                                                               Opacity="0.6"
-                                                                               VerticalAlignment="Center"
-                                                                               HorizontalAlignment="Center" />
-                                                                </Border>
-                                                                <!-- 图标+名称 -->
-                                                                <StackPanel Grid.Column="1"
-                                                                            Orientation="Horizontal"
-                                                                            Spacing="4"
-                                                                            VerticalAlignment="Center">
-                                                                    <TextBlock Text="{Binding Icon}"
-                                                                               FontSize="14" />
-                                                                    <TextBlock Text="{Binding ButtonName}"
-                                                                               FontSize="13"
-                                                                               VerticalAlignment="Center" />
+                                                        <Grid RowDefinitions="Auto,Auto">
+                                                            <!-- 按钮主体 -->
+                                                            <Border Grid.Row="0"
+                                                                    Background="{DynamicResource SubtleFillColorSecondaryBrush}"
+                                                                    CornerRadius="6"
+                                                                    Padding="8,4"
+                                                                    Margin="0,0,2,0"
+                                                                    DragDrop.AllowDrop="True"
+                                                                    DragDrop.DragOver="OnFloatingTriggerItemDragOver"
+                                                                    DragDrop.Drop="OnFloatingTriggerItemDrop">
+                                                                <Grid ColumnDefinitions="Auto,*,Auto,Auto"
+                                                                      ColumnSpacing="6">
+                                                                    <!-- 拖拽把手 -->
+                                                                    <Border Grid.Column="0"
+                                                                            Tag="{Binding ButtonId}"
+                                                                            Padding="8,6"
+                                                                            CornerRadius="4"
+                                                                            Cursor="SizeAll"
+                                                                            Background="{DynamicResource SubtleFillColorTertiaryBrush}"
+                                                                            PointerPressed="OnFloatingTriggerItemPointerPressed"
+                                                                            PointerMoved="OnFloatingTriggerItemPointerMoved"
+                                                                            PointerReleased="OnFloatingTriggerItemPointerReleased">
+                                                                        <TextBlock Text="⋮"
+                                                                                   FontSize="12"
+                                                                                   Opacity="0.6"
+                                                                                   VerticalAlignment="Center"
+                                                                                   HorizontalAlignment="Center" />
+                                                                    </Border>
+                                                                    <!-- 图标+名称 -->
+                                                                    <StackPanel Grid.Column="1"
+                                                                                Orientation="Horizontal"
+                                                                                Spacing="4"
+                                                                                VerticalAlignment="Center">
+                                                                        <TextBlock Text="{Binding Icon}"
+                                                                                   FontSize="14" />
+                                                                        <TextBlock Text="{Binding ButtonName}"
+                                                                                   FontSize="13"
+                                                                                   VerticalAlignment="Center" />
+                                                                    </StackPanel>
+                                                                    <!-- 规则集按钮 -->
+                                                                    <Button Grid.Column="2"
+                                                                            Content="{ci:FluentIcon &#xE9A8;}"
+                                                                            FontSize="10"
+                                                                            Padding="2,0"
+                                                                            ToolTip.Tip="规则集"
+                                                                            Theme="{StaticResource TransparentButton}"
+                                                                            Click="OnButtonRulesetClick" />
+                                                                    <!-- 删除按钮 -->
+                                                                    <Button Grid.Column="3"
+                                                                            Content="{ci:FluentIcon &#xE61D;}"
+                                                                            FontSize="10"
+                                                                            Padding="2,0"
+                                                                            Foreground="IndianRed"
+                                                                            Theme="{StaticResource TransparentButton}"
+                                                                            Click="OnRemoveTriggerFromRowClick"
+                                                                            Tag="{Binding ButtonId}" />
+                                                                </Grid>
+                                                            </Border>
+                                                            <!-- 按钮规则集展开面板 -->
+                                                            <Border Grid.Row="1"
+                                                                    IsVisible="{Binding IsRulesetExpanded}"
+                                                                    Margin="24,4,0,4"
+                                                                    Background="{DynamicResource SubtleFillColorSecondaryBrush}"
+                                                                    CornerRadius="6"
+                                                                    Padding="10,8">
+                                                                <StackPanel Spacing="6">
+                                                                    <Grid ColumnDefinitions="*,Auto">
+                                                                        <TextBlock Grid.Column="0" Text="启用规则集控制"
+                                                                                   Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                                                                                   FontSize="12"
+                                                                                   VerticalAlignment="Center" />
+                                                                        <ToggleSwitch Grid.Column="1"
+                                                                                      IsChecked="{Binding Config.RulesetEnabled, Mode=TwoWay}" />
+                                                                    </Grid>
+                                                                    <ruleset:RulesetControl Ruleset="{Binding Config.Ruleset}"
+                                                                                            ShowTitle="False"
+                                                                                            IsEnabled="{Binding Config.RulesetEnabled}" />
                                                                 </StackPanel>
-                                                                <!-- 删除按钮 -->
-                                                                <Button Grid.Column="2"
-                                                                        Content="{ci:FluentIcon &#xE61D;}"
-                                                                        FontSize="10"
-                                                                        Padding="2,0"
-                                                                        Foreground="IndianRed"
-                                                                        Theme="{StaticResource TransparentButton}"
-                                                                        Click="OnRemoveTriggerFromRowClick"
-                                                                        Tag="{Binding ButtonId}" />
-                                                            </Grid>
-                                                        </Border>
+                                                            </Border>
+                                                        </Grid>
                                                     </DataTemplate>
                                                 </ItemsControl.ItemTemplate>
                                             </ItemsControl>
@@ -482,47 +522,6 @@
                             <ruleset:RulesetControl Ruleset="{Binding ViewModel.CurrentFloatingWindowProfile.FloatingWindowRuleset}"
                                                     ShowTitle="False"
                                                     IsEnabled="{Binding ViewModel.CurrentFloatingWindowProfile.FloatingWindowRulesetEnabled}" />
-                        </StackPanel>
-                    </Border>
-
-                    <!-- 按钮规则集 -->
-                    <Border BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}"
-                            BorderThickness="1"
-                            CornerRadius="8"
-                            Padding="12">
-                        <StackPanel Spacing="8">
-                            <TextBlock Text="按钮规则集" FontWeight="SemiBold" />
-                            <ItemsControl ItemsSource="{Binding ViewModel.FloatingTriggerButtonConfigs}">
-                                <ItemsControl.ItemTemplate>
-                                    <DataTemplate>
-                                        <Border Background="{DynamicResource SubtleFillColorSecondaryBrush}"
-                                                CornerRadius="6"
-                                                Padding="10,8"
-                                                Margin="0,0,0,6">
-                                            <StackPanel Spacing="6">
-                                                <Grid ColumnDefinitions="Auto,*,Auto">
-                                                    <TextBlock Grid.Column="0" Text="{Binding Icon}" VerticalAlignment="Center" Margin="0,0,8,0" />
-                                                    <TextBlock Grid.Column="1" Text="{Binding ButtonName}" VerticalAlignment="Center" FontWeight="SemiBold" />
-                                                    <ToggleSwitch Grid.Column="2"
-                                                                  OnContent="显示" OffContent="隐藏"
-                                                                  IsChecked="{Binding Config.IsVisible, Mode=TwoWay}" />
-                                                </Grid>
-                                                <Grid ColumnDefinitions="*,Auto">
-                                                    <TextBlock Grid.Column="0" Text="启用规则集控制"
-                                                               Foreground="{DynamicResource TextFillColorSecondaryBrush}"
-                                                               FontSize="12"
-                                                               VerticalAlignment="Center" />
-                                                    <ToggleSwitch Grid.Column="1"
-                                                                  IsChecked="{Binding Config.RulesetEnabled, Mode=TwoWay}" />
-                                                </Grid>
-                                                <ruleset:RulesetControl Ruleset="{Binding Config.Ruleset}"
-                                                                        ShowTitle="False"
-                                                                        IsEnabled="{Binding Config.RulesetEnabled}" />
-                                            </StackPanel>
-                                        </Border>
-                                    </DataTemplate>
-                                </ItemsControl.ItemTemplate>
-                            </ItemsControl>
                         </StackPanel>
                     </Border>
 

@@ -183,8 +183,42 @@ public partial class FloatingWindowEditorSettingsPage : SettingsPageBase
         row.IsRulesetExpanded = !row.IsRulesetExpanded;
     }
 
+    private void OnButtonRulesetClick(object? sender, RoutedEventArgs e)
+    {
+        if (sender is not Control control)
+        {
+            return;
+        }
+
+        var button = control.GetVisualAncestors()
+            .OfType<Border>()
+            .Select(b => b.DataContext)
+            .OfType<FloatingTriggerItem>()
+            .FirstOrDefault();
+
+        if (button == null)
+        {
+            return;
+        }
+
+        // 单开模式：关闭其他所有按钮的规则集面板
+        foreach (var row in ViewModel.FloatingTriggerRows)
+        {
+            foreach (var item in row.Buttons)
+            {
+                if (item != button)
+                {
+                    item.IsRulesetExpanded = false;
+                }
+            }
+        }
+
+        button.IsRulesetExpanded = !button.IsRulesetExpanded;
+    }
+
     private Point? _floatingDragStartPoint;
     private Border? _floatingDragSourceBorder;
+    private double _dragOriginalOpacity = 1.0;
 
     private void OnAddFloatingTriggerRowClick(object? sender, RoutedEventArgs e)
     {
@@ -214,12 +248,18 @@ public partial class FloatingWindowEditorSettingsPage : SettingsPageBase
         }
 
         _floatingDragSourceBorder = border;
+        _dragOriginalOpacity = border.Opacity;
         _floatingDragStartPoint = e.GetPosition(border);
         e.Handled = e.Pointer.Type is PointerType.Touch or PointerType.Pen;
     }
 
     private void OnFloatingTriggerItemPointerReleased(object? sender, PointerReleasedEventArgs e)
     {
+        if (_floatingDragSourceBorder != null)
+        {
+            _floatingDragSourceBorder.Opacity = _dragOriginalOpacity;
+            _floatingDragSourceBorder.Classes.Remove("dragging");
+        }
         _floatingDragSourceBorder = null;
         _floatingDragStartPoint = null;
     }
@@ -241,6 +281,10 @@ public partial class FloatingWindowEditorSettingsPage : SettingsPageBase
         {
             return;
         }
+
+        // 拖拽判定成功，添加视觉反馈
+        border.Opacity = 0.6;
+        border.Classes.Add("dragging");
 
         if (border.Tag is not string buttonId || string.IsNullOrWhiteSpace(buttonId))
         {

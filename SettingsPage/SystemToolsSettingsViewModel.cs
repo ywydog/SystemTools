@@ -46,6 +46,8 @@ public partial class FloatingTriggerItem : ObservableObject
     [ObservableProperty] private string _buttonId = string.Empty;
     [ObservableProperty] private string _icon = string.Empty;
     [ObservableProperty] private string _buttonName = string.Empty;
+    [ObservableProperty] private bool _isRulesetExpanded = false;
+    [ObservableProperty] private ButtonRulesetConfig _config = new();
 }
 
 public partial class FloatingTriggerRow : ObservableObject
@@ -54,14 +56,6 @@ public partial class FloatingTriggerRow : ObservableObject
     [ObservableProperty] private int _rowIndex = 0;
     [ObservableProperty] private RowRulesetConfig _rowRuleset = new();
     [ObservableProperty] private bool _isRulesetExpanded = false;
-}
-
-public partial class FloatingTriggerButtonConfigItem : ObservableObject
-{
-    [ObservableProperty] private string _buttonId = string.Empty;
-    [ObservableProperty] private string _icon = string.Empty;
-    [ObservableProperty] private string _buttonName = string.Empty;
-    [ObservableProperty] private ButtonRulesetConfig _config = new();
 }
 
 public partial class SystemToolsSettingsViewModel : ObservableObject, IDisposable
@@ -87,7 +81,7 @@ public partial class SystemToolsSettingsViewModel : ObservableObject, IDisposabl
 
     [ObservableProperty] private ObservableCollection<FloatingTriggerRow> _floatingTriggerRows = new();
     [ObservableProperty] private bool _hasFloatingTriggerEntries;
-    [ObservableProperty] private ObservableCollection<FloatingTriggerButtonConfigItem> _floatingTriggerButtonConfigs = new();
+
 
     // 可用按钮池（未添加到悬浮窗的按钮）
     [ObservableProperty] private ObservableCollection<FloatingTriggerItem> _availableFloatingTriggerItems = new();
@@ -340,12 +334,20 @@ public partial class SystemToolsSettingsViewModel : ObservableObject, IDisposabl
                 {
                     continue;
                 }
-                vmRow.Buttons.Add(new FloatingTriggerItem
+                if (!profile.FloatingWindowButtonRulesets.TryGetValue(entry.ButtonId, out var btnConfig))
+                {
+                    btnConfig = new ButtonRulesetConfig();
+                    profile.FloatingWindowButtonRulesets[entry.ButtonId] = btnConfig;
+                }
+                var item = new FloatingTriggerItem
                 {
                     ButtonId = entry.ButtonId,
                     Icon = FloatingWindowService.ConvertIcon(entry.Icon),
-                    ButtonName = entry.LayoutName
-                });
+                    ButtonName = entry.LayoutName,
+                    Config = btnConfig
+                };
+                item.Config.PropertyChanged += OnButtonConfigPropertyChanged;
+                vmRow.Buttons.Add(item);
             }
             FloatingTriggerRows.Add(vmRow);
             rowIndex++;
@@ -379,28 +381,12 @@ public partial class SystemToolsSettingsViewModel : ObservableObject, IDisposabl
             }
         }
 
-        RefreshFloatingTriggerButtonConfigs(entries);
     }
 
-    public void RefreshFloatingTriggerButtonConfigs(Dictionary<string, FloatingWindowEntry> entries)
+    private void OnButtonConfigPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
-        FloatingTriggerButtonConfigs.Clear();
-        var profile2 = CurrentFloatingWindowProfile;
-        foreach (var entry in entries.Values)
-        {
-            if (!profile2.FloatingWindowButtonRulesets.TryGetValue(entry.ButtonId, out var config))
-            {
-                config = new ButtonRulesetConfig();
-                profile2.FloatingWindowButtonRulesets[entry.ButtonId] = config;
-            }
-            FloatingTriggerButtonConfigs.Add(new FloatingTriggerButtonConfigItem
-            {
-                ButtonId = entry.ButtonId,
-                Icon = entry.Icon,
-                ButtonName = entry.LayoutName,
-                Config = config
-            });
-        }
+        _floatingWindowService.ProfileManager.SaveProfile();
+        _floatingWindowService.UpdateWindowState();
     }
 
     public void AddFloatingTriggerRow()
