@@ -343,7 +343,7 @@ public partial class SystemToolsSettingsViewModel : ObservableObject, IDisposabl
                 vmRow.Buttons.Add(new FloatingTriggerItem
                 {
                     ButtonId = entry.ButtonId,
-                    Icon = entry.Icon,
+                    Icon = FloatingWindowService.ConvertIcon(entry.Icon),
                     ButtonName = entry.LayoutName
                 });
             }
@@ -373,7 +373,7 @@ public partial class SystemToolsSettingsViewModel : ObservableObject, IDisposabl
                 AvailableFloatingTriggerItems.Add(new FloatingTriggerItem
                 {
                     ButtonId = entry.ButtonId,
-                    Icon = entry.Icon,
+                    Icon = FloatingWindowService.ConvertIcon(entry.Icon),
                     ButtonName = entry.LayoutName
                 });
             }
