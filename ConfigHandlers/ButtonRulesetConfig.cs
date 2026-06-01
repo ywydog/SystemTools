@@ -18,9 +18,9 @@ public partial class ButtonRulesetConfig : ObservableObject
     private int _position = -1;
 
     [ObservableProperty]
-    [JsonPropertyName("rulesetEnabled")]
-    private bool _rulesetEnabled = false;
+    [JsonPropertyName("hideOnRule")]
+    private bool _hideOnRule;
 
-    [JsonPropertyName("ruleset")]
-    public Ruleset Ruleset { get; set; } = new();
+    [JsonPropertyName("hidingRules")]
+    public Ruleset HidingRules { get; set; } = new();
 }

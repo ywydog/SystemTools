@@ -71,7 +71,7 @@ public partial class FloatingWindowEditorSettingsPage : SettingsPageBase
             or nameof(FloatingWindowProfile.FloatingWindowShadowEnabled)
             or nameof(FloatingWindowProfile.FloatingWindowLayer)
             or nameof(FloatingWindowProfile.FloatingWindowLayerRecheckMode)
-            or nameof(FloatingWindowProfile.FloatingWindowRulesetEnabled)
+            or nameof(FloatingWindowProfile.FloatingWindowHideOnRule)
             or nameof(FloatingWindowProfile.FloatingWindowDragHandleAlwaysVisible)
             or nameof(FloatingWindowProfile.FloatingWindowHorizontal))
         {

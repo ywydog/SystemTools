@@ -187,11 +187,11 @@
                                                                                    FontSize="12"
                                                                                    VerticalAlignment="Center" />
                                                                         <ToggleSwitch Grid.Column="1"
-                                                                                      IsChecked="{Binding Config.RulesetEnabled, Mode=TwoWay}" />
+                                                                                      IsChecked="{Binding Config.HideOnRule, Mode=TwoWay}" />
                                                                     </Grid>
-                                                                    <ruleset:RulesetControl Ruleset="{Binding Config.Ruleset}"
+                                                                    <ruleset:RulesetControl Ruleset="{Binding Config.HidingRules}"
                                                                                             ShowTitle="False"
-                                                                                            IsEnabled="{Binding Config.RulesetEnabled}" />
+                                                                                            IsEnabled="{Binding Config.HideOnRule}" />
                                                                 </StackPanel>
                                                             </Border>
                                                         </Grid>
@@ -245,11 +245,11 @@
                                                                FontSize="12"
                                                                VerticalAlignment="Center" />
                                                     <ToggleSwitch Grid.Column="1"
-                                                                  IsChecked="{Binding RowRuleset.RulesetEnabled, Mode=TwoWay}" />
+                                                                  IsChecked="{Binding RowRuleset.HideOnRule, Mode=TwoWay}" />
                                                 </Grid>
-                                                <ruleset:RulesetControl Ruleset="{Binding RowRuleset.Ruleset}"
+                                                <ruleset:RulesetControl Ruleset="{Binding RowRuleset.HidingRules}"
                                                                         ShowTitle="False"
-                                                                        IsEnabled="{Binding RowRuleset.RulesetEnabled}" />
+                                                                        IsEnabled="{Binding RowRuleset.HideOnRule}" />
                                             </StackPanel>
                                         </Border>
                                     </Grid>
@@ -515,14 +515,14 @@
                                 <TextBlock Grid.Column="0" Text="悬浮窗规则集" FontWeight="SemiBold" VerticalAlignment="Center" />
                                 <ToggleSwitch Grid.Column="1"
                                               OnContent="启用" OffContent="禁用"
-                                              IsChecked="{Binding ViewModel.CurrentFloatingWindowProfile.FloatingWindowRulesetEnabled, Mode=TwoWay}" />
+                                              IsChecked="{Binding ViewModel.CurrentFloatingWindowProfile.FloatingWindowHideOnRule, Mode=TwoWay}" />
                             </Grid>
                             <TextBlock Text="启用后，当规则集满足时悬浮窗将自动隐藏"
                                        Foreground="{DynamicResource TextFillColorSecondaryBrush}"
                                        FontSize="12" />
-                            <ruleset:RulesetControl Ruleset="{Binding ViewModel.CurrentFloatingWindowProfile.FloatingWindowRuleset}"
+                            <ruleset:RulesetControl Ruleset="{Binding ViewModel.CurrentFloatingWindowProfile.FloatingWindowHidingRules}"
                                                     ShowTitle="False"
-                                                    IsEnabled="{Binding ViewModel.CurrentFloatingWindowProfile.FloatingWindowRulesetEnabled}" />
+                                                    IsEnabled="{Binding ViewModel.CurrentFloatingWindowProfile.FloatingWindowHideOnRule}" />
                         </StackPanel>
                     </Border>
 

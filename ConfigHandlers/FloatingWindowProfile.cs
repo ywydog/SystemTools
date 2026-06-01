@@ -70,11 +70,11 @@ public partial class FloatingWindowProfile : ObservableObject
     private bool _floatingWindowDragHandleAlwaysVisible;
 
     [ObservableProperty]
-    [JsonPropertyName("floatingWindowRulesetEnabled")]
-    private bool _floatingWindowRulesetEnabled;
+    [JsonPropertyName("floatingWindowHideOnRule")]
+    private bool _floatingWindowHideOnRule;
 
-    [JsonPropertyName("floatingWindowRuleset")]
-    public Ruleset FloatingWindowRuleset { get; set; } = new();
+    [JsonPropertyName("floatingWindowHidingRules")]
+    public Ruleset FloatingWindowHidingRules { get; set; } = new();
 
     [JsonPropertyName("floatingWindowButtonRulesets")]
     public Dictionary<string, ButtonRulesetConfig> FloatingWindowButtonRulesets { get; set; } = new();

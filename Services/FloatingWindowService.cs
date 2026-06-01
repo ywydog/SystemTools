@@ -367,7 +367,7 @@ public class FloatingWindowService
     private void CheckFloatingWindowRuleset()
     {
         var profile = _profileManager.CurrentProfile;
-        if (!profile.FloatingWindowRulesetEnabled)
+        if (!profile.FloatingWindowHideOnRule)
         {
             if (_rulesetHidingWindow)
             {
@@ -383,7 +383,7 @@ public class FloatingWindowService
             return;
         }
 
-        var isSatisfied = rulesetService.IsRulesetSatisfied(profile.FloatingWindowRuleset);
+        var isSatisfied = rulesetService.IsRulesetSatisfied(profile.FloatingWindowHidingRules);
         var shouldHide = isSatisfied;
 
         if (shouldHide != _rulesetHidingWindow)
@@ -415,9 +415,9 @@ public class FloatingWindowService
             {
                 shouldHide = true;
             }
-            else if (config.RulesetEnabled)
+            else if (config.HideOnRule)
             {
-                shouldHide = rulesetService.IsRulesetSatisfied(config.Ruleset);
+                shouldHide = rulesetService.IsRulesetSatisfied(config.HidingRules);
             }
 
             var wasHidden = _rulesetHiddenButtons.Contains(entry.ButtonId);
@@ -470,9 +470,9 @@ public class FloatingWindowService
             {
                 shouldHide = true;
             }
-            else if (config.RulesetEnabled)
+            else if (config.HideOnRule)
             {
-                shouldHide = rulesetService.IsRulesetSatisfied(config.Ruleset);
+                shouldHide = rulesetService.IsRulesetSatisfied(config.HidingRules);
             }
 
             var wasHidden = _rulesetHiddenRows.Contains(i);

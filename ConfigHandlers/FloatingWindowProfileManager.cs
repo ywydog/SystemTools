@@ -31,7 +31,7 @@ public class FloatingWindowProfileManager
         FloatingWindowShadowEnabled = true,
         FloatingWindowButtonOrder = new List<string>(),
         FloatingWindowButtonRows = new List<List<string>>(),
-        FloatingWindowRuleset = new(),
+        FloatingWindowHidingRules = new(),
         FloatingWindowButtonRulesets = new Dictionary<string, ButtonRulesetConfig>(),
         FloatingWindowRowRulesets = new List<RowRulesetConfig>()
     };
@@ -73,8 +73,8 @@ public class FloatingWindowProfileManager
             FloatingWindowLayerRecheckMode = legacyData.FloatingWindowLayerRecheckMode,
             FloatingWindowShadowEnabled = legacyData.FloatingWindowShadowEnabled,
             FloatingWindowDragHandleAlwaysVisible = legacyData.FloatingWindowDragHandleAlwaysVisible,
-            FloatingWindowRulesetEnabled = legacyData.FloatingWindowRulesetEnabled,
-            FloatingWindowRuleset = legacyData.FloatingWindowRuleset,
+            FloatingWindowHideOnRule = legacyData.FloatingWindowRulesetEnabled,
+            FloatingWindowHidingRules = legacyData.FloatingWindowRuleset,
             FloatingWindowButtonRulesets = new Dictionary<string, ButtonRulesetConfig>(legacyData.FloatingWindowButtonRulesets ?? []),
             FloatingWindowRowRulesets = new List<RowRulesetConfig>(legacyData.FloatingWindowRowRulesets ?? [])
         };
