@@ -230,6 +230,32 @@ public class FloatingWindowService
         return ResolveWindowThemeVariant() == ThemeVariant.Light;
     }
 
+    /// <summary>
+    /// 设置悬浮窗主题
+    /// </summary>
+    /// <param name="theme">0=跟随系统, 1=浅色, 2=深色</param>
+    public void SetWindowTheme(int theme)
+    {
+        var normalized = theme is 1 or 2 ? theme : 0;
+        if (_configHandler.Data.FloatingWindowTheme == normalized)
+        {
+            return;
+        }
+
+        _configHandler.Data.FloatingWindowTheme = normalized;
+        _configHandler.Save();
+        Dispatcher.UIThread.Post(RefreshWindowButtons);
+    }
+
+    /// <summary>
+    /// 切换到下一个悬浮窗主题
+    /// </summary>
+    public void ToggleWindowTheme()
+    {
+        var next = (_configHandler.Data.FloatingWindowTheme + 1) % 3;
+        SetWindowTheme(next);
+    }
+
     private void EnsureWindow()
     {
         if (_window != null)

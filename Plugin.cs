@@ -290,6 +290,8 @@ public class Plugin : PluginBase
                 "SystemTools.ToggleFloatingWindowLayer");
             RegisterActionIfEnabled<ToggleFloatingWindowProfileAction, ToggleFloatingWindowProfileSettingsControl>(services, config,
                 "SystemTools.ToggleFloatingWindowProfile");
+            RegisterActionIfEnabled<SwitchFloatingWindowThemeAction, SwitchFloatingWindowThemeSettingsControl>(services, config,
+                "SystemTools.SwitchFloatingWindowTheme");
         }
 
         // 其他工具
@@ -530,7 +532,8 @@ public class Plugin : PluginBase
 
         // 悬浮窗设置
         if (config.EnableFloatingWindowFeature && HasAnyActionEnabled(config, "SystemTools.ShowFloatingWindow",
-                "SystemTools.ToggleFloatingWindowLayer", "SystemTools.ToggleFloatingWindowProfile"))
+                "SystemTools.ToggleFloatingWindowLayer", "SystemTools.ToggleFloatingWindowProfile",
+                "SystemTools.SwitchFloatingWindowTheme"))
         {
             IActionService.ActionMenuTree["SystemTools 行动"].Add(new ActionMenuTreeGroup("悬浮窗设置…", "\uEA37"));
             BuildFloatingWindowMenu(config);
@@ -833,6 +836,8 @@ public class Plugin : PluginBase
             items.Add(new ActionMenuTreeItem("SystemTools.ToggleFloatingWindowLayer", "切换悬浮窗层级", "\uE9A8"));
         if (config.EnableFloatingWindowFeature && config.IsActionEnabled("SystemTools.ToggleFloatingWindowProfile"))
             items.Add(new ActionMenuTreeItem("SystemTools.ToggleFloatingWindowProfile", "切换悬浮窗配置方案", "\uE9A8"));
+        if (config.EnableFloatingWindowFeature && config.IsActionEnabled("SystemTools.SwitchFloatingWindowTheme"))
+            items.Add(new ActionMenuTreeItem("SystemTools.SwitchFloatingWindowTheme", "切换悬浮窗主题", "\uE790"));
 
         if (items.Count > 0)
         {
