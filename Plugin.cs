@@ -114,9 +114,6 @@ public class Plugin : PluginBase
 
         AppBase.Current.AppStarted += (o, args) =>
         {
-            // 迁移旧版悬浮窗配置到文件存储
-            IAppHost.GetService<FloatingWindowProfileManager>().MigrateFromLegacyConfig(GlobalConstants.MainConfig!.Data);
-
             if (GlobalConstants.MainConfig?.Data.EnableFloatingWindowFeature == true)
             {
                 IAppHost.GetService<FloatingWindowService>().Start();

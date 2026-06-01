@@ -45,43 +45,6 @@ public class FloatingWindowProfileManager
         }
     }
 
-    /// <summary>
-    /// 从旧版 MainConfigData 迁移配置到文件存储
-    /// </summary>
-    public void MigrateFromLegacyConfig(MainConfigData legacyData)
-    {
-        var defaultPath = GetProfilePath("Default");
-        if (File.Exists(defaultPath))
-        {
-            return;
-        }
-
-        var profile = new FloatingWindowProfile
-        {
-            Name = "Default",
-            ShowFloatingWindow = legacyData.ShowFloatingWindow,
-            FloatingWindowHorizontal = legacyData.FloatingWindowHorizontal,
-            FloatingWindowButtonOrder = new List<string>(legacyData.FloatingWindowButtonOrder ?? []),
-            FloatingWindowButtonRows = (legacyData.FloatingWindowButtonRows ?? []).Select(r => new List<string>(r)).ToList(),
-            FloatingWindowScale = legacyData.FloatingWindowScale,
-            FloatingWindowIconSize = legacyData.FloatingWindowIconSize,
-            FloatingWindowTextSize = legacyData.FloatingWindowTextSize,
-            FloatingWindowOpacity = legacyData.FloatingWindowOpacity,
-            FloatingWindowPositionX = legacyData.FloatingWindowPositionX,
-            FloatingWindowPositionY = legacyData.FloatingWindowPositionY,
-            FloatingWindowLayer = legacyData.FloatingWindowLayer,
-            FloatingWindowLayerRecheckMode = legacyData.FloatingWindowLayerRecheckMode,
-            FloatingWindowShadowEnabled = legacyData.FloatingWindowShadowEnabled,
-            FloatingWindowDragHandleAlwaysVisible = legacyData.FloatingWindowDragHandleAlwaysVisible,
-            FloatingWindowHideOnRule = legacyData.FloatingWindowRulesetEnabled,
-            FloatingWindowHidingRules = legacyData.FloatingWindowRuleset,
-            FloatingWindowButtonRulesets = new Dictionary<string, ButtonRulesetConfig>(legacyData.FloatingWindowButtonRulesets ?? []),
-            FloatingWindowRowRulesets = new List<RowRulesetConfig>(legacyData.FloatingWindowRowRulesets ?? [])
-        };
-
-        ConfigureFileHelper.SaveConfig(defaultPath, profile);
-    }
-
     public string ProfilesDirectory => _profilesDirectory;
 
     public FloatingWindowProfile CurrentProfile => _currentProfile;
