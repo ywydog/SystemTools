@@ -249,12 +249,24 @@
                                                 PointerMoved="OnFloatingTriggerItemPointerMoved"
                                                 PointerReleased="OnFloatingTriggerItemPointerReleased"
                                                 Tag="{Binding ButtonId}">
-                                            <Grid ColumnDefinitions="Auto,*" ColumnSpacing="8">
-                                                <TextBlock Grid.Column="0"
+                                            <Grid ColumnDefinitions="Auto,Auto,*" ColumnSpacing="8">
+                                                <!-- 拖拽把手 -->
+                                                <Border Grid.Column="0"
+                                                        Padding="4,2"
+                                                        CornerRadius="4"
+                                                        Background="{DynamicResource SubtleFillColorTertiaryBrush}"
+                                                        VerticalAlignment="Center">
+                                                    <TextBlock Text="⋮"
+                                                               FontSize="14"
+                                                               Opacity="0.5"
+                                                               VerticalAlignment="Center"
+                                                               HorizontalAlignment="Center" />
+                                                </Border>
+                                                <TextBlock Grid.Column="1"
                                                            Text="{Binding Icon}"
                                                            FontSize="24"
                                                            VerticalAlignment="Center" />
-                                                <StackPanel Grid.Column="1"
+                                                <StackPanel Grid.Column="2"
                                                             VerticalAlignment="Center"
                                                             Spacing="1">
                                                     <TextBlock Text="{Binding ButtonName}"

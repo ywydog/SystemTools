@@ -597,7 +597,7 @@ public partial class SystemToolsSettingsViewModel : ObservableObject, IDisposabl
             FloatingTriggerRows[i].RowRuleset = rowRulesets[i];
         }
 
-        if (forceSave && (rowsChanged || orderChanged))
+        if (forceSave)
         {
             _floatingWindowService.ProfileManager.SaveProfile();
         }

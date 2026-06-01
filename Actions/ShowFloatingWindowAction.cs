@@ -24,6 +24,14 @@ public class ShowFloatingWindowAction(
         {
             var shouldShow = Settings.ShowFloatingWindow;
             var profile = _floatingWindowService.ProfileManager.CurrentProfile;
+
+            // 如果没有可用的悬浮窗组件，则强制隐藏且不允许显示
+            if (_floatingWindowService.Entries.Count == 0)
+            {
+                shouldShow = false;
+                _logger.LogDebug("没有可用的悬浮窗组件，强制隐藏悬浮窗");
+            }
+
             profile.ShowFloatingWindow = shouldShow;
             _floatingWindowService.ProfileManager.SaveProfile();
             _floatingWindowService.UpdateWindowState();

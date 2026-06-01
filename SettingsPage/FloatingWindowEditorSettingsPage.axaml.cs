@@ -69,6 +69,7 @@ public partial class FloatingWindowEditorSettingsPage : SettingsPageBase
             or nameof(FloatingWindowProfile.FloatingWindowLayer)
             or nameof(FloatingWindowProfile.FloatingWindowLayerRecheckMode))
         {
+            IAppHost.GetService<FloatingWindowService>().ProfileManager.SaveProfile();
             IAppHost.GetService<FloatingWindowService>().UpdateWindowState();
         }
     }
@@ -80,6 +81,7 @@ public partial class FloatingWindowEditorSettingsPage : SettingsPageBase
             ViewModel.CurrentFloatingWindowProfile.ShowFloatingWindow = false;
         }
 
+        IAppHost.GetService<FloatingWindowService>().ProfileManager.SaveProfile();
         ViewModel.RefreshFloatingTriggers();
         IAppHost.GetService<FloatingWindowService>().UpdateWindowState();
     }
