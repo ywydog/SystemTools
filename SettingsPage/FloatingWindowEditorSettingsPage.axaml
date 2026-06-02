@@ -122,17 +122,18 @@
                                                 DragDrop.AllowDrop="True"
                                                 DragDrop.DragOver="OnFloatingTriggerRowDragOver"
                                                 DragDrop.Drop="OnFloatingTriggerRowDrop">
-                                            <!-- 空行提示 -->
-                                            <TextBlock Text="拖拽按钮到此处"
-                                                       HorizontalAlignment="Center"
-                                                       VerticalAlignment="Center"
-                                                       Foreground="{DynamicResource TextFillColorTertiaryBrush}"
-                                                       FontSize="12"
-                                                       IsVisible="{Binding !Buttons.Count}" />
-                                            <ItemsControl ItemsSource="{Binding Buttons}"
-                                                          HorizontalAlignment="Stretch"
-                                                          VerticalAlignment="Center"
-                                                          IsVisible="{Binding Buttons.Count}">
+                                            <Grid HorizontalAlignment="Stretch" VerticalAlignment="Center">
+                                                <!-- 空行提示 -->
+                                                <TextBlock Text="拖拽按钮到此处"
+                                                           HorizontalAlignment="Center"
+                                                           VerticalAlignment="Center"
+                                                           Foreground="{DynamicResource TextFillColorTertiaryBrush}"
+                                                           FontSize="12"
+                                                           IsVisible="{Binding !Buttons.Count}" />
+                                                <ItemsControl ItemsSource="{Binding Buttons}"
+                                                              HorizontalAlignment="Stretch"
+                                                              VerticalAlignment="Center"
+                                                              IsVisible="{Binding Buttons.Count}">
                                                 <ItemsControl.ItemsPanel>
                                                     <ItemsPanelTemplate>
                                                         <StackPanel Orientation="Horizontal"
@@ -227,6 +228,7 @@
                                                     </DataTemplate>
                                                 </ItemsControl.ItemTemplate>
                                             </ItemsControl>
+                                            </Grid>
                                         </Border>
 
                                         <!-- 行操作 + 规则集 -->
