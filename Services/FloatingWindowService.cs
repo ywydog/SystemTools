@@ -760,8 +760,21 @@ public class FloatingWindowService
 
         var rows = new List<List<FloatingWindowEntry>>();
 
-        // 只显示 FloatingWindowButtonRows 中明确配置的按钮
-        // 未配置的按钮不会自动显示，需要用户在设置页面手动添加
+        // 如果没有任何按钮被配置到行中，自动将所有可用按钮添加到第一行
+        var configuredIds = (profile.FloatingWindowButtonRows ?? [])
+            .SelectMany(r => r)
+            .ToHashSet();
+        if (configuredIds.Count == 0 && values.Count > 0)
+        {
+            var allButtonIds = values.Keys.ToList();
+            profile.FloatingWindowButtonRows = [allButtonIds];
+            foreach (var id in allButtonIds)
+            {
+                configuredIds.Add(id);
+            }
+            _profileManager.SaveProfile();
+        }
+
         foreach (var row in profile.FloatingWindowButtonRows ?? [])
         {
             var items = new List<FloatingWindowEntry>();

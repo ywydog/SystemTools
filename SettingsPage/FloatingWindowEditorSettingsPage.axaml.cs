@@ -224,7 +224,6 @@ public partial class FloatingWindowEditorSettingsPage : SettingsPageBase
 
     private Point? _floatingDragStartPoint;
     private Border? _floatingDragSourceBorder;
-    private double _dragOriginalOpacity = 1.0;
 
     private void OnAddFloatingTriggerRowClick(object? sender, RoutedEventArgs e)
     {
@@ -254,18 +253,31 @@ public partial class FloatingWindowEditorSettingsPage : SettingsPageBase
         }
 
         _floatingDragSourceBorder = border;
-        _dragOriginalOpacity = border.Opacity;
         _floatingDragStartPoint = e.GetPosition(border);
         e.Handled = e.Pointer.Type is PointerType.Touch or PointerType.Pen;
     }
 
     private void OnFloatingTriggerItemPointerReleased(object? sender, PointerReleasedEventArgs e)
     {
-        if (_floatingDragSourceBorder != null)
+        // 检测是否是点击（未发生拖拽）：如果拖拽源仍在且起始点有效，说明移动距离不足未触发拖拽
+        if (_floatingDragSourceBorder != null && _floatingDragStartPoint != null &&
+            sender is Border border && border.Tag is string buttonId &&
+            !string.IsNullOrWhiteSpace(buttonId))
         {
-            _floatingDragSourceBorder.Opacity = _dragOriginalOpacity;
-            _floatingDragSourceBorder.Classes.Remove("dragging");
+            var now = e.GetPosition(border);
+            var distance = Math.Abs(now.X - _floatingDragStartPoint.Value.X) +
+                           Math.Abs(now.Y - _floatingDragStartPoint.Value.Y);
+            if (distance < 4)
+            {
+                // 点击按钮池项：添加到第一行末尾
+                if (ViewModel.FloatingTriggerRows.Count == 0)
+                {
+                    ViewModel.AddFloatingTriggerRow();
+                }
+                ViewModel.AddTriggerFromPool(buttonId, 0, ViewModel.FloatingTriggerRows[0].Buttons.Count);
+            }
         }
+
         _floatingDragSourceBorder = null;
         _floatingDragStartPoint = null;
     }
@@ -287,10 +299,6 @@ public partial class FloatingWindowEditorSettingsPage : SettingsPageBase
         {
             return;
         }
-
-        // 拖拽判定成功，添加视觉反馈
-        border.Opacity = 0.6;
-        border.Classes.Add("dragging");
 
         if (border.Tag is not string buttonId || string.IsNullOrWhiteSpace(buttonId))
         {

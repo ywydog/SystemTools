@@ -314,6 +314,26 @@ public partial class SystemToolsSettingsViewModel : ObservableObject, IDisposabl
             }
         }
 
+        // 如果没有任何按钮被配置到行中，自动将所有可用按钮添加到第一行
+        // 这样用户首次使用或从旧版本迁移时，按钮默认会显示出来
+        if (configuredIds.Count == 0 && entries.Count > 0)
+        {
+            var allButtonIds = entries.Values.Select(e => e.ButtonId).ToList();
+            if (profile.FloatingWindowButtonRows == null || profile.FloatingWindowButtonRows.Count == 0)
+            {
+                profile.FloatingWindowButtonRows = [allButtonIds];
+            }
+            else
+            {
+                profile.FloatingWindowButtonRows[0] = allButtonIds;
+            }
+            foreach (var id in allButtonIds)
+            {
+                configuredIds.Add(id);
+            }
+            _floatingWindowService.ProfileManager.SaveProfile();
+        }
+
         // 构建已配置的行显示
         FloatingTriggerRows.Clear();
         var rowConfigs = profile.FloatingWindowRowRulesets;

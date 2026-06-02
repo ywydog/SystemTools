@@ -10,12 +10,7 @@
                      mc:Ignorable="d"
                      d:DesignHeight="450"
                      d:DesignWidth="800">
-    <ci:SettingsPageBase.Styles>
-        <Style Selector="Border.dragging">
-            <Setter Property="Opacity" Value="0.6" />
-            <Setter Property="BoxShadow" Value="0 4 12 0 #40000000" />
-        </Style>
-    </ci:SettingsPageBase.Styles>
+
     <ScrollViewer>
         <StackPanel Classes="settings-container animated-intro">
             <Label FontSize="20"
@@ -314,7 +309,7 @@
                                                                FontSize="13"
                                                                FontWeight="SemiBold"
                                                                TextTrimming="CharacterEllipsis" />
-                                                    <TextBlock Text="拖拽添加"
+                                                    <TextBlock Text="点击或拖拽添加"
                                                                FontSize="11"
                                                                Opacity="0.6" />
                                                 </StackPanel>
