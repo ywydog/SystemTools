@@ -40,6 +40,7 @@ public partial class FloatingWindowEditorSettingsPage : SettingsPageBase
         ViewModel.RefreshFloatingTriggers();
         ViewModel.CurrentFloatingWindowProfile.PropertyChanged += OnProfilePropertyChanged;
         ViewModel.Settings.PropertyChanged += OnSettingsPropertyChanged;
+        ViewModel.ProfileChanged += OnViewModelProfileChanged;
     }
 
     public SystemToolsSettingsViewModel ViewModel { get; }
@@ -59,6 +60,7 @@ public partial class FloatingWindowEditorSettingsPage : SettingsPageBase
 
         ViewModel.CurrentFloatingWindowProfile.PropertyChanged -= OnProfilePropertyChanged;
         ViewModel.Settings.PropertyChanged -= OnSettingsPropertyChanged;
+        ViewModel.ProfileChanged -= OnViewModelProfileChanged;
         ViewModel.Dispose();
         _isDisposed = true;
     }
@@ -82,6 +84,15 @@ public partial class FloatingWindowEditorSettingsPage : SettingsPageBase
         }
     }
 
+    /// <summary>
+    /// 重新注册 Profile 属性变更事件监听（切换方案后需要重新注册）
+    /// </summary>
+    public void ReattachProfilePropertyChanged()
+    {
+        ViewModel.CurrentFloatingWindowProfile.PropertyChanged -= OnProfilePropertyChanged;
+        ViewModel.CurrentFloatingWindowProfile.PropertyChanged += OnProfilePropertyChanged;
+    }
+
     private void OnSettingsPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
         if (e.PropertyName is nameof(MainConfigData.FloatingWindowTheme))
@@ -91,17 +102,12 @@ public partial class FloatingWindowEditorSettingsPage : SettingsPageBase
         }
     }
 
-    private void OnFloatingWindowConfigChanged(object? sender, RoutedEventArgs e)
+    private void OnViewModelProfileChanged(object? sender, EventArgs e)
     {
-        if (!ViewModel.HasFloatingTriggerEntries)
-        {
-            ViewModel.CurrentFloatingWindowProfile.ShowFloatingWindow = false;
-        }
-
-        IAppHost.GetService<FloatingWindowService>().ProfileManager.SaveProfile();
-        ViewModel.RefreshFloatingTriggers();
-        IAppHost.GetService<FloatingWindowService>().UpdateWindowState();
+        ReattachProfilePropertyChanged();
     }
+
+
 
     private void OnFloatingWindowProfileSelectionChanged(object? sender, SelectionChangedEventArgs e)
     {

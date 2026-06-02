@@ -53,8 +53,7 @@
                 <ToggleSwitch Grid.Column="1"
                               OnContent="显示" OffContent="隐藏"
                               IsChecked="{Binding ViewModel.CurrentFloatingWindowProfile.ShowFloatingWindow, Mode=TwoWay}"
-                              IsEnabled="{Binding ViewModel.HasFloatingTriggerEntries}"
-                              Click="OnFloatingWindowConfigChanged" />
+                              IsEnabled="{Binding ViewModel.HasFloatingTriggerEntries}" />
             </Grid>
 
             <!-- 按钮布局区域 -->

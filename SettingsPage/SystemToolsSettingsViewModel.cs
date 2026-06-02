@@ -662,7 +662,15 @@ public partial class SystemToolsSettingsViewModel : ObservableObject, IDisposabl
         _floatingWindowService.SwitchToProfile(profileName);
         SelectedFloatingWindowProfile = profileName;
         RefreshFloatingTriggers();
+
+        // 通知 UI 重新注册 Profile 属性变更事件监听
+        ProfileChanged?.Invoke(this, EventArgs.Empty);
     }
+
+    /// <summary>
+    /// Profile 对象发生变化时触发（切换方案后需要重新注册事件监听）
+    /// </summary>
+    public event EventHandler? ProfileChanged;
 
     public void Dispose()
     {
