@@ -490,9 +490,11 @@ public partial class SystemToolsSettingsViewModel : ObservableObject, IDisposabl
 
         targetRowIndex = Math.Clamp(targetRowIndex, 0, FloatingTriggerRows.Count - 1);
         var sourceRow = FloatingTriggerRows.FirstOrDefault(r => r.Buttons.Any(b => b.ButtonId == buttonId));
+
+        // 如果按钮不在任何行中（如在按钮池中），尝试从按钮池添加
         if (sourceRow == null)
         {
-            return false;
+            return AddTriggerFromPool(buttonId, targetRowIndex, targetIndex);
         }
 
         var item = sourceRow.Buttons.First(b => b.ButtonId == buttonId);

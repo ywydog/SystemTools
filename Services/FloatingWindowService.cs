@@ -760,21 +760,6 @@ public class FloatingWindowService
 
         var rows = new List<List<FloatingWindowEntry>>();
 
-        // 如果没有任何按钮被配置到行中，自动将所有可用按钮添加到第一行
-        var configuredIds = (profile.FloatingWindowButtonRows ?? [])
-            .SelectMany(r => r)
-            .ToHashSet();
-        if (configuredIds.Count == 0 && values.Count > 0)
-        {
-            var allButtonIds = values.Keys.ToList();
-            profile.FloatingWindowButtonRows = [allButtonIds];
-            foreach (var id in allButtonIds)
-            {
-                configuredIds.Add(id);
-            }
-            _profileManager.SaveProfile();
-        }
-
         foreach (var row in profile.FloatingWindowButtonRows ?? [])
         {
             var items = new List<FloatingWindowEntry>();
@@ -785,12 +770,10 @@ public class FloatingWindowService
                     items.Add(entry);
                 }
             }
-            rows.Add(items);
-        }
-
-        if (rows.Count == 0)
-        {
-            rows.Add([]);
+            if (items.Count > 0)
+            {
+                rows.Add(items);
+            }
         }
 
         return rows;

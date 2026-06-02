@@ -112,6 +112,7 @@
                                                         <Grid RowDefinitions="Auto,Auto">
                                                             <!-- 按钮主体 -->
                                                             <Border Grid.Row="0"
+                                                                    Classes="triggerItem"
                                                                     Background="{DynamicResource SubtleFillColorSecondaryBrush}"
                                                                     CornerRadius="6"
                                                                     Padding="8,4"

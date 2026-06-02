@@ -39,6 +39,7 @@ public partial class FloatingWindowEditorSettingsPage : SettingsPageBase
         ViewModel.RefreshFloatingWindowProfiles();
         ViewModel.RefreshFloatingTriggers();
         ViewModel.CurrentFloatingWindowProfile.PropertyChanged += OnProfilePropertyChanged;
+        ViewModel.Settings.PropertyChanged += OnSettingsPropertyChanged;
     }
 
     public SystemToolsSettingsViewModel ViewModel { get; }
@@ -57,6 +58,7 @@ public partial class FloatingWindowEditorSettingsPage : SettingsPageBase
         IAppHost.GetService<FloatingWindowService>().ProfileManager.SaveProfile();
 
         ViewModel.CurrentFloatingWindowProfile.PropertyChanged -= OnProfilePropertyChanged;
+        ViewModel.Settings.PropertyChanged -= OnSettingsPropertyChanged;
         ViewModel.Dispose();
         _isDisposed = true;
     }
@@ -76,6 +78,15 @@ public partial class FloatingWindowEditorSettingsPage : SettingsPageBase
             or nameof(FloatingWindowProfile.FloatingWindowHorizontal))
         {
             IAppHost.GetService<FloatingWindowService>().ProfileManager.SaveProfile();
+            IAppHost.GetService<FloatingWindowService>().UpdateWindowState();
+        }
+    }
+
+    private void OnSettingsPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName is nameof(MainConfigData.FloatingWindowTheme))
+        {
+            GlobalConstants.MainConfig?.Save();
             IAppHost.GetService<FloatingWindowService>().UpdateWindowState();
         }
     }
@@ -352,7 +363,7 @@ public partial class FloatingWindowEditorSettingsPage : SettingsPageBase
         var pointer = e.GetPosition(sender);
         var itemBorders = sender.GetVisualDescendants()
             .OfType<Border>()
-            .Where(x => x.DataContext is FloatingTriggerItem)
+            .Where(x => x.Classes.Contains("triggerItem"))
             .OrderBy(x => x.TranslatePoint(new Point(0, 0), sender)?.X ?? double.MaxValue)
             .ToList();
 
