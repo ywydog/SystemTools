@@ -41,6 +41,12 @@ public partial class FloatingWindowEditorSettingsPage : SettingsPageBase
         ViewModel.CurrentFloatingWindowProfile.PropertyChanged += OnProfilePropertyChanged;
         ViewModel.Settings.PropertyChanged += OnSettingsPropertyChanged;
         ViewModel.ProfileChanged += OnViewModelProfileChanged;
+
+        // 注册悬浮窗规则集变更监听
+        if (ViewModel.CurrentFloatingWindowProfile.FloatingWindowHidingRules is INotifyPropertyChanged hidingRules)
+        {
+            hidingRules.PropertyChanged += OnHidingRulesPropertyChanged;
+        }
     }
 
     public SystemToolsSettingsViewModel ViewModel { get; }
@@ -61,6 +67,13 @@ public partial class FloatingWindowEditorSettingsPage : SettingsPageBase
         ViewModel.CurrentFloatingWindowProfile.PropertyChanged -= OnProfilePropertyChanged;
         ViewModel.Settings.PropertyChanged -= OnSettingsPropertyChanged;
         ViewModel.ProfileChanged -= OnViewModelProfileChanged;
+
+        // 注销悬浮窗规则集变更监听
+        if (ViewModel.CurrentFloatingWindowProfile.FloatingWindowHidingRules is INotifyPropertyChanged hidingRules)
+        {
+            hidingRules.PropertyChanged -= OnHidingRulesPropertyChanged;
+        }
+
         ViewModel.Dispose();
         _isDisposed = true;
     }
@@ -91,6 +104,13 @@ public partial class FloatingWindowEditorSettingsPage : SettingsPageBase
     {
         ViewModel.CurrentFloatingWindowProfile.PropertyChanged -= OnProfilePropertyChanged;
         ViewModel.CurrentFloatingWindowProfile.PropertyChanged += OnProfilePropertyChanged;
+
+        // 重新注册悬浮窗规则集变更监听
+        if (ViewModel.CurrentFloatingWindowProfile.FloatingWindowHidingRules is INotifyPropertyChanged hidingRules)
+        {
+            hidingRules.PropertyChanged -= OnHidingRulesPropertyChanged;
+            hidingRules.PropertyChanged += OnHidingRulesPropertyChanged;
+        }
     }
 
     private void OnSettingsPropertyChanged(object? sender, PropertyChangedEventArgs e)
@@ -105,6 +125,11 @@ public partial class FloatingWindowEditorSettingsPage : SettingsPageBase
     private void OnViewModelProfileChanged(object? sender, EventArgs e)
     {
         ReattachProfilePropertyChanged();
+    }
+
+    private void OnHidingRulesPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        IAppHost.GetService<FloatingWindowService>().ProfileManager.SaveProfile();
     }
 
 

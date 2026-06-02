@@ -334,15 +334,35 @@ public partial class SystemToolsSettingsViewModel : ObservableObject, IDisposabl
             _floatingWindowService.ProfileManager.SaveProfile();
         }
 
+        // 注销旧对象上的事件处理程序，避免重复注册和内存泄漏
+        foreach (var oldRow in FloatingTriggerRows)
+        {
+            oldRow.RowRuleset.PropertyChanged -= OnRowRulesetPropertyChanged;
+            if (oldRow.RowRuleset.HidingRules is INotifyPropertyChanged oldRowHidingRules)
+            {
+                oldRowHidingRules.PropertyChanged -= OnRowRulesetPropertyChanged;
+            }
+            foreach (var oldItem in oldRow.Buttons)
+            {
+                oldItem.Config.PropertyChanged -= OnButtonConfigPropertyChanged;
+                if (oldItem.Config.HidingRules is INotifyPropertyChanged oldBtnHidingRules)
+                {
+                    oldBtnHidingRules.PropertyChanged -= OnButtonConfigPropertyChanged;
+                }
+            }
+        }
+
         // 构建已配置的行显示
         FloatingTriggerRows.Clear();
         var rowConfigs = profile.FloatingWindowRowRulesets;
         var rowIndex = 0;
+        var needSave = false;
         foreach (var row in profile.FloatingWindowButtonRows ?? [])
         {
             while (rowConfigs.Count <= rowIndex)
             {
                 rowConfigs.Add(new RowRulesetConfig());
+                needSave = true;
             }
             var vmRow = new FloatingTriggerRow
             {
@@ -350,6 +370,10 @@ public partial class SystemToolsSettingsViewModel : ObservableObject, IDisposabl
                 RowRuleset = rowConfigs[rowIndex]
             };
             vmRow.RowRuleset.PropertyChanged += OnRowRulesetPropertyChanged;
+            if (vmRow.RowRuleset.HidingRules is INotifyPropertyChanged rowHidingRules)
+            {
+                rowHidingRules.PropertyChanged += OnRowRulesetPropertyChanged;
+            }
             foreach (var id in row)
             {
                 if (!entries.TryGetValue(id, out var entry))
@@ -360,6 +384,7 @@ public partial class SystemToolsSettingsViewModel : ObservableObject, IDisposabl
                 {
                     btnConfig = new ButtonRulesetConfig();
                     profile.FloatingWindowButtonRulesets[entry.ButtonId] = btnConfig;
+                    needSave = true;
                 }
                 var item = new FloatingTriggerItem
                 {
@@ -369,6 +394,10 @@ public partial class SystemToolsSettingsViewModel : ObservableObject, IDisposabl
                     Config = btnConfig
                 };
                 item.Config.PropertyChanged += OnButtonConfigPropertyChanged;
+                if (item.Config.HidingRules is INotifyPropertyChanged btnHidingRules)
+                {
+                    btnHidingRules.PropertyChanged += OnButtonConfigPropertyChanged;
+                }
                 vmRow.Buttons.Add(item);
             }
             FloatingTriggerRows.Add(vmRow);
@@ -380,6 +409,7 @@ public partial class SystemToolsSettingsViewModel : ObservableObject, IDisposabl
             if (rowConfigs.Count == 0)
             {
                 rowConfigs.Add(new RowRulesetConfig());
+                needSave = true;
             }
             var emptyRow = new FloatingTriggerRow
             {
@@ -387,6 +417,10 @@ public partial class SystemToolsSettingsViewModel : ObservableObject, IDisposabl
                 RowRuleset = rowConfigs[0]
             };
             emptyRow.RowRuleset.PropertyChanged += OnRowRulesetPropertyChanged;
+            if (emptyRow.RowRuleset.HidingRules is INotifyPropertyChanged emptyRowHidingRules)
+            {
+                emptyRowHidingRules.PropertyChanged += OnRowRulesetPropertyChanged;
+            }
             FloatingTriggerRows.Add(emptyRow);
         }
 
@@ -403,6 +437,12 @@ public partial class SystemToolsSettingsViewModel : ObservableObject, IDisposabl
                     ButtonName = entry.LayoutName
                 });
             }
+        }
+
+        // 如果有新创建的默认配置，确保保存
+        if (needSave)
+        {
+            _floatingWindowService.ProfileManager.SaveProfile();
         }
 
     }
@@ -423,12 +463,18 @@ public partial class SystemToolsSettingsViewModel : ObservableObject, IDisposabl
     {
         var profile = CurrentFloatingWindowProfile;
         var rowRulesets = profile.FloatingWindowRowRulesets;
-        rowRulesets.Add(new RowRulesetConfig());
+        var newRowRuleset = new RowRulesetConfig();
+        rowRulesets.Add(newRowRuleset);
         var newRow = new FloatingTriggerRow
         {
             RowIndex = FloatingTriggerRows.Count + 1,
-            RowRuleset = rowRulesets[rowRulesets.Count - 1]
+            RowRuleset = newRowRuleset
         };
+        newRow.RowRuleset.PropertyChanged += OnRowRulesetPropertyChanged;
+        if (newRow.RowRuleset.HidingRules is INotifyPropertyChanged rowHidingRules)
+        {
+            rowHidingRules.PropertyChanged += OnRowRulesetPropertyChanged;
+        }
         FloatingTriggerRows.Add(newRow);
         PersistFloatingTriggerRows();
     }
@@ -438,12 +484,18 @@ public partial class SystemToolsSettingsViewModel : ObservableObject, IDisposabl
         var profile = CurrentFloatingWindowProfile;
         var rowRulesets = profile.FloatingWindowRowRulesets;
         insertIndex = Math.Clamp(insertIndex, 0, FloatingTriggerRows.Count);
-        rowRulesets.Insert(insertIndex, new RowRulesetConfig());
+        var newRowRuleset = new RowRulesetConfig();
+        rowRulesets.Insert(insertIndex, newRowRuleset);
         var newRow = new FloatingTriggerRow
         {
             RowIndex = insertIndex + 1,
-            RowRuleset = rowRulesets[insertIndex]
+            RowRuleset = newRowRuleset
         };
+        newRow.RowRuleset.PropertyChanged += OnRowRulesetPropertyChanged;
+        if (newRow.RowRuleset.HidingRules is INotifyPropertyChanged rowHidingRules)
+        {
+            rowHidingRules.PropertyChanged += OnRowRulesetPropertyChanged;
+        }
         FloatingTriggerRows.Insert(insertIndex, newRow);
 
         // 重新计算后续行的索引
@@ -461,6 +513,13 @@ public partial class SystemToolsSettingsViewModel : ObservableObject, IDisposabl
         if (index < 0 || FloatingTriggerRows.Count <= 1)
         {
             return false;
+        }
+
+        // 注销被移除行的事件处理程序
+        row.RowRuleset.PropertyChanged -= OnRowRulesetPropertyChanged;
+        if (row.RowRuleset.HidingRules is INotifyPropertyChanged rowHidingRules)
+        {
+            rowHidingRules.PropertyChanged -= OnRowRulesetPropertyChanged;
         }
 
         var targetRow = index > 0 ? FloatingTriggerRows[index - 1] : FloatingTriggerRows[index + 1];
@@ -566,6 +625,13 @@ public partial class SystemToolsSettingsViewModel : ObservableObject, IDisposabl
             var item = row.Buttons.FirstOrDefault(x => x.ButtonId == buttonId);
             if (item != null)
             {
+                // 注销事件处理程序
+                item.Config.PropertyChanged -= OnButtonConfigPropertyChanged;
+                if (item.Config.HidingRules is INotifyPropertyChanged btnHidingRules)
+                {
+                    btnHidingRules.PropertyChanged -= OnButtonConfigPropertyChanged;
+                }
+
                 row.Buttons.Remove(item);
                 AvailableFloatingTriggerItems.Add(item);
                 PersistFloatingTriggerRows();
@@ -607,12 +673,27 @@ public partial class SystemToolsSettingsViewModel : ObservableObject, IDisposabl
         }
         while (rowRulesets.Count > FloatingTriggerRows.Count)
         {
+            // 注销被移除行规则集的事件
+            var removedRowRuleset = rowRulesets[rowRulesets.Count - 1];
+            removedRowRuleset.PropertyChanged -= OnRowRulesetPropertyChanged;
+            if (removedRowRuleset.HidingRules is INotifyPropertyChanged removedHidingRules)
+            {
+                removedHidingRules.PropertyChanged -= OnRowRulesetPropertyChanged;
+            }
             rowRulesets.RemoveAt(rowRulesets.Count - 1);
         }
         // 同步每行的 RowRuleset 引用（确保ViewModel中的修改反映到profile）
         for (int i = 0; i < FloatingTriggerRows.Count; i++)
         {
             FloatingTriggerRows[i].RowRuleset = rowRulesets[i];
+        }
+
+        // 清理不再使用的按钮规则集配置
+        var usedButtonIds = new HashSet<string>(newOrder);
+        var staleButtonIds = profile.FloatingWindowButtonRulesets.Keys.Where(id => !usedButtonIds.Contains(id)).ToList();
+        foreach (var staleId in staleButtonIds)
+        {
+            profile.FloatingWindowButtonRulesets.Remove(staleId);
         }
 
         if (forceSave)
