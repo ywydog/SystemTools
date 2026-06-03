@@ -1,10 +1,13 @@
 using System.Collections.ObjectModel;
+using System.Linq;
 using Avalonia;
+using Avalonia.Data.Converters;
 
 namespace SystemTools;
 
 /// <summary>
 /// 悬浮窗按钮拖拽数据，参照 ClassIsland 的 EditableComponentsListBoxDragData 设计
+/// 使用 MultiBinding + Create 转换器模式
 /// </summary>
 public class FloatingWindowButtonDragData : AvaloniaObject
 {
@@ -28,14 +31,19 @@ public class FloatingWindowButtonDragData : AvaloniaObject
     }
 
     /// <summary>
-    /// 是否来自组件库（按钮池），而非行内
+    /// MultiBinding 转换器，与 ClassIsland 的 EditableComponentsListBoxDragData.Create 模式一致
+    /// 绑定顺序：{Binding}（当前项）, {Binding $parent[ListBox].ItemsSource}（源集合）
     /// </summary>
-    public static readonly StyledProperty<bool> IsFromPoolProperty =
-        AvaloniaProperty.Register<FloatingWindowButtonDragData, bool>(nameof(IsFromPool));
-
-    public bool IsFromPool
+    public static FuncMultiValueConverter<object?, FloatingWindowButtonDragData?> Create { get; } = new(o =>
     {
-        get => GetValue(IsFromPoolProperty);
-        set => SetValue(IsFromPoolProperty, value);
-    }
+        var l = o.ToList();
+        if (l.Count < 2 || l[0] is not FloatingTriggerItem item
+            || l[1] is not ObservableCollection<FloatingTriggerItem> source)
+            return null;
+        return new FloatingWindowButtonDragData()
+        {
+            Item = item,
+            SourceCollection = source
+        };
+    });
 }
