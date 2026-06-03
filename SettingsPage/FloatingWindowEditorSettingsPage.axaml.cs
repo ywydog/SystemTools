@@ -36,6 +36,8 @@ public partial class FloatingWindowEditorSettingsPage : SettingsPageBase
         DataContext = this;
         InitializeComponent();
 
+        DropHandler = new FloatingWindowDropHandler(this);
+
         ViewModel.RefreshFloatingWindowProfiles();
         ViewModel.RefreshFloatingTriggers();
         ViewModel.CurrentFloatingWindowProfile.PropertyChanged += OnProfilePropertyChanged;
@@ -50,6 +52,8 @@ public partial class FloatingWindowEditorSettingsPage : SettingsPageBase
     }
 
     public SystemToolsSettingsViewModel ViewModel { get; }
+    public FloatingWindowDropHandler DropHandler { get; }
+
     private bool _isDisposed;
 
     protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
@@ -155,8 +159,6 @@ public partial class FloatingWindowEditorSettingsPage : SettingsPageBase
         service.UpdateWindowState();
     }
 
-
-
     private void OnFloatingWindowProfileSelectionChanged(object? sender, SelectionChangedEventArgs e)
     {
         if (sender is not ComboBox comboBox || comboBox.SelectedItem is not string profileName)
@@ -177,22 +179,6 @@ public partial class FloatingWindowEditorSettingsPage : SettingsPageBase
     private void OnAddFloatingWindowProfileClick(object? sender, RoutedEventArgs e)
     {
         ViewModel.AddFloatingWindowProfile();
-    }
-
-    private void OnRemoveFloatingWindowProfileClick(object? sender, RoutedEventArgs e)
-    {
-        if (sender is not Button button)
-        {
-            return;
-        }
-
-        var profileName = button.Tag as string;
-        if (string.IsNullOrWhiteSpace(profileName))
-        {
-            return;
-        }
-
-        ViewModel.RemoveFloatingWindowProfile(profileName);
     }
 
     private void OnRemoveCurrentProfileClick(object? sender, RoutedEventArgs e)
@@ -233,64 +219,6 @@ public partial class FloatingWindowEditorSettingsPage : SettingsPageBase
         ViewModel.InsertFloatingTriggerRow(index + 1);
     }
 
-    private void OnToggleRowRulesetClick(object? sender, RoutedEventArgs e)
-    {
-        if (sender is not Control control)
-        {
-            return;
-        }
-
-        var row = control.GetVisualAncestors()
-            .OfType<Border>()
-            .Select(b => b.DataContext)
-            .OfType<FloatingTriggerRow>()
-            .FirstOrDefault();
-
-        if (row == null)
-        {
-            return;
-        }
-
-        row.IsRulesetExpanded = !row.IsRulesetExpanded;
-    }
-
-    private void OnButtonRulesetClick(object? sender, RoutedEventArgs e)
-    {
-        if (sender is not Control control)
-        {
-            return;
-        }
-
-        var button = control.GetVisualAncestors()
-            .OfType<Border>()
-            .Select(b => b.DataContext)
-            .OfType<FloatingTriggerItem>()
-            .FirstOrDefault();
-
-        if (button == null)
-        {
-            return;
-        }
-
-        // 单开模式：关闭其他所有按钮的规则集面板
-        foreach (var row in ViewModel.FloatingTriggerRows)
-        {
-            foreach (var item in row.Buttons)
-            {
-                if (item != button)
-                {
-                    item.IsRulesetExpanded = false;
-                }
-            }
-        }
-
-        button.IsRulesetExpanded = !button.IsRulesetExpanded;
-    }
-
-    private Point? _floatingDragStartPoint;
-    private Border? _floatingDragSourceBorder;
-    private const double DragThreshold = 8; // 触摸屏友好的拖拽阈值
-
     private void OnAddFloatingTriggerRowClick(object? sender, RoutedEventArgs e)
     {
         ViewModel.AddFloatingTriggerRow();
@@ -311,204 +239,6 @@ public partial class FloatingWindowEditorSettingsPage : SettingsPageBase
         _ = ViewModel.RemoveFloatingTriggerRow(row);
     }
 
-    private void OnFloatingTriggerItemPointerPressed(object? sender, PointerPressedEventArgs e)
-    {
-        if (sender is not Border border || !e.GetCurrentPoint(border).Properties.IsLeftButtonPressed)
-        {
-            return;
-        }
-
-        _floatingDragSourceBorder = border;
-        _floatingDragStartPoint = e.GetPosition(border);
-        e.Handled = e.Pointer.Type is PointerType.Touch or PointerType.Pen;
-    }
-
-    private void OnFloatingTriggerItemPointerReleased(object? sender, PointerReleasedEventArgs e)
-    {
-        // 检测是否是点击（未发生拖拽）：如果拖拽源仍在且起始点有效，说明移动距离不足未触发拖拽
-        if (_floatingDragSourceBorder != null && _floatingDragStartPoint != null &&
-            sender is Border border && border.Tag is string buttonId &&
-            !string.IsNullOrWhiteSpace(buttonId))
-        {
-            var now = e.GetPosition(border);
-            var distance = Math.Abs(now.X - _floatingDragStartPoint.Value.X) +
-                           Math.Abs(now.Y - _floatingDragStartPoint.Value.Y);
-            if (distance < DragThreshold)
-            {
-                // 判断是否在按钮池中（不在任何行中的按钮）
-                var isInRow = ViewModel.FloatingTriggerRows.Any(r => r.Buttons.Any(b => b.ButtonId == buttonId));
-                if (!isInRow)
-                {
-                    // 点击按钮池项：添加到第一行末尾
-                    if (ViewModel.FloatingTriggerRows.Count == 0)
-                    {
-                        ViewModel.AddFloatingTriggerRow();
-                    }
-                    ViewModel.AddTriggerFromPool(buttonId, 0, ViewModel.FloatingTriggerRows[0].Buttons.Count);
-                }
-            }
-        }
-
-        _floatingDragSourceBorder = null;
-        _floatingDragStartPoint = null;
-    }
-
-    private async void OnFloatingTriggerItemPointerMoved(object? sender, PointerEventArgs e)
-    {
-        if (sender is not Border border || _floatingDragSourceBorder != border || _floatingDragStartPoint == null)
-        {
-            return;
-        }
-
-        if (!e.GetCurrentPoint(border).Properties.IsLeftButtonPressed)
-        {
-            return;
-        }
-
-        var now = e.GetPosition(border);
-        if (Math.Abs(now.X - _floatingDragStartPoint.Value.X) + Math.Abs(now.Y - _floatingDragStartPoint.Value.Y) < DragThreshold)
-        {
-            return;
-        }
-
-        if (border.Tag is not string buttonId || string.IsNullOrWhiteSpace(buttonId))
-        {
-            return;
-        }
-
-        var data = new DataObject();
-        data.Set("FloatingTriggerButtonId", buttonId);
-
-        _floatingDragSourceBorder = null;
-        _floatingDragStartPoint = null;
-        await DragDrop.DoDragDrop(e, data, DragDropEffects.Move);
-        e.Handled = e.Pointer.Type is PointerType.Touch or PointerType.Pen;
-    }
-
-    private static bool TryGetDragButtonId(DragEventArgs e, out string buttonId)
-    {
-        buttonId = string.Empty;
-        if (!e.Data.Contains("FloatingTriggerButtonId"))
-        {
-            return false;
-        }
-
-        buttonId = e.Data.Get("FloatingTriggerButtonId") as string ?? string.Empty;
-        return !string.IsNullOrWhiteSpace(buttonId);
-    }
-
-    private int GetRowIndexFromControl(Control? control)
-    {
-        var current = control;
-        while (current != null)
-        {
-            if (current.DataContext is FloatingTriggerRow row)
-            {
-                return ViewModel.FloatingTriggerRows.IndexOf(row);
-            }
-
-            current = current.GetVisualParent() as Control;
-        }
-
-        return -1;
-    }
-
-    private int GetRowInsertIndex(Control sender, FloatingTriggerRow row, DragEventArgs e)
-    {
-        if (row.Buttons.Count == 0)
-        {
-            return 0;
-        }
-
-        var pointer = e.GetPosition(sender);
-        var itemBorders = sender.GetVisualDescendants()
-            .OfType<Border>()
-            .Where(x => x.Classes.Contains("triggerItem"))
-            .OrderBy(x => x.TranslatePoint(new Point(0, 0), sender)?.X ?? double.MaxValue)
-            .ToList();
-
-        for (var i = 0; i < itemBorders.Count; i++)
-        {
-            var topLeft = itemBorders[i].TranslatePoint(new Point(0, 0), sender);
-            if (topLeft == null)
-            {
-                continue;
-            }
-
-            var center = topLeft.Value.X + itemBorders[i].Bounds.Width / 2;
-            if (pointer.X <= center)
-            {
-                return i;
-            }
-        }
-
-        return row.Buttons.Count;
-    }
-
-    private void OnFloatingTriggerRowDragOver(object? sender, DragEventArgs e)
-    {
-        e.DragEffects = TryGetDragButtonId(e, out _) ? DragDropEffects.Move : DragDropEffects.None;
-        e.Handled = true;
-    }
-
-    private void OnFloatingTriggerRowDrop(object? sender, DragEventArgs e)
-    {
-        if (!TryGetDragButtonId(e, out var buttonId) || sender is not Control senderControl)
-        {
-            return;
-        }
-
-        var rowIndex = GetRowIndexFromControl(senderControl);
-        if (rowIndex < 0)
-        {
-            return;
-        }
-
-        var row = ViewModel.FloatingTriggerRows[rowIndex];
-        var insertIndex = GetRowInsertIndex(senderControl, row, e);
-        ViewModel.MoveFloatingTrigger(buttonId, rowIndex, insertIndex);
-    }
-
-    private void OnFloatingTriggerItemDragOver(object? sender, DragEventArgs e)
-    {
-        e.DragEffects = TryGetDragButtonId(e, out _) ? DragDropEffects.Move : DragDropEffects.None;
-        e.Handled = true;
-    }
-
-    private void OnFloatingTriggerItemDrop(object? sender, DragEventArgs e)
-    {
-        if (sender is not Border border || border.DataContext is not FloatingTriggerItem targetItem)
-        {
-            return;
-        }
-
-        if (!TryGetDragButtonId(e, out var buttonId))
-        {
-            return;
-        }
-
-        var rowIndex = GetRowIndexFromControl(border);
-        if (rowIndex < 0)
-        {
-            return;
-        }
-
-        var row = ViewModel.FloatingTriggerRows[rowIndex];
-        var targetIndex = row.Buttons.IndexOf(targetItem);
-        if (targetIndex < 0)
-        {
-            return;
-        }
-
-        var pos = e.GetPosition(border);
-        if (pos.X > border.Bounds.Width / 2)
-        {
-            targetIndex += 1;
-        }
-
-        ViewModel.MoveFloatingTrigger(buttonId, rowIndex, targetIndex);
-    }
-
     private void OnRemoveTriggerFromRowClick(object? sender, RoutedEventArgs e)
     {
         if (sender is not Button button || button.Tag is not string buttonId)
@@ -519,19 +249,37 @@ public partial class FloatingWindowEditorSettingsPage : SettingsPageBase
         ViewModel.RemoveTriggerToPool(buttonId);
     }
 
-    private void OnAvailablePoolDrop(object? sender, DragEventArgs e)
+    // ===== 选中状态处理 =====
+
+    private void OnRowSelectionChanged(object? sender, SelectionChangedEventArgs e)
     {
-        if (!TryGetDragButtonId(e, out var buttonId) || sender is not Control senderControl)
+        if (sender is ListBox listBox && listBox.SelectedItem is FloatingTriggerRow row)
         {
-            return;
+            ViewModel.SelectedFloatingTriggerRow = row;
         }
+    }
 
-        // 从按钮池拖拽到行区域：添加到第一行末尾
-        if (ViewModel.FloatingTriggerRows.Count == 0)
+    private void OnButtonSelectionChanged(object? sender, SelectionChangedEventArgs e)
+    {
+        if (sender is ListBox listBox && listBox.SelectedItem is FloatingTriggerItem item)
         {
-            ViewModel.AddFloatingTriggerRow();
+            ViewModel.SelectedFloatingTriggerItem = item;
         }
+    }
 
-        ViewModel.AddTriggerFromPool(buttonId, 0, ViewModel.FloatingTriggerRows[0].Buttons.Count);
+    private void OnAvailableItemSelectionChanged(object? sender, SelectionChangedEventArgs e)
+    {
+        if (sender is ListBox listBox && listBox.SelectedItem is FloatingTriggerItem item)
+        {
+            // 点击组件库项：添加到第一行末尾
+            if (ViewModel.FloatingTriggerRows.Count == 0)
+            {
+                ViewModel.AddFloatingTriggerRow();
+            }
+            ViewModel.AddTriggerFromPool(item.ButtonId, 0, ViewModel.FloatingTriggerRows[0].Buttons.Count);
+
+            // 清除选中状态
+            listBox.SelectedItem = null;
+        }
     }
 }

@@ -49,6 +49,23 @@ public partial class FloatingTriggerItem : ObservableObject
     [ObservableProperty] private string _buttonName = string.Empty;
     [ObservableProperty] private bool _isRulesetExpanded = false;
     [ObservableProperty] private ButtonRulesetConfig _config = new();
+
+    /// <summary>
+    /// FluentIconSource，供 IconSourceElement 使用
+    /// </summary>
+    public FluentAvalonia.UI.Controls.FluentIconSource? IconSource
+    {
+        get
+        {
+            if (string.IsNullOrEmpty(_icon)) return null;
+            return new FluentAvalonia.UI.Controls.FluentIconSource { Glyph = _icon };
+        }
+    }
+
+    partial void OnIconChanged(string value)
+    {
+        OnPropertyChanged(nameof(IconSource));
+    }
 }
 
 public partial class FloatingTriggerRow : ObservableObject
@@ -83,6 +100,9 @@ public partial class SystemToolsSettingsViewModel : ObservableObject, IDisposabl
     [ObservableProperty] private ObservableCollection<FloatingTriggerRow> _floatingTriggerRows = new();
     [ObservableProperty] private bool _hasFloatingTriggerEntries;
 
+    // 选中状态
+    [ObservableProperty] private FloatingTriggerRow? _selectedFloatingTriggerRow;
+    [ObservableProperty] private FloatingTriggerItem? _selectedFloatingTriggerItem;
 
     // 可用按钮池（未添加到悬浮窗的按钮）
     [ObservableProperty] private ObservableCollection<FloatingTriggerItem> _availableFloatingTriggerItems = new();

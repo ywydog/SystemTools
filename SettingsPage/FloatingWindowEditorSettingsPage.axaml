@@ -7,8 +7,10 @@
                      xmlns:controls="clr-namespace:FluentAvalonia.UI.Controls;assembly=FluentAvalonia"
                      xmlns:controls1="clr-namespace:SystemTools.Controls"
                      xmlns:ruleset="clr-namespace:ClassIsland.Core.Controls.Ruleset;assembly=ClassIsland.Core"
+                     xmlns:behaviors="clr-namespace:ClassIsland.Core.Behaviors;assembly=ClassIsland.Core"
+                     xmlns:avaloniaXaml="using:Avalonia.Xaml.Interactivity"
                      mc:Ignorable="d"
-                     d:DesignHeight="450"
+                     d:DesignHeight="800"
                      d:DesignWidth="800">
 
     <ScrollViewer>
@@ -57,337 +59,316 @@
                               IsCheckedChanged="OnFloatingWindowVisibleToggleChanged" />
             </Grid>
 
-            <!-- 按钮布局区域 -->
-            <controls:SettingsExpander IconSource="{ci:FluentIconSource &#xE9D5;}"
-                                       Header="悬浮窗按钮布局"
-                                       Description="从下方组件库拖拽按钮到上方行中，或调整行内按钮顺序。点击按钮可展开规则集。"
-                                       IsExpanded="True"
-                                       Margin="0,8,0,0">
-                <StackPanel Margin="12,8,12,12" Spacing="8">
+            <!-- ===== 按钮布局区域（ClassIsland 组件库风格） ===== -->
+            <TextBlock Text="以下按钮将显示在悬浮窗上。拖拽按钮调整顺序，从组件库拖拽添加新按钮。"
+                       Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                       FontSize="12"
+                       Margin="0,4,0,4"
+                       TextWrapping="Wrap" />
+
+            <!-- 行列表区域 -->
+            <Border BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}"
+                    BorderThickness="1"
+                    CornerRadius="8"
+                    Padding="4"
+                    MinHeight="80">
+                <Grid RowDefinitions="*,Auto">
                     <!-- 空状态：没有行时显示引导 -->
-                    <Border BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}"
-                            BorderThickness="1"
-                            CornerRadius="8"
-                            Padding="20"
-                            Margin="0,0,0,6"
-                            IsVisible="{Binding !ViewModel.FloatingTriggerRows.Count}">
-                        <StackPanel Spacing="8" HorizontalAlignment="Center">
-                            <ci:FluentIcon Glyph="&#xE9D5;"
-                                           FontSize="32"
-                                           Foreground="{DynamicResource TextFillColorTertiaryBrush}"
-                                           HorizontalAlignment="Center" />
-                            <TextBlock Text="还没有配置任何按钮"
-                                       HorizontalAlignment="Center"
-                                       Foreground="{DynamicResource TextFillColorSecondaryBrush}"
-                                       FontSize="14" />
-                            <TextBlock Text="从下方组件库拖拽按钮到此处，或点击按钮直接添加"
-                                       HorizontalAlignment="Center"
+                    <StackPanel Grid.Row="0" Spacing="8" HorizontalAlignment="Center" VerticalAlignment="Center"
+                                IsVisible="{Binding !ViewModel.FloatingTriggerRows.Count}">
+                        <ci:FluentIcon Glyph="&#xE9D5;"
+                                       FontSize="32"
                                        Foreground="{DynamicResource TextFillColorTertiaryBrush}"
-                                       FontSize="12"
-                                       TextWrapping="Wrap"
-                                       TextAlignment="Center" />
-                        </StackPanel>
-                    </Border>
+                                       HorizontalAlignment="Center" />
+                        <TextBlock Text="还没有配置任何按钮"
+                                   HorizontalAlignment="Center"
+                                   Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                                   FontSize="14" />
+                        <TextBlock Text="从下方组件库拖拽按钮到此处，或点击按钮直接添加"
+                                   HorizontalAlignment="Center"
+                                   Foreground="{DynamicResource TextFillColorTertiaryBrush}"
+                                   FontSize="12"
+                                   TextWrapping="Wrap"
+                                   TextAlignment="Center" />
+                    </StackPanel>
 
-                    <!-- 行列表 -->
-                    <ItemsControl ItemsSource="{Binding ViewModel.FloatingTriggerRows}">
-                        <ItemsControl.ItemTemplate>
+                    <!-- 行列表（ListBox，支持拖拽排序） -->
+                    <ListBox Grid.Row="0"
+                             x:Name="ListBoxRows"
+                             ItemsSource="{Binding ViewModel.FloatingTriggerRows}"
+                             SelectedItem="{Binding ViewModel.SelectedFloatingTriggerRow, Mode=TwoWay}"
+                             IsVisible="{Binding ViewModel.FloatingTriggerRows.Count}"
+                             Background="Transparent"
+                             Margin="-4"
+                             SelectionChanged="OnRowSelectionChanged">
+                        <ListBox.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <StackPanel Spacing="4" />
+                            </ItemsPanelTemplate>
+                        </ListBox.ItemsPanel>
+                        <ListBox.ItemTemplate>
                             <DataTemplate>
-                                <Border BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}"
-                                        BorderThickness="1"
-                                        CornerRadius="8"
-                                        Padding="8"
-                                        Margin="0,0,0,6"
-                                        DragDrop.AllowDrop="True"
-                                        DragDrop.DragOver="OnFloatingTriggerRowDragOver"
-                                        DragDrop.Drop="OnFloatingTriggerRowDrop">
-                                    <Grid RowDefinitions="Auto,Auto" ColumnDefinitions="Auto,*,Auto" VerticalAlignment="Center">
-                                        <!-- 行拖拽把手 -->
-                                        <Border Grid.Row="0" Grid.Column="0"
-                                                Padding="4,0"
-                                                Margin="-4,0,4,0"
-                                                VerticalAlignment="Center"
-                                                Cursor="SizeAll">
-                                            <ci:FluentIcon Glyph="&#xE69E;"
-                                                           FontSize="14"
-                                                           Foreground="{DynamicResource TextFillColorTertiaryBrush}"
-                                                           VerticalAlignment="Center" />
-                                        </Border>
+                                <Grid ColumnDefinitions="Auto,*,Auto" MinHeight="40">
+                                    <!-- 行拖拽把手 -->
+                                    <ci:TouchDragThumb Grid.Column="0"
+                                                       Width="20"
+                                                       IsExplicitVisible="True"
+                                                       IsCompact="True"
+                                                       VerticalAlignment="Center" />
 
-                                        <!-- 按钮列表 -->
-                                        <Border Grid.Row="0" Grid.Column="1"
-                                                MinHeight="44"
-                                                CornerRadius="6"
-                                                Background="{DynamicResource SubtleFillColorTertiaryBrush}"
-                                                Padding="6"
-                                                DragDrop.AllowDrop="True"
-                                                DragDrop.DragOver="OnFloatingTriggerRowDragOver"
-                                                DragDrop.Drop="OnFloatingTriggerRowDrop">
-                                            <Grid HorizontalAlignment="Stretch" VerticalAlignment="Center">
-                                                <!-- 空行提示 -->
-                                                <TextBlock Text="拖拽按钮到此处"
-                                                           HorizontalAlignment="Center"
-                                                           VerticalAlignment="Center"
-                                                           Foreground="{DynamicResource TextFillColorTertiaryBrush}"
-                                                           FontSize="12"
-                                                           IsVisible="{Binding !Buttons.Count}" />
-                                                <ItemsControl ItemsSource="{Binding Buttons}"
-                                                              HorizontalAlignment="Stretch"
-                                                              VerticalAlignment="Center"
-                                                              IsVisible="{Binding Buttons.Count}">
-                                                <ItemsControl.ItemsPanel>
-                                                    <ItemsPanelTemplate>
-                                                        <StackPanel Orientation="Horizontal"
-                                                                    HorizontalAlignment="Center"
-                                                                    Spacing="8" />
-                                                    </ItemsPanelTemplate>
-                                                </ItemsControl.ItemsPanel>
-                                                <ItemsControl.ItemTemplate>
-                                                    <DataTemplate>
-                                                        <Grid RowDefinitions="Auto,Auto">
-                                                            <!-- 按钮主体 -->
-                                                            <Border Grid.Row="0"
-                                                                    Classes="triggerItem"
-                                                                    Tag="{Binding ButtonId}"
-                                                                    Background="{DynamicResource SubtleFillColorSecondaryBrush}"
-                                                                    CornerRadius="6"
-                                                                    Padding="6,4"
-                                                                    Margin="0,0,2,0"
-                                                                    DragDrop.AllowDrop="True"
-                                                                    DragDrop.DragOver="OnFloatingTriggerItemDragOver"
-                                                                    DragDrop.Drop="OnFloatingTriggerItemDrop"
-                                                                    PointerPressed="OnFloatingTriggerItemPointerPressed"
-                                                                    PointerMoved="OnFloatingTriggerItemPointerMoved"
-                                                                    PointerReleased="OnFloatingTriggerItemPointerReleased">
-                                                                <Grid ColumnDefinitions="Auto,*,Auto,Auto"
-                                                                      ColumnSpacing="4">
-                                                                    <!-- 拖拽把手 -->
-                                                                    <Border Grid.Column="0"
-                                                                            Padding="8,6"
-                                                                            CornerRadius="4"
-                                                                            Cursor="SizeAll"
-                                                                            Background="{DynamicResource SubtleFillColorTertiaryBrush}">
-                                                                        <ci:FluentIcon Glyph="&#xE69E;"
-                                                                                       FontSize="12"
-                                                                                       Foreground="{DynamicResource TextFillColorTertiaryBrush}"
-                                                                                       VerticalAlignment="Center"
-                                                                                       HorizontalAlignment="Center" />
-                                                                    </Border>
-                                                                    <!-- 图标+名称 -->
-                                                                    <StackPanel Grid.Column="1"
-                                                                                Orientation="Horizontal"
-                                                                                Spacing="4"
-                                                                                VerticalAlignment="Center">
-                                                                        <ci:FluentIcon Glyph="{Binding Icon}"
-                                                                                       FontSize="14"
-                                                                                       VerticalAlignment="Center" />
-                                                                        <TextBlock Text="{Binding ButtonName}"
-                                                                                   FontSize="13"
-                                                                                   VerticalAlignment="Center" />
-                                                                    </StackPanel>
-                                                                    <!-- 规则集按钮 -->
-                                                                    <Button Grid.Column="2"
-                                                                            Content="{ci:FluentIcon &#xF17E;}"
-                                                                            FontSize="10"
-                                                                            Padding="4,0"
-                                                                            ToolTip.Tip="规则集"
-                                                                            Theme="{StaticResource TransparentButton}"
-                                                                            Click="OnButtonRulesetClick" />
-                                                                    <!-- 删除按钮 -->
-                                                                    <Button Grid.Column="3"
-                                                                            Content="{ci:FluentIcon &#xE61D;}"
-                                                                            FontSize="10"
-                                                                            Padding="4,0"
-                                                                            Foreground="{DynamicResource SystemFillColorCriticalBrush}"
-                                                                            Theme="{StaticResource TransparentButton}"
-                                                                            Click="OnRemoveTriggerFromRowClick"
-                                                                            Tag="{Binding ButtonId}" />
-                                                                </Grid>
-                                                            </Border>
-                                                            <!-- 按钮规则集展开面板 -->
-                                                            <Border Grid.Row="1"
-                                                                    IsVisible="{Binding IsRulesetExpanded}"
-                                                                    Margin="24,4,0,4"
-                                                                    Background="{DynamicResource SubtleFillColorSecondaryBrush}"
-                                                                    CornerRadius="6"
-                                                                    Padding="10,8">
-                                                                <StackPanel Spacing="6">
-                                                                    <Grid ColumnDefinitions="*,Auto">
-                                                                        <TextBlock Grid.Column="0" Text="满足规则时隐藏"
-                                                                                   Foreground="{DynamicResource TextFillColorSecondaryBrush}"
-                                                                                   FontSize="12"
-                                                                                   VerticalAlignment="Center" />
-                                                                        <ToggleSwitch Grid.Column="1"
-                                                                                      IsChecked="{Binding Config.HideOnRule, Mode=TwoWay}" />
-                                                                    </Grid>
-                                                                    <ruleset:RulesetControl Ruleset="{Binding Config.HidingRules}"
-                                                                                            ShowTitle="False"
-                                                                                            IsEnabled="{Binding Config.HideOnRule}" />
-                                                                </StackPanel>
-                                                            </Border>
-                                                        </Grid>
-                                                    </DataTemplate>
-                                                </ItemsControl.ItemTemplate>
-                                            </ItemsControl>
-                                            </Grid>
-                                        </Border>
-
-                                        <!-- 行操作 + 规则集 -->
-                                        <StackPanel Grid.Row="0" Grid.Column="2"
-                                                    Orientation="Horizontal"
-                                                    Spacing="4"
-                                                    VerticalAlignment="Center"
-                                                    Margin="8,0,0,0">
-                                            <!-- 行规则集折叠按钮 -->
-                                            <Button Content="{ci:FluentIcon &#xF17E;}"
-                                                    ToolTip.Tip="行规则集"
-                                                    Click="OnToggleRowRulesetClick"
-                                                    Theme="{StaticResource TransparentButton}" />
-                                            <Button Content="{ci:FluentIcon &#xE00D;}"
-                                                    ToolTip.Tip="在下方插入一行"
-                                                    Click="OnInsertRowBelowClick"
-                                                    Theme="{StaticResource TransparentButton}" />
-                                            <Button Content="{ci:FluentIcon &#xE61D;}"
-                                                    ToolTip.Tip="删除行"
-                                                    Foreground="{DynamicResource SystemFillColorCriticalBrush}"
-                                                    Click="OnRemoveFloatingTriggerRowClick"
-                                                    Theme="{StaticResource TransparentButton}" />
-                                        </StackPanel>
-
-                                        <!-- 行规则集展开区域 -->
-                                        <Border Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="3"
-                                                IsVisible="{Binding IsRulesetExpanded}"
-                                                Margin="24,6,0,6"
-                                                Background="{DynamicResource SubtleFillColorSecondaryBrush}"
-                                                CornerRadius="6"
-                                                Padding="10,8">
-                                            <StackPanel Spacing="6">
-                                                <Grid ColumnDefinitions="*,Auto">
-                                                    <TextBlock Grid.Column="0"
-                                                               Text="{Binding RowIndex, StringFormat='第 {0} 行规则集'}"
-                                                               FontWeight="SemiBold"
-                                                               VerticalAlignment="Center" />
-                                                    <ToggleSwitch Grid.Column="1"
-                                                                  OnContent="显示" OffContent="隐藏"
-                                                                  IsChecked="{Binding RowRuleset.IsVisible, Mode=TwoWay}" />
-                                                </Grid>
-                                                <Grid ColumnDefinitions="*,Auto">
-                                                    <TextBlock Grid.Column="0" Text="满足规则时隐藏"
-                                                               Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                                    <!-- 行内按钮列表（水平 ListBox） -->
+                                    <ListBox Grid.Column="1"
+                                             ItemsSource="{Binding Buttons}"
+                                             SelectedItem="{Binding $parent[ListBoxItem].(ListBox.SelectedItem), RelativeSource={RelativeSource AncestorType=ListBox}, Mode=OneWayToSource}"
+                                             x:Name="InnerButtonListBox"
+                                             Background="Transparent"
+                                             SelectionChanged="OnButtonSelectionChanged">
+                                        <ListBox.ItemsPanel>
+                                            <ItemsPanelTemplate>
+                                                <StackPanel Orientation="Horizontal" Spacing="2" />
+                                            </ItemsPanelTemplate>
+                                        </ListBox.ItemsPanel>
+                                        <ListBox.ItemTemplate>
+                                            <DataTemplate>
+                                                <StackPanel Orientation="Horizontal" Spacing="2">
+                                                    <ci:TouchDragThumb Margin="-4,0,-2,0" IsCompact="True" VerticalAlignment="Center" />
+                                                    <controls:IconSourceElement IconSource="{Binding IconSource}"
+                                                                                Width="16" Height="16"
+                                                                                VerticalAlignment="Center" />
+                                                    <TextBlock Text="{Binding ButtonName}"
                                                                FontSize="12"
                                                                VerticalAlignment="Center" />
-                                                    <ToggleSwitch Grid.Column="1"
-                                                                  IsChecked="{Binding RowRuleset.HideOnRule, Mode=TwoWay}" />
-                                                </Grid>
-                                                <ruleset:RulesetControl Ruleset="{Binding RowRuleset.HidingRules}"
-                                                                        ShowTitle="False"
-                                                                        IsEnabled="{Binding RowRuleset.HideOnRule}" />
-                                            </StackPanel>
-                                        </Border>
-                                    </Grid>
-                                </Border>
-                            </DataTemplate>
-                        </ItemsControl.ItemTemplate>
-                    </ItemsControl>
+                                                    <Button Content="{ci:FluentIcon &#xE61D;}"
+                                                            FontSize="10"
+                                                            Padding="2,0"
+                                                            Foreground="{DynamicResource SystemFillColorCriticalBrush}"
+                                                            Theme="{StaticResource TransparentButton}"
+                                                            ToolTip.Tip="移除"
+                                                            Click="OnRemoveTriggerFromRowClick"
+                                                            Tag="{Binding ButtonId}" />
+                                                </StackPanel>
+                                            </DataTemplate>
+                                        </ListBox.ItemTemplate>
+                                        <ListBox.ItemContainerTheme>
+                                            <ControlTheme TargetType="ListBoxItem">
+                                                <Setter Property="Padding" Value="4,2" />
+                                                <Setter Property="Background"
+                                                        Value="{DynamicResource SubtleFillColorSecondaryBrush}" />
+                                                <Setter Property="CornerRadius" Value="4" />
+                                                <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                                                <Setter Property="VerticalContentAlignment" Value="Center" />
+                                            </ControlTheme>
+                                        </ListBox.ItemContainerTheme>
+                                        <!-- 行内按钮拖拽行为 -->
+                                        <avaloniaXaml:Interaction.Behaviors>
+                                            <BehaviorCollection>
+                                                <behaviors:ManagedContextDropBehavior
+                                                    OverClass="TargetHighlight"
+                                                    Handler="{Binding $parent[FloatingWindowEditorSettingsPage].DropHandler}"
+                                                    Context="{Binding Buttons}" />
+                                            </BehaviorCollection>
+                                        </avaloniaXaml:Interaction.Behaviors>
+                                    </ListBox>
 
-                    <!-- 可用按钮池（WrapPanel 自动换行） -->
-                    <Border BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}"
-                            BorderThickness="1"
-                            CornerRadius="8"
-                            Padding="12"
-                            Margin="0,4,0,0"
-                            DragDrop.AllowDrop="True"
-                            DragDrop.DragOver="OnFloatingTriggerRowDragOver"
-                            DragDrop.Drop="OnAvailablePoolDrop">
-                        <StackPanel Spacing="8">
-                            <StackPanel Orientation="Horizontal" Spacing="8">
-                                <ci:FluentIcon Glyph="&#xE71B;"
-                                               FontSize="16"
-                                               Foreground="{DynamicResource TextFillColorSecondaryBrush}"
-                                               VerticalAlignment="Center" />
-                                <TextBlock Text="组件库"
+                                    <!-- 行操作按钮 -->
+                                    <StackPanel Grid.Column="2"
+                                                Orientation="Horizontal"
+                                                Spacing="2"
+                                                VerticalAlignment="Center"
+                                                Margin="4,0,0,0">
+                                        <Button Content="{ci:FluentIcon &#xE00D;}"
+                                                FontSize="10"
+                                                Padding="4,0"
+                                                ToolTip.Tip="在下方插入一行"
+                                                Click="OnInsertRowBelowClick"
+                                                Theme="{StaticResource TransparentButton}" />
+                                        <Button Content="{ci:FluentIcon &#xE61D;}"
+                                                FontSize="10"
+                                                Padding="4,0"
+                                                Foreground="{DynamicResource SystemFillColorCriticalBrush}"
+                                                ToolTip.Tip="删除行"
+                                                Click="OnRemoveFloatingTriggerRowClick"
+                                                Theme="{StaticResource TransparentButton}" />
+                                    </StackPanel>
+                                </Grid>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                        <ListBox.ItemContainerTheme>
+                            <ControlTheme TargetType="ListBoxItem">
+                                <Setter Property="Padding" Value="4,2" />
+                                <Setter Property="Background" Value="{DynamicResource SubtleFillColorTertiaryBrush}" />
+                                <Setter Property="CornerRadius" Value="6" />
+                                <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                                <Setter Property="VerticalContentAlignment" Value="Center" />
+                                <!-- 行内按钮拖拽行为附加到 ListBoxItem -->
+                                <Setter Property="(avaloniaXaml:Interaction.Behaviors)">
+                                    <BehaviorCollectionTemplate>
+                                        <BehaviorCollection>
+                                            <behaviors:AdvancedManagedContextDragBehavior
+                                                HorizontalDragThreshold="3"
+                                                VerticalDragThreshold="3"
+                                                PreviewOpacity="0.5"
+                                                CanDragWithoutDragThumb="True">
+                                                <behaviors:AdvancedManagedContextDragBehavior.Context>
+                                                    <FloatingWindowButtonDragData
+                                                        Item="{Binding}"
+                                                        SourceCollection="{Binding $parent[ListBoxItem].(ListBox.ItemsSource), RelativeSource={RelativeSource AncestorType=ListBox}}" />
+                                                </behaviors:AdvancedManagedContextDragBehavior.Context>
+                                            </behaviors:AdvancedManagedContextDragBehavior>
+                                            <behaviors:ManagedContextDropBehavior
+                                                OverClass="TargetHighlight"
+                                                Handler="{Binding $parent[FloatingWindowEditorSettingsPage].DropHandler}"
+                                                Context="{Binding Buttons}" />
+                                        </BehaviorCollection>
+                                    </BehaviorCollectionTemplate>
+                                </Setter>
+                            </ControlTheme>
+                        </ListBox.ItemContainerTheme>
+                        <!-- 行列表拖拽行为 -->
+                        <avaloniaXaml:Interaction.Behaviors>
+                            <BehaviorCollection>
+                                <behaviors:ManagedContextDropBehavior
+                                    OverClass="TargetHighlight"
+                                    Handler="{Binding $parent[FloatingWindowEditorSettingsPage].DropHandler}"
+                                    Context="{Binding ViewModel.FloatingTriggerRows}" />
+                            </BehaviorCollection>
+                        </avaloniaXaml:Interaction.Behaviors>
+                    </ListBox>
+
+                    <!-- 添加行按钮 -->
+                    <Button Grid.Row="1"
+                            Content="{ci:FluentIcon &#xE00D;}"
+                            HorizontalAlignment="Center"
+                            Click="OnAddFloatingTriggerRowClick"
+                            Theme="{StaticResource TransparentButton}"
+                            ToolTip.Tip="添加新行"
+                            Margin="0,4,0,0" />
+                </Grid>
+            </Border>
+
+            <!-- GridSplitter -->
+            <GridSplitter Height="4"
+                          Background="Transparent"
+                          Margin="0,2" />
+
+            <!-- TabControl 设置面板 -->
+            <controls:SettingsExpander IconSource="{ci:FluentIconSource &#xE9D5;}"
+                                       Header="组件库与设置"
+                                       IsExpanded="True"
+                                       Margin="0,4,0,0">
+                <TabControl Margin="-12,4,-12,-12" Padding="0">
+
+                    <!-- Tab 1: 组件库 -->
+                    <TabItem Header="组件库">
+                        <ListBox ItemsSource="{Binding ViewModel.AvailableFloatingTriggerItems}"
+                                 x:Name="ListBoxAvailableItems"
+                                 Background="Transparent"
+                                 Margin="-4"
+                                 SelectionChanged="OnAvailableItemSelectionChanged">
+                            <ListBox.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <WrapPanel />
+                                </ItemsPanelTemplate>
+                            </ListBox.ItemsPanel>
+                            <ListBox.ItemTemplate>
+                                <DataTemplate>
+                                    <Grid ColumnDefinitions="Auto,Auto,*" Margin="0,4" MinHeight="40">
+                                        <ci:TouchDragThumb Grid.Column="0" Width="20" VerticalAlignment="Center" />
+                                        <controls:IconSourceElement Grid.Column="1"
+                                                                    IconSource="{Binding IconSource}"
+                                                                    Width="20" Height="20"
+                                                                    VerticalAlignment="Center" />
+                                        <StackPanel Grid.Column="2" VerticalAlignment="Center" Margin="4,0,0,0">
+                                            <TextBlock Text="{Binding ButtonName}" FontSize="12" />
+                                            <TextBlock Text="拖拽或点击添加"
+                                                       Foreground="{DynamicResource TextFillColorTertiaryBrush}"
+                                                       FontSize="11" />
+                                        </StackPanel>
+                                    </Grid>
+                                </DataTemplate>
+                            </ListBox.ItemTemplate>
+                            <ListBox.ItemContainerTheme>
+                                <ControlTheme TargetType="ListBoxItem">
+                                    <Setter Property="Padding" Value="4,2" />
+                                    <Setter Property="Background" Value="{DynamicResource SubtleFillColorSecondaryBrush}" />
+                                    <Setter Property="CornerRadius" Value="6" />
+                                    <Setter Property="MinWidth" Value="140" />
+                                    <Setter Property="MaxWidth" Value="200" />
+                                    <Setter Property="Margin" Value="2" />
+                                    <!-- 组件库项拖拽行为 -->
+                                    <Setter Property="(avaloniaXaml:Interaction.Behaviors)">
+                                        <BehaviorCollectionTemplate>
+                                            <BehaviorCollection>
+                                                <behaviors:AdvancedManagedContextDragBehavior
+                                                    HorizontalDragThreshold="3"
+                                                    VerticalDragThreshold="3"
+                                                    PreviewOpacity="0.5"
+                                                    CanDragWithoutDragThumb="True">
+                                                </behaviors:AdvancedManagedContextDragBehavior>
+                                            </BehaviorCollection>
+                                        </BehaviorCollectionTemplate>
+                                    </Setter>
+                                </ControlTheme>
+                            </ListBox.ItemContainerTheme>
+                        </ListBox>
+                        <!-- 空状态 -->
+                        <TabControl.AlternateContent>
+                            <!-- 不使用，空状态在 ListBox 内处理 -->
+                        </TabControl.AlternateContent>
+                    </TabItem>
+
+                    <!-- Tab 2: 按钮设置 -->
+                    <TabItem Header="按钮设置"
+                             IsEnabled="{Binding ViewModel.SelectedFloatingTriggerItem, Converter={x:Static ObjectConverters.IsNotNull}}">
+                        <StackPanel Spacing="8" Margin="8">
+                            <TextBlock Text="{Binding ViewModel.SelectedFloatingTriggerItem.ButtonName, StringFormat='{}{0} 规则集'}"
+                                       FontWeight="SemiBold"
+                                       IsVisible="{Binding ViewModel.SelectedFloatingTriggerItem, Converter={x:Static ObjectConverters.IsNotNull}}" />
+                            <Grid ColumnDefinitions="*,Auto">
+                                <TextBlock Grid.Column="0" Text="满足规则时隐藏"
                                            Foreground="{DynamicResource TextFillColorSecondaryBrush}"
-                                           FontWeight="SemiBold"
-                                           FontSize="13"
-                                           VerticalAlignment="Center" />
-                                <TextBlock Text="拖拽或点击添加到悬浮窗"
-                                           Foreground="{DynamicResource TextFillColorTertiaryBrush}"
                                            FontSize="12"
                                            VerticalAlignment="Center" />
-                            </StackPanel>
-                            <ItemsControl ItemsSource="{Binding ViewModel.AvailableFloatingTriggerItems}"
-                                          HorizontalAlignment="Stretch">
-                                <ItemsControl.ItemsPanel>
-                                    <ItemsPanelTemplate>
-                                        <WrapPanel HorizontalAlignment="Center" />
-                                    </ItemsPanelTemplate>
-                                </ItemsControl.ItemsPanel>
-                                <ItemsControl.ItemTemplate>
-                                    <DataTemplate>
-                                        <Border Background="{DynamicResource SubtleFillColorSecondaryBrush}"
-                                                CornerRadius="8"
-                                                Padding="10,8"
-                                                MinWidth="140"
-                                                MaxWidth="200"
-                                                Margin="4"
-                                                PointerPressed="OnFloatingTriggerItemPointerPressed"
-                                                PointerMoved="OnFloatingTriggerItemPointerMoved"
-                                                PointerReleased="OnFloatingTriggerItemPointerReleased"
-                                                Tag="{Binding ButtonId}">
-                                            <Grid ColumnDefinitions="Auto,Auto,*" ColumnSpacing="8">
-                                                <!-- 拖拽把手 -->
-                                                <Border Grid.Column="0"
-                                                        Padding="4,2"
-                                                        CornerRadius="4"
-                                                        Background="{DynamicResource SubtleFillColorTertiaryBrush}"
-                                                        VerticalAlignment="Center">
-                                                    <ci:FluentIcon Glyph="&#xE69E;"
-                                                                   FontSize="12"
-                                                                   Foreground="{DynamicResource TextFillColorTertiaryBrush}"
-                                                                   VerticalAlignment="Center"
-                                                                   HorizontalAlignment="Center" />
-                                                </Border>
-                                                <ci:FluentIcon Grid.Column="1"
-                                                               Glyph="{Binding Icon}"
-                                                               FontSize="24"
-                                                               VerticalAlignment="Center" />
-                                                <StackPanel Grid.Column="2"
-                                                            VerticalAlignment="Center"
-                                                            Spacing="1">
-                                                    <TextBlock Text="{Binding ButtonName}"
-                                                               FontSize="13"
-                                                               FontWeight="SemiBold"
-                                                               TextTrimming="CharacterEllipsis" />
-                                                    <TextBlock Text="点击或拖拽添加"
-                                                               Foreground="{DynamicResource TextFillColorTertiaryBrush}"
-                                                               FontSize="11" />
-                                                </StackPanel>
-                                            </Grid>
-                                        </Border>
-                                    </DataTemplate>
-                                </ItemsControl.ItemTemplate>
-                            </ItemsControl>
-                            <!-- 空状态：没有可用按钮时 -->
-                            <StackPanel Spacing="6"
-                                        HorizontalAlignment="Center"
-                                        Margin="0,8"
-                                        IsVisible="{Binding !ViewModel.AvailableFloatingTriggerItems.Count}">
-                                <ci:FluentIcon Glyph="&#xE9D5;"
-                                               FontSize="28"
-                                               Foreground="{DynamicResource TextFillColorTertiaryBrush}"
-                                               HorizontalAlignment="Center" />
-                                <TextBlock Text="所有可用按钮已添加到悬浮窗"
-                                           HorizontalAlignment="Center"
-                                           Foreground="{DynamicResource TextFillColorSecondaryBrush}"
-                                           FontSize="13" />
-                                <TextBlock Text="从上方行中移除按钮可重新放回此处"
-                                           HorizontalAlignment="Center"
-                                           Foreground="{DynamicResource TextFillColorTertiaryBrush}"
-                                           FontSize="12" />
-                            </StackPanel>
+                                <ToggleSwitch Grid.Column="1"
+                                              IsChecked="{Binding ViewModel.SelectedFloatingTriggerItem.Config.HideOnRule, Mode=TwoWay}" />
+                            </Grid>
+                            <ruleset:RulesetControl Ruleset="{Binding ViewModel.SelectedFloatingTriggerItem.Config.HidingRules}"
+                                                    ShowTitle="False"
+                                                    IsEnabled="{Binding ViewModel.SelectedFloatingTriggerItem.Config.HideOnRule}" />
                         </StackPanel>
-                    </Border>
-                </StackPanel>
+                    </TabItem>
+
+                    <!-- Tab 3: 行设置 -->
+                    <TabItem Header="行设置"
+                             IsEnabled="{Binding ViewModel.SelectedFloatingTriggerRow, Converter={x:Static ObjectConverters.IsNotNull}}">
+                        <StackPanel Spacing="8" Margin="8">
+                            <TextBlock Text="{Binding ViewModel.SelectedFloatingTriggerRow.RowIndex, StringFormat='第 {0} 行规则集'}"
+                                       FontWeight="SemiBold"
+                                       IsVisible="{Binding ViewModel.SelectedFloatingTriggerRow, Converter={x:Static ObjectConverters.IsNotNull}}" />
+                            <Grid ColumnDefinitions="*,Auto">
+                                <TextBlock Grid.Column="0" Text="行可见性"
+                                           Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                                           FontSize="12"
+                                           VerticalAlignment="Center" />
+                                <ToggleSwitch Grid.Column="1"
+                                              OnContent="显示" OffContent="隐藏"
+                                              IsChecked="{Binding ViewModel.SelectedFloatingTriggerRow.RowRuleset.IsVisible, Mode=TwoWay}" />
+                            </Grid>
+                            <Grid ColumnDefinitions="*,Auto">
+                                <TextBlock Grid.Column="0" Text="满足规则时隐藏"
+                                           Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                                           FontSize="12"
+                                           VerticalAlignment="Center" />
+                                <ToggleSwitch Grid.Column="1"
+                                              IsChecked="{Binding ViewModel.SelectedFloatingTriggerRow.RowRuleset.HideOnRule, Mode=TwoWay}" />
+                            </Grid>
+                            <ruleset:RulesetControl Ruleset="{Binding ViewModel.SelectedFloatingTriggerRow.RowRuleset.HidingRules}"
+                                                    ShowTitle="False"
+                                                    IsEnabled="{Binding ViewModel.SelectedFloatingTriggerRow.RowRuleset.HideOnRule}" />
+                        </StackPanel>
+                    </TabItem>
+
+                </TabControl>
             </controls:SettingsExpander>
 
             <!-- 外观设置 -->
@@ -559,10 +540,9 @@
             <!-- 规则集设置 -->
             <controls:SettingsExpander IconSource="{ci:FluentIconSource &#xF17E;}"
                                        Header="规则集设置"
-                                       Description="悬浮窗和按钮的显示/隐藏规则（行规则集已移至每行右侧）"
+                                       Description="悬浮窗的显示/隐藏规则"
                                        IsExpanded="False">
                 <StackPanel Margin="12,8,12,12" Spacing="12">
-                    <!-- 悬浮窗规则集 -->
                     <Border BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}"
                             BorderThickness="1"
                             CornerRadius="8"
@@ -582,7 +562,6 @@
                                                     IsEnabled="{Binding ViewModel.CurrentFloatingWindowProfile.FloatingWindowHideOnRule}" />
                         </StackPanel>
                     </Border>
-
                 </StackPanel>
             </controls:SettingsExpander>
 
