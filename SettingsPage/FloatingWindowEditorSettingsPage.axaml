@@ -215,9 +215,10 @@
                                                 PreviewOpacity="0.5"
                                                 CanDragWithoutDragThumb="True">
                                                 <behaviors:AdvancedManagedContextDragBehavior.Context>
-                                                    <FloatingWindowButtonDragData
-                                                        Item="{Binding}"
-                                                        SourceCollection="{Binding $parent[ListBoxItem].(ListBox.ItemsSource), RelativeSource={RelativeSource AncestorType=ListBox}}" />
+                                                    <MultiBinding Converter="{x:Static FloatingWindowButtonDragData.Create}">
+                                                        <Binding />
+                                                        <Binding Path="$parent[ListBox].ItemsSource"/>
+                                                    </MultiBinding>
                                                 </behaviors:AdvancedManagedContextDragBehavior.Context>
                                             </behaviors:AdvancedManagedContextDragBehavior>
                                             <behaviors:ManagedContextDropBehavior
