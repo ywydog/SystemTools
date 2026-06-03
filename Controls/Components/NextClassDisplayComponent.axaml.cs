@@ -21,9 +21,9 @@ public partial class NextClassDisplayComponent : ComponentBase<NextClassDisplayS
 {
     private const string NoMoreClassesText = "接下来已无课程";
 
-    private readonly ILessonsService _lessonsService;
-    private readonly IProfileService _profileService;
-    private readonly IExactTimeService _exactTimeService;
+    private readonly ILessonsService? _lessonsService;
+    private readonly IProfileService? _profileService;
+    private readonly IExactTimeService? _exactTimeService;
 
     private string _subjectName = string.Empty;
     private string _teacherName = string.Empty;
