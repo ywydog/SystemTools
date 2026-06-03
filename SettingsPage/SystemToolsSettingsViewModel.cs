@@ -53,12 +53,12 @@ public partial class FloatingTriggerItem : ObservableObject
     /// <summary>
     /// FluentIconSource，供 IconSourceElement 使用
     /// </summary>
-    public FluentAvalonia.UI.Controls.FluentIconSource? IconSource
+    public ClassIsland.Core.Controls.FluentIconSource? IconSource
     {
         get
         {
             if (string.IsNullOrEmpty(_icon)) return null;
-            return new FluentAvalonia.UI.Controls.FluentIconSource { Glyph = _icon };
+            return new ClassIsland.Core.Controls.FluentIconSource { Glyph = _icon };
         }
     }
 
