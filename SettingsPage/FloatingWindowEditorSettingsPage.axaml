@@ -36,7 +36,7 @@
                                   SelectionChanged="OnFloatingWindowProfileSelectionChanged"
                                   MinWidth="150"
                                   MaxWidth="250" />
-                        <Button Content="{ci:FluentIcon &#xE0B5;}"
+                        <Button Content="{ci:FluentIcon &#xE8AB;}"
                                 ToolTip.Tip="切换"
                                 Click="OnToggleFloatingWindowProfileClick"
                                 Theme="{StaticResource TransparentButton}" />
@@ -57,7 +57,7 @@
             </Grid>
 
             <!-- 按钮布局区域 -->
-            <controls:SettingsExpander IconSource="{ci:FluentIconSource &#xEA37;}"
+            <controls:SettingsExpander IconSource="{ci:FluentIconSource &#xE9D5;}"
                                        Header="悬浮窗按钮布局"
                                        Description="从下方组件库拖拽按钮到上方行中，或调整行内按钮顺序。点击按钮可展开规则集。"
                                        IsExpanded="True"
@@ -147,25 +147,25 @@
                                                             <!-- 按钮主体 -->
                                                             <Border Grid.Row="0"
                                                                     Classes="triggerItem"
+                                                                    Tag="{Binding ButtonId}"
                                                                     Background="{DynamicResource SubtleFillColorSecondaryBrush}"
                                                                     CornerRadius="6"
                                                                     Padding="6,4"
                                                                     Margin="0,0,2,0"
                                                                     DragDrop.AllowDrop="True"
                                                                     DragDrop.DragOver="OnFloatingTriggerItemDragOver"
-                                                                    DragDrop.Drop="OnFloatingTriggerItemDrop">
+                                                                    DragDrop.Drop="OnFloatingTriggerItemDrop"
+                                                                    PointerPressed="OnFloatingTriggerItemPointerPressed"
+                                                                    PointerMoved="OnFloatingTriggerItemPointerMoved"
+                                                                    PointerReleased="OnFloatingTriggerItemPointerReleased">
                                                                 <Grid ColumnDefinitions="Auto,*,Auto,Auto"
                                                                       ColumnSpacing="4">
                                                                     <!-- 拖拽把手 -->
                                                                     <Border Grid.Column="0"
-                                                                            Tag="{Binding ButtonId}"
-                                                                            Padding="6,4"
+                                                                            Padding="8,6"
                                                                             CornerRadius="4"
                                                                             Cursor="SizeAll"
-                                                                            Background="{DynamicResource SubtleFillColorTertiaryBrush}"
-                                                                            PointerPressed="OnFloatingTriggerItemPointerPressed"
-                                                                            PointerMoved="OnFloatingTriggerItemPointerMoved"
-                                                                            PointerReleased="OnFloatingTriggerItemPointerReleased">
+                                                                            Background="{DynamicResource SubtleFillColorTertiaryBrush}">
                                                                         <ci:FluentIcon Glyph="&#xE69E;"
                                                                                        FontSize="12"
                                                                                        Foreground="{DynamicResource TextFillColorTertiaryBrush}"
@@ -300,7 +300,7 @@
                             DragDrop.Drop="OnAvailablePoolDrop">
                         <StackPanel Spacing="8">
                             <StackPanel Orientation="Horizontal" Spacing="8">
-                                <ci:FluentIcon Glyph="&#xE71B;"
+                                <ci:FluentIcon Glyph="&#xE9D5;"
                                                FontSize="16"
                                                Foreground="{DynamicResource TextFillColorSecondaryBrush}"
                                                VerticalAlignment="Center" />
@@ -414,7 +414,7 @@
                     </controls:SettingsExpanderItem.Footer>
                 </controls:SettingsExpanderItem>
 
-                <controls:SettingsExpanderItem IconSource="{ci:FluentIconSource &#xF17E;}"
+                <controls:SettingsExpanderItem IconSource="{ci:FluentIconSource &#xE721;}"
                                                Content="图标大小"
                                                Description="调整悬浮窗内图标缩放">
                     <controls:SettingsExpanderItem.Footer>
@@ -433,7 +433,7 @@
                     </controls:SettingsExpanderItem.Footer>
                 </controls:SettingsExpanderItem>
 
-                <controls:SettingsExpanderItem IconSource="{ci:FluentIconSource &#xF17E;}"
+                <controls:SettingsExpanderItem IconSource="{ci:FluentIconSource &#xE8D2;}"
                                                Content="文字大小"
                                                Description="调整悬浮窗内文字缩放">
                     <controls:SettingsExpanderItem.Footer>
@@ -452,7 +452,7 @@
                     </controls:SettingsExpanderItem.Footer>
                 </controls:SettingsExpanderItem>
 
-                <controls:SettingsExpanderItem IconSource="{ci:FluentIconSource &#xF045;}"
+                <controls:SettingsExpanderItem IconSource="{ci:FluentIconSource &#xE772;}"
                                                Content="透明度"
                                                Description="调整悬浮窗透明度">
                     <controls:SettingsExpanderItem.Footer>
@@ -470,7 +470,7 @@
                     </controls:SettingsExpanderItem.Footer>
                 </controls:SettingsExpanderItem>
 
-                <controls:SettingsExpanderItem IconSource="{ci:FluentIconSource &#xEA37;}"
+                <controls:SettingsExpanderItem IconSource="{ci:FluentIconSource &#xE52A;}"
                                                Content="主题"
                                                Description="设置悬浮窗主题">
                     <controls:SettingsExpanderItem.Footer>

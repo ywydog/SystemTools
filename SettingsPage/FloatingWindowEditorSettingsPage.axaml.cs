@@ -266,6 +266,7 @@ public partial class FloatingWindowEditorSettingsPage : SettingsPageBase
 
     private Point? _floatingDragStartPoint;
     private Border? _floatingDragSourceBorder;
+    private const double DragThreshold = 8; // 触摸屏友好的拖拽阈值
 
     private void OnAddFloatingTriggerRowClick(object? sender, RoutedEventArgs e)
     {
@@ -309,14 +310,19 @@ public partial class FloatingWindowEditorSettingsPage : SettingsPageBase
             var now = e.GetPosition(border);
             var distance = Math.Abs(now.X - _floatingDragStartPoint.Value.X) +
                            Math.Abs(now.Y - _floatingDragStartPoint.Value.Y);
-            if (distance < 4)
+            if (distance < DragThreshold)
             {
-                // 点击按钮池项：添加到第一行末尾
-                if (ViewModel.FloatingTriggerRows.Count == 0)
+                // 判断是否在按钮池中（不在任何行中的按钮）
+                var isInRow = ViewModel.FloatingTriggerRows.Any(r => r.Buttons.Any(b => b.ButtonId == buttonId));
+                if (!isInRow)
                 {
-                    ViewModel.AddFloatingTriggerRow();
+                    // 点击按钮池项：添加到第一行末尾
+                    if (ViewModel.FloatingTriggerRows.Count == 0)
+                    {
+                        ViewModel.AddFloatingTriggerRow();
+                    }
+                    ViewModel.AddTriggerFromPool(buttonId, 0, ViewModel.FloatingTriggerRows[0].Buttons.Count);
                 }
-                ViewModel.AddTriggerFromPool(buttonId, 0, ViewModel.FloatingTriggerRows[0].Buttons.Count);
             }
         }
 
@@ -337,7 +343,7 @@ public partial class FloatingWindowEditorSettingsPage : SettingsPageBase
         }
 
         var now = e.GetPosition(border);
-        if (Math.Abs(now.X - _floatingDragStartPoint.Value.X) + Math.Abs(now.Y - _floatingDragStartPoint.Value.Y) < 4)
+        if (Math.Abs(now.X - _floatingDragStartPoint.Value.X) + Math.Abs(now.Y - _floatingDragStartPoint.Value.Y) < DragThreshold)
         {
             return;
         }
