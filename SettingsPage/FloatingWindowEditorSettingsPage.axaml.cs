@@ -316,7 +316,6 @@ public partial class FloatingWindowEditorSettingsPage : SettingsPageBase
         _isDragging = false;
 
         e.Handled = true;
-        e.PreventGestureHandler();
     }
 
     /// <summary>
@@ -324,10 +323,10 @@ public partial class FloatingWindowEditorSettingsPage : SettingsPageBase
     /// </summary>
     private void OnButtonPointerPressed(object? sender, PointerPressedEventArgs e)
     {
-        if (sender is not Control { DataContext: FloatingTriggerItem item }) return;
+        if (sender is not Control control || control.DataContext is not FloatingTriggerItem item) return;
 
         // 找到所属行的 Buttons 集合
-        var row = item.GetVisualAncestors()
+        var row = control.GetVisualAncestors()
             .OfType<Border>()
             .Select(b => b.DataContext)
             .OfType<FloatingTriggerRow>()
@@ -341,7 +340,6 @@ public partial class FloatingWindowEditorSettingsPage : SettingsPageBase
         _isDragging = false;
 
         e.Handled = true;
-        e.PreventGestureHandler();
     }
 
     /// <summary>
@@ -349,7 +347,7 @@ public partial class FloatingWindowEditorSettingsPage : SettingsPageBase
     /// </summary>
     private void OnPoolItemPointerPressed(object? sender, PointerPressedEventArgs e)
     {
-        if (sender is not Control { DataContext: FloatingTriggerItem item }) return;
+        if (sender is not Control control || control.DataContext is not FloatingTriggerItem item) return;
 
         _dragItem = item;
         _dragSourceCollection = null; // null 表示来自组件库
@@ -358,7 +356,6 @@ public partial class FloatingWindowEditorSettingsPage : SettingsPageBase
         _isDragging = false;
 
         e.Handled = true;
-        e.PreventGestureHandler();
     }
 
     protected override void OnPointerMoved(PointerEventArgs e)
