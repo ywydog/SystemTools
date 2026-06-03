@@ -282,4 +282,32 @@ public partial class FloatingWindowEditorSettingsPage : SettingsPageBase
             listBox.SelectedItem = null;
         }
     }
+
+    // ===== 规则集 Drawer（参照 ClassIsland） =====
+
+    private void ButtonOpenButtonRuleset_OnClick(object? sender, RoutedEventArgs e)
+    {
+        if (this.FindResource("RulesetControl") is not ClassIsland.Core.Controls.Ruleset.RulesetControl control
+            || ViewModel.SelectedFloatingTriggerItem == null)
+            return;
+        control.Ruleset = ViewModel.SelectedFloatingTriggerItem.Config.HidingRules;
+        OpenDrawer("RulesetControl");
+    }
+
+    private void ButtonOpenRowRuleset_OnClick(object? sender, RoutedEventArgs e)
+    {
+        if (this.FindResource("RulesetControl") is not ClassIsland.Core.Controls.Ruleset.RulesetControl control
+            || ViewModel.SelectedFloatingTriggerRow == null)
+            return;
+        control.Ruleset = ViewModel.SelectedFloatingTriggerRow.RowRuleset.HidingRules;
+        OpenDrawer("RulesetControl");
+    }
+
+    private void ButtonOpenFloatingWindowRuleset_OnClick(object? sender, RoutedEventArgs e)
+    {
+        if (this.FindResource("RulesetControl") is not ClassIsland.Core.Controls.Ruleset.RulesetControl control)
+            return;
+        control.Ruleset = ViewModel.CurrentFloatingWindowProfile.FloatingWindowHidingRules;
+        OpenDrawer("RulesetControl");
+    }
 }

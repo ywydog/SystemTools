@@ -13,6 +13,11 @@
                      d:DesignHeight="800"
                      d:DesignWidth="800">
 
+    <!-- 抽屉中的规则集控件（参照 ClassIsland） -->
+    <ci:SettingsPageBase.Resources>
+        <ruleset:RulesetControl x:Key="RulesetControl" Classes="in-drawer"/>
+    </ci:SettingsPageBase.Resources>
+
     <ScrollViewer>
         <StackPanel Classes="settings-container animated-intro">
             <Label FontSize="20"
@@ -317,55 +322,68 @@
                         </TabControl.AlternateContent>
                     </TabItem>
 
-                    <!-- Tab 2: 按钮设置 -->
+                    <!-- Tab 2: 按钮设置（参照 ClassIsland ComponentAdvancedSettingsControl） -->
                     <TabItem Header="按钮设置"
-                             IsEnabled="{Binding ViewModel.SelectedFloatingTriggerItem, Converter={x:Static ObjectConverters.IsNotNull}}">
-                        <StackPanel Spacing="8" Margin="8">
-                            <TextBlock Text="{Binding ViewModel.SelectedFloatingTriggerItem.ButtonName, StringFormat='{}{0} 规则集'}"
-                                       FontWeight="SemiBold"
-                                       IsVisible="{Binding ViewModel.SelectedFloatingTriggerItem, Converter={x:Static ObjectConverters.IsNotNull}}" />
-                            <Grid ColumnDefinitions="*,Auto">
-                                <TextBlock Grid.Column="0" Text="满足规则时隐藏"
-                                           Foreground="{DynamicResource TextFillColorSecondaryBrush}"
-                                           FontSize="12"
-                                           VerticalAlignment="Center" />
-                                <ToggleSwitch Grid.Column="1"
-                                              IsChecked="{Binding ViewModel.SelectedFloatingTriggerItem.Config.HideOnRule, Mode=TwoWay}" />
-                            </Grid>
-                            <ruleset:RulesetControl Ruleset="{Binding ViewModel.SelectedFloatingTriggerItem.Config.HidingRules}"
-                                                    ShowTitle="False"
-                                                    IsEnabled="{Binding ViewModel.SelectedFloatingTriggerItem.Config.HideOnRule}" />
-                        </StackPanel>
+                             IsVisible="{Binding ViewModel.SelectedFloatingTriggerItem, Converter={x:Static ObjectConverters.IsNotNull}}">
+                        <ScrollViewer HorizontalAlignment="Stretch"
+                                      DataContext="{Binding ViewModel.SelectedFloatingTriggerItem}">
+                            <StackPanel Classes="settings-container animated-intro" Margin="0">
+                                <!-- 按规则隐藏 -->
+                                <controls:SettingsExpander IconSource="{ci:FluentIconSource &#xEFBF;}"
+                                                           Header="按规则隐藏"
+                                                           Description="在指定规则满足时，自动隐藏此按钮。">
+                                    <controls:SettingsExpander.Footer>
+                                        <StackPanel Orientation="Horizontal">
+                                            <Button HorizontalAlignment="Left"
+                                                    Theme="{StaticResource TransparentButton}"
+                                                    Click="ButtonOpenButtonRuleset_OnClick"
+                                                    IsVisible="{Binding Config.HideOnRule}">
+                                                <ci:IconText Glyph="&#xF17E;" Text="编辑规则集…" />
+                                            </Button>
+                                            <ToggleSwitch VerticalAlignment="Center"
+                                                          IsChecked="{Binding Config.HideOnRule}" />
+                                        </StackPanel>
+                                    </controls:SettingsExpander.Footer>
+                                </controls:SettingsExpander>
+                            </StackPanel>
+                        </ScrollViewer>
                     </TabItem>
 
-                    <!-- Tab 3: 行设置 -->
+                    <!-- Tab 3: 行设置（参照 ClassIsland 行设置 Tab） -->
                     <TabItem Header="行设置"
-                             IsEnabled="{Binding ViewModel.SelectedFloatingTriggerRow, Converter={x:Static ObjectConverters.IsNotNull}}">
-                        <StackPanel Spacing="8" Margin="8">
-                            <TextBlock Text="{Binding ViewModel.SelectedFloatingTriggerRow.RowIndex, StringFormat='第 {0} 行规则集'}"
-                                       FontWeight="SemiBold"
-                                       IsVisible="{Binding ViewModel.SelectedFloatingTriggerRow, Converter={x:Static ObjectConverters.IsNotNull}}" />
-                            <Grid ColumnDefinitions="*,Auto">
-                                <TextBlock Grid.Column="0" Text="行可见性"
-                                           Foreground="{DynamicResource TextFillColorSecondaryBrush}"
-                                           FontSize="12"
-                                           VerticalAlignment="Center" />
-                                <ToggleSwitch Grid.Column="1"
-                                              OnContent="显示" OffContent="隐藏"
-                                              IsChecked="{Binding ViewModel.SelectedFloatingTriggerRow.RowRuleset.IsVisible, Mode=TwoWay}" />
-                            </Grid>
-                            <Grid ColumnDefinitions="*,Auto">
-                                <TextBlock Grid.Column="0" Text="满足规则时隐藏"
-                                           Foreground="{DynamicResource TextFillColorSecondaryBrush}"
-                                           FontSize="12"
-                                           VerticalAlignment="Center" />
-                                <ToggleSwitch Grid.Column="1"
-                                              IsChecked="{Binding ViewModel.SelectedFloatingTriggerRow.RowRuleset.HideOnRule, Mode=TwoWay}" />
-                            </Grid>
-                            <ruleset:RulesetControl Ruleset="{Binding ViewModel.SelectedFloatingTriggerRow.RowRuleset.HidingRules}"
-                                                    ShowTitle="False"
-                                                    IsEnabled="{Binding ViewModel.SelectedFloatingTriggerRow.RowRuleset.HideOnRule}" />
-                        </StackPanel>
+                             IsVisible="{Binding ViewModel.SelectedFloatingTriggerRow, Converter={x:Static ObjectConverters.IsNotNull}}">
+                        <ScrollViewer HorizontalAlignment="Stretch"
+                                      DataContext="{Binding ViewModel.SelectedFloatingTriggerRow}">
+                            <StackPanel Classes="settings-container animated-intro" Margin="0">
+                                <!-- 行可见性 -->
+                                <controls:SettingsExpander IconSource="{ci:FluentIconSource &#xE52B;}"
+                                                           Header="行可见性"
+                                                           Description="控制此行的显示与隐藏。">
+                                    <controls:SettingsExpander.Footer>
+                                        <ToggleSwitch VerticalAlignment="Center"
+                                                      OnContent="显示" OffContent="隐藏"
+                                                      IsChecked="{Binding RowRuleset.IsVisible}" />
+                                    </controls:SettingsExpander.Footer>
+                                </controls:SettingsExpander>
+                                <!-- 按规则隐藏 -->
+                                <controls:SettingsExpander IconSource="{ci:FluentIconSource &#xEFBF;}"
+                                                           Header="按规则隐藏"
+                                                           Description="在指定规则满足时，自动隐藏此行。">
+                                    <controls:SettingsExpander.Footer>
+                                        <StackPanel Orientation="Horizontal">
+                                            <Button HorizontalAlignment="Left"
+                                                    Theme="{StaticResource TransparentButton}"
+                                                    Click="ButtonOpenRowRuleset_OnClick"
+                                                    IsVisible="{Binding RowRuleset.HideOnRule}">
+                                                <ci:IconText Glyph="&#xF17E;" Text="编辑规则集…" />
+                                            </Button>
+                                            <ToggleSwitch VerticalAlignment="Center"
+                                                          IsChecked="{Binding RowRuleset.HideOnRule}" />
+                                        </StackPanel>
+                                    </controls:SettingsExpander.Footer>
+                                </controls:SettingsExpander>
+                            </StackPanel>
+                        </ScrollViewer>
                     </TabItem>
 
                 </TabControl>
@@ -537,32 +555,23 @@
                 </controls:SettingsExpanderItem>
             </controls:SettingsExpander>
 
-            <!-- 规则集设置 -->
-            <controls:SettingsExpander IconSource="{ci:FluentIconSource &#xF17E;}"
-                                       Header="规则集设置"
-                                       Description="悬浮窗的显示/隐藏规则"
-                                       IsExpanded="False">
-                <StackPanel Margin="12,8,12,12" Spacing="12">
-                    <Border BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}"
-                            BorderThickness="1"
-                            CornerRadius="8"
-                            Padding="12">
-                        <StackPanel Spacing="8">
-                            <Grid ColumnDefinitions="*,Auto">
-                                <TextBlock Grid.Column="0" Text="悬浮窗规则集" FontWeight="SemiBold" VerticalAlignment="Center" />
-                                <ToggleSwitch Grid.Column="1"
-                                              OnContent="启用" OffContent="禁用"
-                                              IsChecked="{Binding ViewModel.CurrentFloatingWindowProfile.FloatingWindowHideOnRule, Mode=TwoWay}" />
-                            </Grid>
-                            <TextBlock Text="启用后，当规则集满足时悬浮窗将自动隐藏"
-                                       Foreground="{DynamicResource TextFillColorSecondaryBrush}"
-                                       FontSize="12" />
-                            <ruleset:RulesetControl Ruleset="{Binding ViewModel.CurrentFloatingWindowProfile.FloatingWindowHidingRules}"
-                                                    ShowTitle="False"
-                                                    IsEnabled="{Binding ViewModel.CurrentFloatingWindowProfile.FloatingWindowHideOnRule}" />
-                        </StackPanel>
-                    </Border>
-                </StackPanel>
+            <!-- 规则集设置（参照 ClassIsland Drawer 模式） -->
+            <controls:SettingsExpander IconSource="{ci:FluentIconSource &#xEFBF;}"
+                                       Header="按规则隐藏"
+                                       Description="在指定规则满足时，自动隐藏悬浮窗。">
+                <controls:SettingsExpander.Footer>
+                    <StackPanel Orientation="Horizontal">
+                        <Button HorizontalAlignment="Left"
+                                Theme="{StaticResource TransparentButton}"
+                                Click="ButtonOpenFloatingWindowRuleset_OnClick"
+                                IsVisible="{Binding ViewModel.CurrentFloatingWindowProfile.FloatingWindowHideOnRule}">
+                            <ci:IconText Glyph="&#xF17E;" Text="编辑规则集…" />
+                        </Button>
+                        <ToggleSwitch VerticalAlignment="Center"
+                                      OnContent="启用" OffContent="禁用"
+                                      IsChecked="{Binding ViewModel.CurrentFloatingWindowProfile.FloatingWindowHideOnRule}" />
+                    </StackPanel>
+                </controls:SettingsExpander.Footer>
             </controls:SettingsExpander>
 
             <TextBlock Text="Programmer_Wang ©2026"
