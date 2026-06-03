@@ -7,7 +7,8 @@
                      xmlns:controls="clr-namespace:FluentAvalonia.UI.Controls;assembly=FluentAvalonia"
                      xmlns:controls1="clr-namespace:SystemTools.Controls"
                      xmlns:ruleset="clr-namespace:ClassIsland.Core.Controls.Ruleset;assembly=ClassIsland.Core"
-                     xmlns:behaviors="clr-namespace:ClassIsland.Core.Behaviors;assembly=ClassIsland.Core"
+                     xmlns:local="clr-namespace:SystemTools"
+                     xmlns:dragDrop="using:Avalonia.Xaml.Interactions.DragAndDrop"
                      xmlns:avaloniaXaml="using:Avalonia.Xaml.Interactivity"
                      mc:Ignorable="d"
                      d:DesignHeight="800"
@@ -167,7 +168,7 @@
                                         <!-- 行内按钮拖拽行为 -->
                                         <avaloniaXaml:Interaction.Behaviors>
                                             <BehaviorCollection>
-                                                <behaviors:ManagedContextDropBehavior
+                                                <dragDrop:ManagedContextDropBehavior
                                                     OverClass="TargetHighlight"
                                                     Handler="{Binding $parent[FloatingWindowEditorSettingsPage].DropHandler}"
                                                     Context="{Binding Buttons}" />
@@ -209,19 +210,19 @@
                                 <Setter Property="(avaloniaXaml:Interaction.Behaviors)">
                                     <BehaviorCollectionTemplate>
                                         <BehaviorCollection>
-                                            <behaviors:AdvancedManagedContextDragBehavior
+                                            <ci:AdvancedManagedContextDragBehavior
                                                 HorizontalDragThreshold="3"
                                                 VerticalDragThreshold="3"
                                                 PreviewOpacity="0.5"
                                                 CanDragWithoutDragThumb="True">
-                                                <behaviors:AdvancedManagedContextDragBehavior.Context>
-                                                    <MultiBinding Converter="{x:Static FloatingWindowButtonDragData.Create}">
+                                                <ci:AdvancedManagedContextDragBehavior.Context>
+                                                    <MultiBinding Converter="{x:Static local:FloatingWindowButtonDragData.Create}">
                                                         <Binding />
                                                         <Binding Path="$parent[ListBox].ItemsSource"/>
                                                     </MultiBinding>
-                                                </behaviors:AdvancedManagedContextDragBehavior.Context>
-                                            </behaviors:AdvancedManagedContextDragBehavior>
-                                            <behaviors:ManagedContextDropBehavior
+                                                </ci:AdvancedManagedContextDragBehavior.Context>
+                                            </ci:AdvancedManagedContextDragBehavior>
+                                            <dragDrop:ManagedContextDropBehavior
                                                 OverClass="TargetHighlight"
                                                 Handler="{Binding $parent[FloatingWindowEditorSettingsPage].DropHandler}"
                                                 Context="{Binding Buttons}" />
@@ -233,7 +234,7 @@
                         <!-- 行列表拖拽行为 -->
                         <avaloniaXaml:Interaction.Behaviors>
                             <BehaviorCollection>
-                                <behaviors:ManagedContextDropBehavior
+                                <dragDrop:ManagedContextDropBehavior
                                     OverClass="TargetHighlight"
                                     Handler="{Binding $parent[FloatingWindowEditorSettingsPage].DropHandler}"
                                     Context="{Binding ViewModel.FloatingTriggerRows}" />
@@ -305,22 +306,18 @@
                                     <Setter Property="(avaloniaXaml:Interaction.Behaviors)">
                                         <BehaviorCollectionTemplate>
                                             <BehaviorCollection>
-                                                <behaviors:AdvancedManagedContextDragBehavior
+                                                <ci:AdvancedManagedContextDragBehavior
                                                     HorizontalDragThreshold="3"
                                                     VerticalDragThreshold="3"
                                                     PreviewOpacity="0.5"
                                                     CanDragWithoutDragThumb="True">
-                                                </behaviors:AdvancedManagedContextDragBehavior>
+                                                </ci:AdvancedManagedContextDragBehavior>
                                             </BehaviorCollection>
                                         </BehaviorCollectionTemplate>
                                     </Setter>
                                 </ControlTheme>
                             </ListBox.ItemContainerTheme>
                         </ListBox>
-                        <!-- 空状态 -->
-                        <TabControl.AlternateContent>
-                            <!-- 不使用，空状态在 ListBox 内处理 -->
-                        </TabControl.AlternateContent>
                     </TabItem>
 
                     <!-- Tab 2: 按钮设置（参照 ClassIsland ComponentAdvancedSettingsControl） -->

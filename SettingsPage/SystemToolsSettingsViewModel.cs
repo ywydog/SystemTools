@@ -57,15 +57,12 @@ public partial class FloatingTriggerItem : ObservableObject
     {
         get
         {
-            if (string.IsNullOrEmpty(_icon)) return null;
-            return new ClassIsland.Core.Controls.FluentIconSource { Glyph = _icon };
+            if (string.IsNullOrEmpty(Icon)) return null;
+            return new ClassIsland.Core.Controls.FluentIconSource { Glyph = Icon };
         }
     }
 
-    partial void OnIconChanged(string value)
-    {
-        OnPropertyChanged(nameof(IconSource));
-    }
+    partial void OnIconChanged(string value) { OnPropertyChanged(nameof(IconSource)); }
 }
 
 public partial class FloatingTriggerRow : ObservableObject
