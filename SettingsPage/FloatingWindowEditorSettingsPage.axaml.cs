@@ -80,8 +80,7 @@ public partial class FloatingWindowEditorSettingsPage : SettingsPageBase
 
     private void OnProfilePropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
-        if (e.PropertyName is nameof(FloatingWindowProfile.ShowFloatingWindow)
-            or nameof(FloatingWindowProfile.FloatingWindowScale)
+        if (e.PropertyName is nameof(FloatingWindowProfile.FloatingWindowScale)
             or nameof(FloatingWindowProfile.FloatingWindowIconSize)
             or nameof(FloatingWindowProfile.FloatingWindowTextSize)
             or nameof(FloatingWindowProfile.FloatingWindowOpacity)
@@ -130,6 +129,30 @@ public partial class FloatingWindowEditorSettingsPage : SettingsPageBase
     private void OnHidingRulesPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
         IAppHost.GetService<FloatingWindowService>().ProfileManager.SaveProfile();
+    }
+
+    private void OnFloatingWindowVisibleToggleChanged(object? sender, RoutedEventArgs e)
+    {
+        if (sender is not ToggleSwitch toggle)
+        {
+            return;
+        }
+
+        var service = IAppHost.GetService<FloatingWindowService>();
+        var profile = ViewModel.CurrentFloatingWindowProfile;
+
+        // 没有可用按钮时强制隐藏
+        var shouldShow = toggle.IsChecked == true && service.Entries.Count > 0;
+        profile.ShowFloatingWindow = shouldShow;
+
+        // 同步 ToggleSwitch 状态（可能被强制隐藏）
+        if (toggle.IsChecked != shouldShow)
+        {
+            toggle.IsChecked = shouldShow;
+        }
+
+        service.ProfileManager.SaveProfile();
+        service.UpdateWindowState();
     }
 
 

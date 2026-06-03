@@ -296,6 +296,7 @@ public partial class SystemToolsSettingsViewModel : ObservableObject, IDisposabl
         {
             profile.ShowFloatingWindow = false;
             _floatingWindowService.ProfileManager.SaveProfile();
+            _floatingWindowService.UpdateWindowState();
         }
 
         // 清理不存在的按钮ID

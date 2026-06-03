@@ -52,8 +52,9 @@
                 </ci:Field>
                 <ToggleSwitch Grid.Column="1"
                               OnContent="显示" OffContent="隐藏"
-                              IsChecked="{Binding ViewModel.CurrentFloatingWindowProfile.ShowFloatingWindow, Mode=TwoWay}"
-                              IsEnabled="{Binding ViewModel.HasFloatingTriggerEntries}" />
+                              IsChecked="{Binding ViewModel.CurrentFloatingWindowProfile.ShowFloatingWindow, Mode=OneWay}"
+                              IsEnabled="{Binding ViewModel.HasFloatingTriggerEntries}"
+                              IsCheckedChanged="OnFloatingWindowVisibleToggleChanged" />
             </Grid>
 
             <!-- 按钮布局区域 -->
