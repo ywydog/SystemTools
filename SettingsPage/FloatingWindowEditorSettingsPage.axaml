@@ -8,7 +8,8 @@
                      xmlns:controls1="clr-namespace:SystemTools.Controls"
                      xmlns:ruleset="clr-namespace:ClassIsland.Core.Controls.Ruleset;assembly=ClassIsland.Core"
                      xmlns:local="clr-namespace:SystemTools"
-                     xmlns:dragDrop="using:Avalonia.Xaml.Interactions.DragAndDrop"
+                     xmlns:behaviors="clr-namespace:ClassIsland.Core.Behaviors;assembly=ClassIsland.Core"
+                     xmlns:dragDrop="clr-namespace:Avalonia.Xaml.Interactions.DragAndDrop;assembly=Avalonia.Xaml.Interactions"
                      xmlns:avaloniaXaml="using:Avalonia.Xaml.Interactivity"
                      mc:Ignorable="d"
                      d:DesignHeight="800"
@@ -210,18 +211,18 @@
                                 <Setter Property="(avaloniaXaml:Interaction.Behaviors)">
                                     <BehaviorCollectionTemplate>
                                         <BehaviorCollection>
-                                            <ci:AdvancedManagedContextDragBehavior
+                                            <behaviors:AdvancedManagedContextDragBehavior
                                                 HorizontalDragThreshold="3"
                                                 VerticalDragThreshold="3"
                                                 PreviewOpacity="0.5"
                                                 CanDragWithoutDragThumb="True">
-                                                <ci:AdvancedManagedContextDragBehavior.Context>
+                                                <behaviors:AdvancedManagedContextDragBehavior.Context>
                                                     <MultiBinding Converter="{x:Static local:FloatingWindowButtonDragData.Create}">
                                                         <Binding />
                                                         <Binding Path="$parent[ListBox].ItemsSource"/>
                                                     </MultiBinding>
-                                                </ci:AdvancedManagedContextDragBehavior.Context>
-                                            </ci:AdvancedManagedContextDragBehavior>
+                                                </behaviors:AdvancedManagedContextDragBehavior.Context>
+                                            </behaviors:AdvancedManagedContextDragBehavior>
                                             <dragDrop:ManagedContextDropBehavior
                                                 OverClass="TargetHighlight"
                                                 Handler="{Binding $parent[FloatingWindowEditorSettingsPage].DropHandler}"
@@ -306,12 +307,12 @@
                                     <Setter Property="(avaloniaXaml:Interaction.Behaviors)">
                                         <BehaviorCollectionTemplate>
                                             <BehaviorCollection>
-                                                <ci:AdvancedManagedContextDragBehavior
+                                                <behaviors:AdvancedManagedContextDragBehavior
                                                     HorizontalDragThreshold="3"
                                                     VerticalDragThreshold="3"
                                                     PreviewOpacity="0.5"
                                                     CanDragWithoutDragThumb="True">
-                                                </ci:AdvancedManagedContextDragBehavior>
+                                                </behaviors:AdvancedManagedContextDragBehavior>
                                             </BehaviorCollection>
                                         </BehaviorCollectionTemplate>
                                     </Setter>
