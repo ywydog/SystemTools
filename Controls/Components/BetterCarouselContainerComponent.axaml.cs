@@ -82,6 +82,12 @@ public partial class BetterCarouselContainerComponent : ComponentBase<BetterCaro
 
     public new event PropertyChangedEventHandler? PropertyChanged;
 
+    public BetterCarouselContainerComponent()
+    {
+        InitializeComponent();
+        InitializeAnimations();
+    }
+
     public BetterCarouselContainerComponent(IRulesetService rulesetService, ILessonsService lessonsService)
     {
         _rulesetService = rulesetService;

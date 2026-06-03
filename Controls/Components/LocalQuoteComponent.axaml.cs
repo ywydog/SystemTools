@@ -70,6 +70,11 @@ public partial class LocalQuoteComponent : ComponentBase<LocalQuoteSettings>, IN
         Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
     }
 
+    public LocalQuoteComponent()
+    {
+        InitializeComponent();
+    }
+
     public LocalQuoteComponent(ILessonsService lessonsService)
     {
         _lessonsService = lessonsService;

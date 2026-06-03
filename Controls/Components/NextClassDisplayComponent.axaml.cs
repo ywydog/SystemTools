@@ -94,6 +94,11 @@ public partial class NextClassDisplayComponent : ComponentBase<NextClassDisplayS
 
     public new event PropertyChangedEventHandler? PropertyChanged;
 
+    public NextClassDisplayComponent()
+    {
+        InitializeComponent();
+    }
+
     public NextClassDisplayComponent(ILessonsService lessonsService, IProfileService profileService, IExactTimeService exactTimeService)
     {
         _lessonsService = lessonsService;
