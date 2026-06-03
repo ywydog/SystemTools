@@ -21,7 +21,7 @@
 
             <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
                 <ci:FluentIcon FontSize="56"
-                               Glyph="&#xEA36;"
+                               Glyph="&#xEFBF;"
                                Foreground="{DynamicResource TextFillColorSecondaryBrush}"
                                VerticalAlignment="Center" />
                 <Label VerticalAlignment="Center" FontSize="28">设置 · 悬浮窗</Label>
@@ -187,7 +187,7 @@
                                                                     </StackPanel>
                                                                     <!-- 规则集按钮 -->
                                                                     <Button Grid.Column="2"
-                                                                            Content="{ci:FluentIcon &#xE713;}"
+                                                                            Content="{ci:FluentIcon &#xF17E;}"
                                                                             FontSize="10"
                                                                             Padding="4,0"
                                                                             ToolTip.Tip="规则集"
@@ -239,7 +239,7 @@
                                                     VerticalAlignment="Center"
                                                     Margin="8,0,0,0">
                                             <!-- 行规则集折叠按钮 -->
-                                            <Button Content="{ci:FluentIcon &#xE713;}"
+                                            <Button Content="{ci:FluentIcon &#xF17E;}"
                                                     ToolTip.Tip="行规则集"
                                                     Click="OnToggleRowRulesetClick"
                                                     Theme="{StaticResource TransparentButton}" />
@@ -301,7 +301,7 @@
                             DragDrop.Drop="OnAvailablePoolDrop">
                         <StackPanel Spacing="8">
                             <StackPanel Orientation="Horizontal" Spacing="8">
-                                <ci:FluentIcon Glyph="&#xE9D5;"
+                                <ci:FluentIcon Glyph="&#xE71B;"
                                                FontSize="16"
                                                Foreground="{DynamicResource TextFillColorSecondaryBrush}"
                                                VerticalAlignment="Center" />
@@ -434,7 +434,7 @@
                     </controls:SettingsExpanderItem.Footer>
                 </controls:SettingsExpanderItem>
 
-                <controls:SettingsExpanderItem IconSource="{ci:FluentIconSource &#xE8D2;}"
+                <controls:SettingsExpanderItem IconSource="{ci:FluentIconSource &#xF26F;}"
                                                Content="文字大小"
                                                Description="调整悬浮窗内文字缩放">
                     <controls:SettingsExpanderItem.Footer>
@@ -471,7 +471,7 @@
                     </controls:SettingsExpanderItem.Footer>
                 </controls:SettingsExpanderItem>
 
-                <controls:SettingsExpanderItem IconSource="{ci:FluentIconSource &#xE52A;}"
+                <controls:SettingsExpanderItem IconSource="{ci:FluentIconSource &#xE5CB;}"
                                                Content="主题"
                                                Description="设置悬浮窗主题">
                     <controls:SettingsExpanderItem.Footer>
@@ -557,7 +557,7 @@
             </controls:SettingsExpander>
 
             <!-- 规则集设置 -->
-            <controls:SettingsExpander IconSource="{ci:FluentIconSource &#xE713;}"
+            <controls:SettingsExpander IconSource="{ci:FluentIconSource &#xF17E;}"
                                        Header="规则集设置"
                                        Description="悬浮窗和按钮的显示/隐藏规则（行规则集已移至每行右侧）"
                                        IsExpanded="False">
