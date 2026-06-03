@@ -258,6 +258,51 @@ public partial class FloatingWindowEditorSettingsPage : SettingsPageBase
         ViewModel.RemoveTriggerToPool(buttonId);
     }
 
+    /// <summary>
+    /// 按钮规则集按钮点击：打开该按钮的规则集 Drawer
+    /// </summary>
+    private void OnButtonRulesetClick(object? sender, RoutedEventArgs e)
+    {
+        if (sender is not Button button || button.Tag is not string buttonId)
+            return;
+
+        // 在所有行中查找该按钮
+        var item = ViewModel.FloatingTriggerRows
+            .SelectMany(r => r.Buttons)
+            .FirstOrDefault(b => b.ButtonId == buttonId);
+        if (item == null) return;
+
+        ViewModel.SelectedFloatingTriggerItem = item;
+
+        if (this.FindResource("RulesetControl") is not ClassIsland.Core.Controls.Ruleset.RulesetControl control)
+            return;
+        control.Ruleset = item.Config.HidingRules;
+        OpenDrawer("RulesetControl");
+    }
+
+    /// <summary>
+    /// 行规则集按钮点击：打开该行的规则集 Drawer
+    /// </summary>
+    private void OnRowRulesetClick(object? sender, RoutedEventArgs e)
+    {
+        if (sender is not Control control)
+            return;
+
+        var row = control.GetVisualAncestors()
+            .OfType<Border>()
+            .Select(b => b.DataContext)
+            .OfType<FloatingTriggerRow>()
+            .FirstOrDefault();
+        if (row == null) return;
+
+        ViewModel.SelectedFloatingTriggerRow = row;
+
+        if (this.FindResource("RulesetControl") is not ClassIsland.Core.Controls.Ruleset.RulesetControl rulesetControl)
+            return;
+        rulesetControl.Ruleset = row.RowRuleset.HidingRules;
+        OpenDrawer("RulesetControl");
+    }
+
     // ===== 选中状态处理 =====
 
     private void OnRowSelectionChanged(object? sender, SelectionChangedEventArgs e)
@@ -409,24 +454,6 @@ public partial class FloatingWindowEditorSettingsPage : SettingsPageBase
     }
 
     // ===== 规则集 Drawer（参照 ClassIsland） =====
-
-    private void ButtonOpenButtonRuleset_OnClick(object? sender, RoutedEventArgs e)
-    {
-        if (this.FindResource("RulesetControl") is not ClassIsland.Core.Controls.Ruleset.RulesetControl control
-            || ViewModel.SelectedFloatingTriggerItem == null)
-            return;
-        control.Ruleset = ViewModel.SelectedFloatingTriggerItem.Config.HidingRules;
-        OpenDrawer("RulesetControl");
-    }
-
-    private void ButtonOpenRowRuleset_OnClick(object? sender, RoutedEventArgs e)
-    {
-        if (this.FindResource("RulesetControl") is not ClassIsland.Core.Controls.Ruleset.RulesetControl control
-            || ViewModel.SelectedFloatingTriggerRow == null)
-            return;
-        control.Ruleset = ViewModel.SelectedFloatingTriggerRow.RowRuleset.HidingRules;
-        OpenDrawer("RulesetControl");
-    }
 
     private void ButtonOpenFloatingWindowRuleset_OnClick(object? sender, RoutedEventArgs e)
     {

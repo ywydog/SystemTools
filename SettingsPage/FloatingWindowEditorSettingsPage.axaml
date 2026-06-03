@@ -145,6 +145,13 @@
                                                     <TextBlock Text="{Binding ButtonName}"
                                                                FontSize="12"
                                                                VerticalAlignment="Center" />
+                                                    <Button Content="{ci:FluentIcon &#xF17E;}"
+                                                            FontSize="10"
+                                                            Padding="2,0"
+                                                            ToolTip.Tip="规则集"
+                                                            Click="OnButtonRulesetClick"
+                                                            Theme="{StaticResource TransparentButton}"
+                                                            Tag="{Binding ButtonId}" />
                                                     <Button Content="{ci:FluentIcon &#xE61D;}"
                                                             FontSize="10"
                                                             Padding="2,0"
@@ -174,6 +181,12 @@
                                                 Spacing="2"
                                                 VerticalAlignment="Center"
                                                 Margin="4,0,0,0">
+                                        <Button Content="{ci:FluentIcon &#xF17E;}"
+                                                FontSize="10"
+                                                Padding="4,0"
+                                                ToolTip.Tip="行规则集"
+                                                Click="OnRowRulesetClick"
+                                                Theme="{StaticResource TransparentButton}" />
                                         <Button Content="{ci:FluentIcon &#xE00D;}"
                                                 FontSize="10"
                                                 Padding="4,0"
@@ -225,7 +238,7 @@
                                        Margin="0,4,0,0">
                 <TabControl Margin="-12,4,-12,-12" Padding="0">
 
-                    <!-- Tab 1: 组件库 -->
+                    <!-- 组件库 -->
                     <TabItem Header="组件库">
                         <ListBox ItemsSource="{Binding ViewModel.AvailableFloatingTriggerItems}"
                                  x:Name="ListBoxAvailableItems"
@@ -266,70 +279,6 @@
                                 </ControlTheme>
                             </ListBox.ItemContainerTheme>
                         </ListBox>
-                    </TabItem>
-
-                    <!-- Tab 2: 按钮设置（参照 ClassIsland ComponentAdvancedSettingsControl） -->
-                    <TabItem Header="按钮设置"
-                             IsVisible="{Binding ViewModel.SelectedFloatingTriggerItem, Converter={x:Static ObjectConverters.IsNotNull}}">
-                        <ScrollViewer HorizontalAlignment="Stretch"
-                                      DataContext="{Binding ViewModel.SelectedFloatingTriggerItem}">
-                            <StackPanel Classes="settings-container animated-intro" Margin="0">
-                                <!-- 按规则隐藏 -->
-                                <controls:SettingsExpander IconSource="{ci:FluentIconSource &#xEFBF;}"
-                                                           Header="按规则隐藏"
-                                                           Description="在指定规则满足时，自动隐藏此按钮。">
-                                    <controls:SettingsExpander.Footer>
-                                        <StackPanel Orientation="Horizontal">
-                                            <Button HorizontalAlignment="Left"
-                                                    Theme="{StaticResource TransparentButton}"
-                                                    Click="ButtonOpenButtonRuleset_OnClick"
-                                                    IsVisible="{Binding Config.HideOnRule}">
-                                                <ci:IconText Glyph="&#xF17E;" Text="编辑规则集…" />
-                                            </Button>
-                                            <ToggleSwitch VerticalAlignment="Center"
-                                                          IsChecked="{Binding Config.HideOnRule}" />
-                                        </StackPanel>
-                                    </controls:SettingsExpander.Footer>
-                                </controls:SettingsExpander>
-                            </StackPanel>
-                        </ScrollViewer>
-                    </TabItem>
-
-                    <!-- Tab 3: 行设置（参照 ClassIsland 行设置 Tab） -->
-                    <TabItem Header="行设置"
-                             IsVisible="{Binding ViewModel.SelectedFloatingTriggerRow, Converter={x:Static ObjectConverters.IsNotNull}}">
-                        <ScrollViewer HorizontalAlignment="Stretch"
-                                      DataContext="{Binding ViewModel.SelectedFloatingTriggerRow}">
-                            <StackPanel Classes="settings-container animated-intro" Margin="0">
-                                <!-- 行可见性 -->
-                                <controls:SettingsExpander IconSource="{ci:FluentIconSource &#xE52B;}"
-                                                           Header="行可见性"
-                                                           Description="控制此行的显示与隐藏。">
-                                    <controls:SettingsExpander.Footer>
-                                        <ToggleSwitch VerticalAlignment="Center"
-                                                      OnContent="显示" OffContent="隐藏"
-                                                      IsChecked="{Binding RowRuleset.IsVisible}" />
-                                    </controls:SettingsExpander.Footer>
-                                </controls:SettingsExpander>
-                                <!-- 按规则隐藏 -->
-                                <controls:SettingsExpander IconSource="{ci:FluentIconSource &#xEFBF;}"
-                                                           Header="按规则隐藏"
-                                                           Description="在指定规则满足时，自动隐藏此行。">
-                                    <controls:SettingsExpander.Footer>
-                                        <StackPanel Orientation="Horizontal">
-                                            <Button HorizontalAlignment="Left"
-                                                    Theme="{StaticResource TransparentButton}"
-                                                    Click="ButtonOpenRowRuleset_OnClick"
-                                                    IsVisible="{Binding RowRuleset.HideOnRule}">
-                                                <ci:IconText Glyph="&#xF17E;" Text="编辑规则集…" />
-                                            </Button>
-                                            <ToggleSwitch VerticalAlignment="Center"
-                                                          IsChecked="{Binding RowRuleset.HideOnRule}" />
-                                        </StackPanel>
-                                    </controls:SettingsExpander.Footer>
-                                </controls:SettingsExpander>
-                            </StackPanel>
-                        </ScrollViewer>
                     </TabItem>
 
                 </TabControl>
