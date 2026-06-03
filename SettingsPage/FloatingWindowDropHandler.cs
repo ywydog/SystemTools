@@ -3,21 +3,90 @@ using System.Linq;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.VisualTree;
-using Avalonia.Xaml.Interactions.DragAndDrop;
 
 namespace SystemTools;
 
 /// <summary>
-/// 悬浮窗按钮拖放处理器，参照 ClassIsland 的 EditableComponentsListBoxDropHandler 设计
+/// 悬浮窗按钮拖放处理器
 /// 处理按钮在行内排序、跨行移动、从组件库添加
+/// 使用标准 Avalonia DragDrop，不依赖 ClassIsland 的 ManagedDragDrop
 /// </summary>
-public class FloatingWindowDropHandler : DropHandlerBase
+public class FloatingWindowDropHandler
 {
-    private FloatingWindowEditorSettingsPage? _page;
+    private readonly FloatingWindowEditorSettingsPage _page;
 
     public FloatingWindowDropHandler(FloatingWindowEditorSettingsPage page)
     {
         _page = page;
+    }
+
+    /// <summary>
+    /// 处理按钮拖放到行内
+    /// </summary>
+    public bool HandleButtonDrop(ListBox targetListBox, DragEventArgs e,
+        FloatingWindowButtonDragData dragData, ObservableCollection<FloatingTriggerItem> targetList)
+    {
+        var viewModel = _page.ViewModel;
+        if (viewModel == null) return false;
+
+        var (targetIndex, foundTargetIndex) = GetTargetIndex(targetListBox, e, targetList);
+        var insertIndex = foundTargetIndex ? targetIndex + 1 : targetList.Count;
+
+        // 找到目标行
+        var targetRow = viewModel.FloatingTriggerRows.FirstOrDefault(r => r.Buttons == targetList);
+        if (targetRow == null) return false;
+        var rowIndex = viewModel.FloatingTriggerRows.IndexOf(targetRow);
+
+        if (dragData.SourceCollection == null)
+        {
+            // 从组件库添加
+            if (dragData.Item == null) return false;
+            var isInRow = viewModel.FloatingTriggerRows.Any(r => r.Buttons.Any(b => b.ButtonId == dragData.Item.ButtonId));
+            if (isInRow) return false;
+            viewModel.AddTriggerFromPool(dragData.Item.ButtonId, rowIndex, insertIndex);
+        }
+        else if (!ReferenceEquals(dragData.SourceCollection, targetList))
+        {
+            // 跨行移动
+            if (dragData.Item == null) return false;
+            viewModel.MoveFloatingTrigger(dragData.Item.ButtonId, rowIndex, insertIndex);
+        }
+        else
+        {
+            // 行内排序
+            if (dragData.Item == null) return false;
+            var sourceIndex = targetList.IndexOf(dragData.Item);
+            if (sourceIndex < 0) return false;
+            var moveIndex = foundTargetIndex ? targetIndex : targetList.Count - 1;
+            var newIndex = sourceIndex > moveIndex ? moveIndex + 1 : moveIndex;
+            MoveItem(targetList, sourceIndex, System.Math.Clamp(newIndex, 0, targetList.Count - 1));
+            viewModel.PersistFloatingTriggerRows();
+        }
+
+        return true;
+    }
+
+    /// <summary>
+    /// 处理从组件库拖入的按钮（SourceCollection 为 null）
+    /// </summary>
+    public bool HandlePoolItemDrop(ListBox targetListBox, DragEventArgs e,
+        FloatingTriggerItem poolItem, ObservableCollection<FloatingTriggerItem> targetList)
+    {
+        var viewModel = _page.ViewModel;
+        if (viewModel == null) return false;
+
+        var isInRow = viewModel.FloatingTriggerRows.Any(r => r.Buttons.Any(b => b.ButtonId == poolItem.ButtonId));
+        if (isInRow) return false;
+
+        var (targetIndex, foundTargetIndex) = GetTargetIndex(targetListBox, e, targetList);
+        var insertIndex = foundTargetIndex ? targetIndex + 1 : targetList.Count;
+
+        var targetRow = viewModel.FloatingTriggerRows.FirstOrDefault(r => r.Buttons == targetList);
+        if (targetRow == null) return false;
+        var rowIndex = viewModel.FloatingTriggerRows.IndexOf(targetRow);
+
+        viewModel.AddTriggerFromPool(poolItem.ButtonId, rowIndex, insertIndex);
+        return true;
     }
 
     private static (int index, bool found) GetTargetIndex(ListBox listBox, DragEventArgs e,
@@ -39,105 +108,11 @@ public class FloatingWindowDropHandler : DropHandlerBase
         return (items.Count > 0 ? items.Count - 1 : -1, items.Count > 0);
     }
 
-    private bool ValidateCore(ListBox listBox, DragEventArgs e, object? sourceContext, object? targetContext,
-        bool execute)
+    private static void MoveItem(ObservableCollection<FloatingTriggerItem> list, int oldIndex, int newIndex)
     {
-        e.Handled = true;
-        if (_page == null) return false;
-
-        var viewModel = _page.ViewModel;
-        if (viewModel == null) return false;
-
-        // 处理从组件库拖入的按钮（sourceContext 是 FloatingTriggerItem，来自按钮池）
-        if (sourceContext is FloatingTriggerItem poolItem && targetContext is ObservableCollection<FloatingTriggerItem> targetList)
-        {
-            // 检查是否来自按钮池（不在任何行中）
-            var isInRow = viewModel.FloatingTriggerRows.Any(r => r.Buttons.Any(b => b.ButtonId == poolItem.ButtonId));
-            if (isInRow) return false;
-
-            if (execute)
-            {
-                var (targetIndex, foundTargetIndex) = GetTargetIndex(listBox, e, targetList);
-                var insertIndex = foundTargetIndex ? targetIndex + 1 : targetList.Count;
-
-                // 找到目标行
-                var targetRow = viewModel.FloatingTriggerRows.FirstOrDefault(r => r.Buttons == targetList);
-                if (targetRow == null) return false;
-
-                var rowIndex = viewModel.FloatingTriggerRows.IndexOf(targetRow);
-                viewModel.AddTriggerFromPool(poolItem.ButtonId, rowIndex, insertIndex);
-            }
-
-            return true;
-        }
-
-        // 处理行内按钮拖拽排序/跨行移动
-        if (sourceContext is FloatingWindowButtonDragData data
-            && targetContext is ObservableCollection<FloatingTriggerItem> components)
-        {
-            if (data.Item == null) return false;
-
-            var (targetIndex, foundTargetIndex) = GetTargetIndex(listBox, e, components);
-            var insertIndex = foundTargetIndex ? targetIndex + 1 : components.Count;
-
-            if (execute)
-            {
-                var targetRow = viewModel.FloatingTriggerRows.FirstOrDefault(r => r.Buttons == components);
-                if (targetRow == null) return false;
-                var rowIndex = viewModel.FloatingTriggerRows.IndexOf(targetRow);
-
-                if (data.SourceCollection != null && !ReferenceEquals(data.SourceCollection, components))
-                {
-                    // 跨行移动
-                    var sourceRow = viewModel.FloatingTriggerRows.FirstOrDefault(r => r.Buttons == data.SourceCollection);
-                    if (sourceRow == null) return false;
-                    var sourceRowIndex = viewModel.FloatingTriggerRows.IndexOf(sourceRow);
-                    var sourceIndex = data.SourceCollection.IndexOf(data.Item);
-                    if (sourceIndex < 0) return false;
-
-                    viewModel.MoveFloatingTrigger(data.Item.ButtonId, rowIndex, insertIndex);
-                }
-                else
-                {
-                    // 行内排序
-                    var sourceIndex = components.IndexOf(data.Item);
-                    if (sourceIndex < 0) return false;
-
-                    if (ReferenceEquals(data.SourceCollection, components))
-                    {
-                        var moveIndex = foundTargetIndex ? targetIndex : components.Count - 1;
-                        var newIndex = sourceIndex > moveIndex ? moveIndex + 1 : moveIndex;
-                        MoveItem(components, sourceIndex, System.Math.Clamp(newIndex, 0, components.Count - 1));
-                        viewModel.PersistFloatingTriggerRows();
-                    }
-                }
-            }
-
-            return true;
-        }
-
-        return false;
-    }
-
-    public override bool Validate(object? sender, DragEventArgs e, object? sourceContext, object? targetContext,
-        object? state)
-    {
-        if (e.Handled) return false;
-        return sender switch
-        {
-            ListBox listBox => ValidateCore(listBox, e, sourceContext, targetContext, false),
-            _ => false
-        };
-    }
-
-    public override bool Execute(object? sender, DragEventArgs e, object? sourceContext, object? targetContext,
-        object? state)
-    {
-        if (e.Handled) return false;
-        return sender switch
-        {
-            ListBox listBox => ValidateCore(listBox, e, sourceContext, targetContext, true),
-            _ => false
-        };
+        if (oldIndex == newIndex) return;
+        var item = list[oldIndex];
+        list.RemoveAt(oldIndex);
+        list.Insert(newIndex, item);
     }
 }

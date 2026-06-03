@@ -1,4 +1,5 @@
 using System;
+using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.IO;
 using System.Linq;
@@ -55,6 +56,14 @@ public partial class FloatingWindowEditorSettingsPage : SettingsPageBase
     public FloatingWindowDropHandler DropHandler { get; }
 
     private bool _isDisposed;
+
+    // ===== 拖拽状态 =====
+    private FloatingTriggerItem? _dragItem;
+    private ObservableCollection<FloatingTriggerItem>? _dragSourceCollection;
+    private FloatingTriggerRow? _dragRow;
+    private bool _isDragging;
+    private Point _dragStartPoint;
+    private const double DragThreshold = 5.0;
 
     protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
     {
@@ -281,6 +290,125 @@ public partial class FloatingWindowEditorSettingsPage : SettingsPageBase
             // 清除选中状态
             listBox.SelectedItem = null;
         }
+    }
+
+    // ===== 拖拽处理（标准 Avalonia DragDrop） =====
+
+    /// <summary>
+    /// 行拖拽把手按下：开始行拖拽
+    /// </summary>
+    private void OnRowDragThumbPointerPressed(object? sender, PointerPressedEventArgs e)
+    {
+        if (sender is not Control control) return;
+
+        // 找到所属行
+        var row = control.GetVisualAncestors()
+            .OfType<Border>()
+            .Select(b => b.DataContext)
+            .OfType<FloatingTriggerRow>()
+            .FirstOrDefault();
+        if (row == null) return;
+
+        _dragRow = row;
+        _dragItem = null;
+        _dragSourceCollection = null;
+        _dragStartPoint = e.GetPosition(this);
+        _isDragging = false;
+
+        e.Handled = true;
+        e.PreventGestureHandler();
+    }
+
+    /// <summary>
+    /// 行内按钮按下：开始按钮拖拽
+    /// </summary>
+    private void OnButtonPointerPressed(object? sender, PointerPressedEventArgs e)
+    {
+        if (sender is not Control { DataContext: FloatingTriggerItem item }) return;
+
+        // 找到所属行的 Buttons 集合
+        var row = item.GetVisualAncestors()
+            .OfType<Border>()
+            .Select(b => b.DataContext)
+            .OfType<FloatingTriggerRow>()
+            .FirstOrDefault();
+        if (row == null) return;
+
+        _dragItem = item;
+        _dragSourceCollection = row.Buttons;
+        _dragRow = null;
+        _dragStartPoint = e.GetPosition(this);
+        _isDragging = false;
+
+        e.Handled = true;
+        e.PreventGestureHandler();
+    }
+
+    /// <summary>
+    /// 组件库项按下：开始从组件库拖拽
+    /// </summary>
+    private void OnPoolItemPointerPressed(object? sender, PointerPressedEventArgs e)
+    {
+        if (sender is not Control { DataContext: FloatingTriggerItem item }) return;
+
+        _dragItem = item;
+        _dragSourceCollection = null; // null 表示来自组件库
+        _dragRow = null;
+        _dragStartPoint = e.GetPosition(this);
+        _isDragging = false;
+
+        e.Handled = true;
+        e.PreventGestureHandler();
+    }
+
+    protected override void OnPointerMoved(PointerEventArgs e)
+    {
+        base.OnPointerMoved(e);
+
+        if (_dragItem == null && _dragRow == null) return;
+        if (_isDragging) return;
+
+        var currentPos = e.GetPosition(this);
+        var delta = currentPos - _dragStartPoint;
+
+        if (System.Math.Abs(delta.X) < DragThreshold && System.Math.Abs(delta.Y) < DragThreshold)
+            return;
+
+        _isDragging = true;
+
+        // 执行拖拽
+        if (_dragRow != null)
+        {
+            // 行拖拽
+            var data = new DataObject();
+            data.Set("FloatingWindowRow", _dragRow);
+            DragDrop.DoDragDrop(e, data, DragDropEffects.Move);
+        }
+        else if (_dragItem != null)
+        {
+            // 按钮拖拽（行内/跨行/从组件库）
+            var data = new DataObject();
+            data.Set("FloatingWindowButton", new FloatingWindowButtonDragData
+            {
+                Item = _dragItem,
+                SourceCollection = _dragSourceCollection
+            });
+            DragDrop.DoDragDrop(e, data, DragDropEffects.Move);
+        }
+
+        _dragItem = null;
+        _dragSourceCollection = null;
+        _dragRow = null;
+        _isDragging = false;
+    }
+
+    protected override void OnPointerReleased(PointerReleasedEventArgs e)
+    {
+        base.OnPointerReleased(e);
+        _dragItem = null;
+        _dragSourceCollection = null;
+        _dragRow = null;
+        _isDragging = false;
     }
 
     // ===== 规则集 Drawer（参照 ClassIsland） =====

@@ -8,9 +8,6 @@
                      xmlns:controls1="clr-namespace:SystemTools.Controls"
                      xmlns:ruleset="clr-namespace:ClassIsland.Core.Controls.Ruleset;assembly=ClassIsland.Core"
                      xmlns:local="clr-namespace:SystemTools"
-                     xmlns:behaviors="clr-namespace:ClassIsland.Core.Behaviors;assembly=ClassIsland.Core"
-                     xmlns:dragDrop="clr-namespace:Avalonia.Xaml.Interactions.DragAndDrop;assembly=Avalonia.Xaml.Interactions"
-                     xmlns:avaloniaXaml="using:Avalonia.Xaml.Interactivity"
                      mc:Ignorable="d"
                      d:DesignHeight="800"
                      d:DesignWidth="800">
@@ -78,7 +75,8 @@
                     BorderThickness="1"
                     CornerRadius="8"
                     Padding="4"
-                    MinHeight="80">
+                    MinHeight="80"
+                    x:Name="RowDropBorder">
                 <Grid RowDefinitions="*,Auto">
                     <!-- 空状态：没有行时显示引导 -->
                     <StackPanel Grid.Row="0" Spacing="8" HorizontalAlignment="Center" VerticalAlignment="Center"
@@ -121,7 +119,8 @@
                                                        Width="20"
                                                        IsExplicitVisible="True"
                                                        IsCompact="True"
-                                                       VerticalAlignment="Center" />
+                                                       VerticalAlignment="Center"
+                                                       PointerPressed="OnRowDragThumbPointerPressed" />
 
                                     <!-- 行内按钮列表（水平 ListBox） -->
                                     <ListBox Grid.Column="1"
@@ -137,7 +136,8 @@
                                         </ListBox.ItemsPanel>
                                         <ListBox.ItemTemplate>
                                             <DataTemplate>
-                                                <StackPanel Orientation="Horizontal" Spacing="2">
+                                                <StackPanel Orientation="Horizontal" Spacing="2"
+                                                            PointerPressed="OnButtonPointerPressed">
                                                     <ci:TouchDragThumb Margin="-4,0,-2,0" IsCompact="True" VerticalAlignment="Center" />
                                                     <controls:IconSourceElement IconSource="{Binding IconSource}"
                                                                                 Width="16" Height="16"
@@ -166,15 +166,6 @@
                                                 <Setter Property="VerticalContentAlignment" Value="Center" />
                                             </ControlTheme>
                                         </ListBox.ItemContainerTheme>
-                                        <!-- 行内按钮拖拽行为 -->
-                                        <avaloniaXaml:Interaction.Behaviors>
-                                            <BehaviorCollection>
-                                                <dragDrop:ManagedContextDropBehavior
-                                                    OverClass="TargetHighlight"
-                                                    Handler="{Binding $parent[FloatingWindowEditorSettingsPage].DropHandler}"
-                                                    Context="{Binding Buttons}" />
-                                            </BehaviorCollection>
-                                        </avaloniaXaml:Interaction.Behaviors>
                                     </ListBox>
 
                                     <!-- 行操作按钮 -->
@@ -207,40 +198,8 @@
                                 <Setter Property="CornerRadius" Value="6" />
                                 <Setter Property="HorizontalContentAlignment" Value="Stretch" />
                                 <Setter Property="VerticalContentAlignment" Value="Center" />
-                                <!-- 行内按钮拖拽行为附加到 ListBoxItem -->
-                                <Setter Property="(avaloniaXaml:Interaction.Behaviors)">
-                                    <BehaviorCollectionTemplate>
-                                        <BehaviorCollection>
-                                            <behaviors:AdvancedManagedContextDragBehavior
-                                                HorizontalDragThreshold="3"
-                                                VerticalDragThreshold="3"
-                                                PreviewOpacity="0.5"
-                                                CanDragWithoutDragThumb="True">
-                                                <behaviors:AdvancedManagedContextDragBehavior.Context>
-                                                    <MultiBinding Converter="{x:Static local:FloatingWindowButtonDragData.Create}">
-                                                        <Binding />
-                                                        <Binding Path="$parent[ListBox].ItemsSource"/>
-                                                    </MultiBinding>
-                                                </behaviors:AdvancedManagedContextDragBehavior.Context>
-                                            </behaviors:AdvancedManagedContextDragBehavior>
-                                            <dragDrop:ManagedContextDropBehavior
-                                                OverClass="TargetHighlight"
-                                                Handler="{Binding $parent[FloatingWindowEditorSettingsPage].DropHandler}"
-                                                Context="{Binding Buttons}" />
-                                        </BehaviorCollection>
-                                    </BehaviorCollectionTemplate>
-                                </Setter>
                             </ControlTheme>
                         </ListBox.ItemContainerTheme>
-                        <!-- 行列表拖拽行为 -->
-                        <avaloniaXaml:Interaction.Behaviors>
-                            <BehaviorCollection>
-                                <dragDrop:ManagedContextDropBehavior
-                                    OverClass="TargetHighlight"
-                                    Handler="{Binding $parent[FloatingWindowEditorSettingsPage].DropHandler}"
-                                    Context="{Binding ViewModel.FloatingTriggerRows}" />
-                            </BehaviorCollection>
-                        </avaloniaXaml:Interaction.Behaviors>
                     </ListBox>
 
                     <!-- 添加行按钮 -->
@@ -280,7 +239,8 @@
                             </ListBox.ItemsPanel>
                             <ListBox.ItemTemplate>
                                 <DataTemplate>
-                                    <Grid ColumnDefinitions="Auto,Auto,*" Margin="0,4" MinHeight="40">
+                                    <Grid ColumnDefinitions="Auto,Auto,*" Margin="0,4" MinHeight="40"
+                                          PointerPressed="OnPoolItemPointerPressed">
                                         <ci:TouchDragThumb Grid.Column="0" Width="20" VerticalAlignment="Center" />
                                         <controls:IconSourceElement Grid.Column="1"
                                                                     IconSource="{Binding IconSource}"
@@ -303,19 +263,6 @@
                                     <Setter Property="MinWidth" Value="140" />
                                     <Setter Property="MaxWidth" Value="200" />
                                     <Setter Property="Margin" Value="2" />
-                                    <!-- 组件库项拖拽行为 -->
-                                    <Setter Property="(avaloniaXaml:Interaction.Behaviors)">
-                                        <BehaviorCollectionTemplate>
-                                            <BehaviorCollection>
-                                                <behaviors:AdvancedManagedContextDragBehavior
-                                                    HorizontalDragThreshold="3"
-                                                    VerticalDragThreshold="3"
-                                                    PreviewOpacity="0.5"
-                                                    CanDragWithoutDragThumb="True">
-                                                </behaviors:AdvancedManagedContextDragBehavior>
-                                            </BehaviorCollection>
-                                        </BehaviorCollectionTemplate>
-                                    </Setter>
                                 </ControlTheme>
                             </ListBox.ItemContainerTheme>
                         </ListBox>
