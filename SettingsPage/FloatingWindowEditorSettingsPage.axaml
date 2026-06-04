@@ -12,15 +12,7 @@
                      d:DesignHeight="800"
                      d:DesignWidth="800">
 
-    <!-- 抽屉中的规则集控件（参照 ClassIsland，含 IsVisible/HideOnRule 开关） -->
     <ci:SettingsPageBase.Resources>
-        <StackPanel x:Key="RulesetDrawerContent" Spacing="8" Margin="0,8,0,0">
-            <StackPanel Orientation="Horizontal" Spacing="16" Margin="0,0,0,8">
-                <ToggleSwitch OnContent="显示" OffContent="隐藏" ToolTip.Tip="控制此项目是否显示" />
-                <ToggleSwitch OnContent="按规则隐藏" OffContent="禁用规则" ToolTip.Tip="启用后，满足规则集条件时自动隐藏" />
-            </StackPanel>
-            <ruleset:RulesetControl Classes="in-drawer" />
-        </StackPanel>
     </ci:SettingsPageBase.Resources>
 
     <ScrollViewer>

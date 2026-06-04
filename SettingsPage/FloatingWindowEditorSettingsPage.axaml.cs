@@ -67,6 +67,11 @@ public partial class FloatingWindowEditorSettingsPage : SettingsPageBase
     private FloatingTriggerItem? _currentButtonTarget;
     private FloatingTriggerRow? _currentRowTarget;
 
+    // Drawer 内的控件引用
+    private ToggleSwitch? _drawerIsVisibleToggle;
+    private ToggleSwitch? _drawerHideOnRuleToggle;
+    private RulesetControl? _drawerRulesetControl;
+
     protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
     {
         base.OnDetachedFromVisualTree(e);
@@ -327,45 +332,51 @@ public partial class FloatingWindowEditorSettingsPage : SettingsPageBase
     }
 
     /// <summary>
-    /// 打开规则集 Drawer，包含 IsVisible/HideOnRule 开关和规则集编辑器
+    /// 打开规则集 Drawer，包含 IsVisible/HideOnRule 开关和规则集编辑器（参照 ClassIsland）
     /// </summary>
     private void OpenRulesetDrawer(ClassIsland.Core.Models.Ruleset.Ruleset ruleset, bool isVisible, bool hideOnRule)
     {
-        if (this.FindResource("RulesetDrawerContent") is not StackPanel panel)
-            return;
+        // 每次打开时动态构建 Drawer 内容，避免资源单例问题
+        var panel = new StackPanel { Spacing = 8, Margin = new Thickness(0, 8, 0, 0) };
 
-        // 找到 Drawer 内的控件
-        if (panel.Children.Count >= 2
-            && panel.Children[0] is StackPanel togglesPanel
-            && panel.Children[1] is RulesetControl rulesetControl)
+        // 开关面板
+        var togglesPanel = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 16, Margin = new Thickness(0, 0, 0, 8) };
+
+        _drawerIsVisibleToggle = new ToggleSwitch
         {
-            // 设置 IsVisible 开关
-            if (togglesPanel.Children.Count >= 2
-                && togglesPanel.Children[0] is ToggleSwitch isVisibleToggle
-                && togglesPanel.Children[1] is ToggleSwitch hideOnRuleToggle)
-            {
-                isVisibleToggle.IsChecked = isVisible;
-                isVisibleToggle.IsCheckedChanged -= OnDrawerIsVisibleChanged;
-                isVisibleToggle.IsCheckedChanged += OnDrawerIsVisibleChanged;
+            OnContent = "显示",
+            OffContent = "隐藏",
+            ToolTip.Tip = "控制此项目是否显示",
+            IsChecked = isVisible,
+            IsVisible = _currentRulesetTarget != RulesetTargetType.Window
+        };
+        _drawerIsVisibleToggle.IsCheckedChanged += OnDrawerIsVisibleChanged;
 
-                hideOnRuleToggle.IsChecked = hideOnRule;
-                hideOnRuleToggle.IsCheckedChanged -= OnDrawerHideOnRuleChanged;
-                hideOnRuleToggle.IsCheckedChanged += OnDrawerHideOnRuleChanged;
+        _drawerHideOnRuleToggle = new ToggleSwitch
+        {
+            OnContent = "按规则隐藏",
+            OffContent = "禁用规则",
+            ToolTip.Tip = "启用后，满足规则集条件时自动隐藏",
+            IsChecked = hideOnRule
+        };
+        _drawerHideOnRuleToggle.IsCheckedChanged += OnDrawerHideOnRuleChanged;
 
-                // 按钮和行才显示 IsVisible 开关，悬浮窗级别隐藏
-                isVisibleToggle.IsVisible = _currentRulesetTarget != RulesetTargetType.Window;
-            }
+        togglesPanel.Children.Add(_drawerIsVisibleToggle);
+        togglesPanel.Children.Add(_drawerHideOnRuleToggle);
+        panel.Children.Add(togglesPanel);
 
-            rulesetControl.Ruleset = ruleset;
-        }
+        // 规则集编辑器
+        _drawerRulesetControl = new RulesetControl { Classes = { "in-drawer" }, Ruleset = ruleset };
+        panel.Children.Add(_drawerRulesetControl);
 
+        // 将内容放入 Resources 并打开 Drawer
+        this.Resources["RulesetDrawerContent"] = panel;
         OpenDrawer("RulesetDrawerContent");
     }
 
     private void OnDrawerIsVisibleChanged(object? sender, RoutedEventArgs e)
     {
-        if (sender is not ToggleSwitch toggle) return;
-        var value = toggle.IsChecked == true;
+        var value = _drawerIsVisibleToggle?.IsChecked == true;
 
         switch (_currentRulesetTarget)
         {
@@ -383,8 +394,7 @@ public partial class FloatingWindowEditorSettingsPage : SettingsPageBase
 
     private void OnDrawerHideOnRuleChanged(object? sender, RoutedEventArgs e)
     {
-        if (sender is not ToggleSwitch toggle) return;
-        var value = toggle.IsChecked == true;
+        var value = _drawerHideOnRuleToggle?.IsChecked == true;
 
         switch (_currentRulesetTarget)
         {
