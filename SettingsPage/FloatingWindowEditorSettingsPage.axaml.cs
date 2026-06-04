@@ -323,18 +323,21 @@ public partial class FloatingWindowEditorSettingsPage : SettingsPageBase
 
     private void OnAvailableItemSelectionChanged(object? sender, SelectionChangedEventArgs e)
     {
-        if (sender is ListBox listBox && listBox.SelectedItem is FloatingTriggerItem item)
+        if (sender is not ListBox listBox || listBox.SelectedItem is not FloatingTriggerItem item)
         {
-            // 点击组件库项：添加到第一行末尾
-            if (ViewModel.FloatingTriggerRows.Count == 0)
-            {
-                ViewModel.AddFloatingTriggerRow();
-            }
-            ViewModel.AddTriggerFromPool(item.ButtonId, 0, ViewModel.FloatingTriggerRows[0].Buttons.Count);
-
-            // 清除选中状态
-            listBox.SelectedItem = null;
+            return;
         }
+
+        // 先清除选中状态，避免移除项时选择模型与集合冲突（ArgumentOutOfRangeException）
+        var buttonId = item.ButtonId;
+        listBox.SelectedItem = null;
+
+        // 点击组件库项：添加到第一行末尾
+        if (ViewModel.FloatingTriggerRows.Count == 0)
+        {
+            ViewModel.AddFloatingTriggerRow();
+        }
+        ViewModel.AddTriggerFromPool(buttonId, 0, ViewModel.FloatingTriggerRows[0].Buttons.Count);
     }
 
     // ===== 拖拽处理（标准 Avalonia DragDrop） =====
