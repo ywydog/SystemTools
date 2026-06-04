@@ -333,7 +333,7 @@ public partial class FloatingWindowEditorSettingsPage : SettingsPageBase
 
         // 延迟执行添加操作，确保 SelectionChanged 事件处理完成后再修改集合
         // 否则 AvailableFloatingTriggerItems.Remove 会在选择模型迭代期间触发集合变更，导致 ArgumentOutOfRangeException
-        Dispatcher.UIThread.Post(() =>
+        Avalonia.Threading.Dispatcher.UIThread.Post(() =>
         {
             // 点击组件库项：添加到第一行末尾
             if (ViewModel.FloatingTriggerRows.Count == 0)
@@ -499,9 +499,11 @@ public partial class FloatingWindowEditorSettingsPage : SettingsPageBase
             {
                 for (int i = 0; i < ViewModel.FloatingTriggerRows.Count; i++)
                 {
-                    if (rowsList.ItemContainerGenerator.ContainerFromIndex(i) is ListBoxItem lbi)
+                    if (rowsList.ContainerFromIndex(i) is ListBoxItem lbi)
                     {
-                        var itemPos = lbi.TransformToVisual(rowsList).Value.Transform(new Point(0, 0));
+                        var transform = lbi.TransformToVisual(rowsList);
+                        if (transform == null) continue;
+                        var itemPos = transform.Value.Transform(new Point(0, 0));
                         var itemBounds = lbi.Bounds;
                         if (pos.Y >= itemPos.Y && pos.Y <= itemPos.Y + itemBounds.Height)
                         {
