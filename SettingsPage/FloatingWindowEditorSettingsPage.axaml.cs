@@ -44,7 +44,7 @@ public partial class FloatingWindowEditorSettingsPage : SettingsPageBase
         ViewModel.Settings.PropertyChanged += OnSettingsPropertyChanged;
         ViewModel.ProfileChanged += OnViewModelProfileChanged;
 
-        // 注册悬浮窗规则集变更监听
+        // 注册全局设置变更监听（ShowFloatingWindow 和规则集不随方案切换）
         RegisterHidingRulesEvents();
     }
 
@@ -96,27 +96,18 @@ public partial class FloatingWindowEditorSettingsPage : SettingsPageBase
 
     private void OnProfilePropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
-        if (e.PropertyName is nameof(FloatingWindowProfile.ShowFloatingWindow)
-            or nameof(FloatingWindowProfile.FloatingWindowScale)
+        if (e.PropertyName is nameof(FloatingWindowProfile.FloatingWindowScale)
             or nameof(FloatingWindowProfile.FloatingWindowIconSize)
             or nameof(FloatingWindowProfile.FloatingWindowTextSize)
             or nameof(FloatingWindowProfile.FloatingWindowOpacity)
             or nameof(FloatingWindowProfile.FloatingWindowShadowEnabled)
             or nameof(FloatingWindowProfile.FloatingWindowLayer)
             or nameof(FloatingWindowProfile.FloatingWindowLayerRecheckMode)
-            or nameof(FloatingWindowProfile.FloatingWindowHideOnRule)
             or nameof(FloatingWindowProfile.FloatingWindowDragHandleAlwaysVisible)
             or nameof(FloatingWindowProfile.FloatingWindowHorizontal))
         {
             IAppHost.GetService<FloatingWindowService>().ProfileManager.SaveProfile();
             IAppHost.GetService<FloatingWindowService>().UpdateWindowState();
-        }
-        else if (e.PropertyName == nameof(FloatingWindowProfile.FloatingWindowHidingRules))
-        {
-            // Ruleset 对象被替换时，重新注册事件
-            UnregisterHidingRulesEvents();
-            RegisterHidingRulesEvents();
-            IAppHost.GetService<FloatingWindowService>().ProfileManager.SaveProfile();
         }
     }
 
@@ -135,7 +126,7 @@ public partial class FloatingWindowEditorSettingsPage : SettingsPageBase
 
     private void RegisterHidingRulesEvents()
     {
-        if (ViewModel.CurrentFloatingWindowProfile.FloatingWindowHidingRules is INotifyPropertyChanged hidingRules)
+        if (ViewModel.Settings.FloatingWindowRuleset is INotifyPropertyChanged hidingRules)
         {
             hidingRules.PropertyChanged += OnHidingRulesPropertyChanged;
         }
@@ -143,7 +134,7 @@ public partial class FloatingWindowEditorSettingsPage : SettingsPageBase
 
     private void UnregisterHidingRulesEvents()
     {
-        if (ViewModel.CurrentFloatingWindowProfile.FloatingWindowHidingRules is INotifyPropertyChanged hidingRules)
+        if (ViewModel.Settings.FloatingWindowRuleset is INotifyPropertyChanged hidingRules)
         {
             hidingRules.PropertyChanged -= OnHidingRulesPropertyChanged;
         }
@@ -156,6 +147,19 @@ public partial class FloatingWindowEditorSettingsPage : SettingsPageBase
             GlobalConstants.MainConfig?.Save();
             IAppHost.GetService<FloatingWindowService>().UpdateWindowState();
         }
+        else if (e.PropertyName is nameof(MainConfigData.ShowFloatingWindow)
+            or nameof(MainConfigData.FloatingWindowRulesetEnabled))
+        {
+            GlobalConstants.MainConfig?.Save();
+            IAppHost.GetService<FloatingWindowService>().UpdateWindowState();
+        }
+        else if (e.PropertyName == nameof(MainConfigData.FloatingWindowRuleset))
+        {
+            // Ruleset 对象被替换时，重新注册事件
+            UnregisterHidingRulesEvents();
+            RegisterHidingRulesEvents();
+            GlobalConstants.MainConfig?.Save();
+        }
     }
 
     private void OnViewModelProfileChanged(object? sender, EventArgs e)
@@ -165,7 +169,7 @@ public partial class FloatingWindowEditorSettingsPage : SettingsPageBase
 
     private void OnHidingRulesPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
-        IAppHost.GetService<FloatingWindowService>().ProfileManager.SaveProfile();
+        GlobalConstants.MainConfig?.Save();
     }
 
     private void OnFloatingWindowVisibleToggleChanged(object? sender, RoutedEventArgs e)
@@ -176,11 +180,11 @@ public partial class FloatingWindowEditorSettingsPage : SettingsPageBase
         }
 
         var service = IAppHost.GetService<FloatingWindowService>();
-        var profile = ViewModel.CurrentFloatingWindowProfile;
+        var config = ViewModel.Settings;
 
         // 没有可用按钮时强制隐藏
         var shouldShow = toggle.IsChecked == true && service.Entries.Count > 0;
-        profile.ShowFloatingWindow = shouldShow;
+        config.ShowFloatingWindow = shouldShow;
 
         // 同步 ToggleSwitch 状态（可能被强制隐藏）
         if (toggle.IsChecked != shouldShow)
@@ -188,7 +192,7 @@ public partial class FloatingWindowEditorSettingsPage : SettingsPageBase
             toggle.IsChecked = shouldShow;
         }
 
-        service.ProfileManager.SaveProfile();
+        GlobalConstants.MainConfig?.Save();
         service.UpdateWindowState();
     }
 
@@ -327,8 +331,8 @@ public partial class FloatingWindowEditorSettingsPage : SettingsPageBase
         _currentButtonTarget = null;
         _currentRowTarget = null;
 
-        var profile = ViewModel.CurrentFloatingWindowProfile;
-        OpenRulesetDrawer(profile.FloatingWindowHidingRules, true, profile.FloatingWindowHideOnRule);
+        var config = ViewModel.Settings;
+        OpenRulesetDrawer(config.FloatingWindowRuleset, true, config.FloatingWindowRulesetEnabled);
     }
 
     /// <summary>
@@ -405,7 +409,8 @@ public partial class FloatingWindowEditorSettingsPage : SettingsPageBase
                 _currentRowTarget.RowRuleset.HideOnRule = value;
                 break;
             case RulesetTargetType.Window:
-                ViewModel.CurrentFloatingWindowProfile.FloatingWindowHideOnRule = value;
+                ViewModel.Settings.FloatingWindowRulesetEnabled = value;
+                GlobalConstants.MainConfig?.Save();
                 break;
         }
 

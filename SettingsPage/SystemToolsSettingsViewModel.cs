@@ -309,10 +309,11 @@ public partial class SystemToolsSettingsViewModel : ObservableObject, IDisposabl
         HasFloatingTriggerEntries = entries.Count > 0;
 
         var profile = CurrentFloatingWindowProfile;
-        if (!HasFloatingTriggerEntries && profile.ShowFloatingWindow)
+        var globalShow = _configHandler.Data.ShowFloatingWindow;
+        if (!HasFloatingTriggerEntries && globalShow)
         {
-            profile.ShowFloatingWindow = false;
-            _floatingWindowService.ProfileManager.SaveProfile();
+            _configHandler.Data.ShowFloatingWindow = false;
+            _configHandler.Save();
             _floatingWindowService.UpdateWindowState();
         }
 

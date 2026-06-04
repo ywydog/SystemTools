@@ -393,7 +393,7 @@ public class FloatingWindowService
     private void CheckFloatingWindowRuleset()
     {
         var profile = _profileManager.CurrentProfile;
-        if (!profile.FloatingWindowHideOnRule)
+        if (!_configHandler.Data.FloatingWindowRulesetEnabled)
         {
             if (_rulesetHidingWindow)
             {
@@ -409,7 +409,7 @@ public class FloatingWindowService
             return;
         }
 
-        var isSatisfied = rulesetService.IsRulesetSatisfied(profile.FloatingWindowHidingRules);
+        var isSatisfied = rulesetService.IsRulesetSatisfied(_configHandler.Data.FloatingWindowRuleset);
         var shouldHide = isSatisfied;
 
         if (shouldHide != _rulesetHidingWindow)
@@ -531,7 +531,7 @@ public class FloatingWindowService
         }
 
         var profile = _profileManager.CurrentProfile;
-        var shouldShow = profile.ShowFloatingWindow && _entries.Count > 0 && !_rulesetHidingWindow;
+        var shouldShow = _configHandler.Data.ShowFloatingWindow && _entries.Count > 0 && !_rulesetHidingWindow;
 
         if (shouldShow)
         {

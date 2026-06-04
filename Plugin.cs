@@ -946,9 +946,12 @@ public class Plugin : PluginBase
                     return;
                 }
 
-                var profile = IAppHost.GetService<FloatingWindowService>().ProfileManager.CurrentProfile;
-                profile.ShowFloatingWindow = !profile.ShowFloatingWindow;
-                IAppHost.GetService<FloatingWindowService>().ProfileManager.SaveProfile();
+                var config = GlobalConstants.MainConfig?.Data;
+                if (config != null)
+                {
+                    config.ShowFloatingWindow = !config.ShowFloatingWindow;
+                    GlobalConstants.MainConfig?.Save();
+                }
                 IAppHost.GetService<FloatingWindowService>().UpdateWindowState();
                 UpdateFloatingWindowTrayMenuHeader();
             };
@@ -1008,8 +1011,8 @@ public class Plugin : PluginBase
             return;
         }
 
-        var profile = IAppHost.GetService<FloatingWindowService>().ProfileManager.CurrentProfile;
-        _toggleFloatingWindowMenuItem.Header = profile.ShowFloatingWindow
+        var config = GlobalConstants.MainConfig?.Data;
+        _toggleFloatingWindowMenuItem.Header = config is { ShowFloatingWindow: true }
             ? "隐藏悬浮窗"
             : "显示悬浮窗";
     }

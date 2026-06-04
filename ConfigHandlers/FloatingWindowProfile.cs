@@ -1,23 +1,19 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.Json.Serialization;
-using ClassIsland.Core.Models.Ruleset;
 using CommunityToolkit.Mvvm.ComponentModel;
 
 namespace SystemTools.ConfigHandlers;
 
 /// <summary>
-/// 悬浮窗配置方案，保存一套完整的悬浮窗配置。
+/// 悬浮窗配置方案，保存一套完整的悬浮窗布局和外观配置。
+/// 注意：显示状态(ShowFloatingWindow)和规则集(HideOnRule/HidingRules)是全局设置，不随方案切换。
 /// </summary>
 public partial class FloatingWindowProfile : ObservableObject
 {
     [ObservableProperty]
     [JsonPropertyName("name")]
     private string _name = "Default";
-
-    [ObservableProperty]
-    [JsonPropertyName("showFloatingWindow")]
-    private bool _showFloatingWindow = true;
 
     [ObservableProperty]
     [JsonPropertyName("floatingWindowHorizontal")]
@@ -68,14 +64,6 @@ public partial class FloatingWindowProfile : ObservableObject
     [ObservableProperty]
     [JsonPropertyName("floatingWindowDragHandleAlwaysVisible")]
     private bool _floatingWindowDragHandleAlwaysVisible;
-
-    [ObservableProperty]
-    [JsonPropertyName("floatingWindowHideOnRule")]
-    private bool _floatingWindowHideOnRule;
-
-    [ObservableProperty]
-    [JsonPropertyName("floatingWindowHidingRules")]
-    private Ruleset _floatingWindowHidingRules = new();
 
     [JsonPropertyName("floatingWindowButtonRulesets")]
     public Dictionary<string, ButtonRulesetConfig> FloatingWindowButtonRulesets { get; set; } = new();

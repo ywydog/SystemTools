@@ -19,7 +19,6 @@ public class FloatingWindowProfileManager
     public static FloatingWindowProfile DefaultProfile { get; } = new()
     {
         Name = "Default",
-        ShowFloatingWindow = true,
         FloatingWindowScale = 1.0,
         FloatingWindowIconSize = 22,
         FloatingWindowTextSize = 12,
@@ -31,7 +30,6 @@ public class FloatingWindowProfileManager
         FloatingWindowShadowEnabled = true,
         FloatingWindowButtonOrder = new List<string>(),
         FloatingWindowButtonRows = new List<List<string>>(),
-        FloatingWindowHidingRules = new(),
         FloatingWindowButtonRulesets = new Dictionary<string, ButtonRulesetConfig>(),
         FloatingWindowRowRulesets = new List<RowRulesetConfig>()
     };
@@ -59,7 +57,6 @@ public class FloatingWindowProfileManager
         var profile = new FloatingWindowProfile
         {
             Name = "Default",
-            ShowFloatingWindow = legacyData.ShowFloatingWindow,
             FloatingWindowHorizontal = legacyData.FloatingWindowHorizontal,
             FloatingWindowButtonOrder = new List<string>(legacyData.FloatingWindowButtonOrder ?? []),
             FloatingWindowButtonRows = (legacyData.FloatingWindowButtonRows ?? []).Select(r => new List<string>(r)).ToList(),
@@ -73,8 +70,6 @@ public class FloatingWindowProfileManager
             FloatingWindowLayerRecheckMode = legacyData.FloatingWindowLayerRecheckMode,
             FloatingWindowShadowEnabled = legacyData.FloatingWindowShadowEnabled,
             FloatingWindowDragHandleAlwaysVisible = legacyData.FloatingWindowDragHandleAlwaysVisible,
-            FloatingWindowHideOnRule = legacyData.FloatingWindowRulesetEnabled,
-            FloatingWindowHidingRules = legacyData.FloatingWindowRuleset,
             FloatingWindowButtonRulesets = new Dictionary<string, ButtonRulesetConfig>(legacyData.FloatingWindowButtonRulesets ?? []),
             FloatingWindowRowRulesets = new List<RowRulesetConfig>(legacyData.FloatingWindowRowRulesets ?? [])
         };

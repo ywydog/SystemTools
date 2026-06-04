@@ -56,7 +56,7 @@
                 </ci:Field>
                 <ToggleSwitch Grid.Column="1"
                               OnContent="显示" OffContent="隐藏"
-                              IsChecked="{Binding ViewModel.CurrentFloatingWindowProfile.ShowFloatingWindow, Mode=OneWay}"
+                              IsChecked="{Binding ViewModel.Settings.ShowFloatingWindow, Mode=OneWay}"
                               IsEnabled="{Binding ViewModel.HasFloatingTriggerEntries}"
                               IsCheckedChanged="OnFloatingWindowVisibleToggleChanged" />
             </Grid>
@@ -443,21 +443,21 @@
                 </controls:SettingsExpanderItem>
             </controls:SettingsExpander>
 
-            <!-- 规则集设置（参照 ClassIsland Drawer 模式） -->
+            <!-- 规则集设置（全局设置，不随方案切换） -->
             <controls:SettingsExpander IconSource="{ci:FluentIconSource &#xEFBF;}"
                                        Header="按规则隐藏"
-                                       Description="在指定规则满足时，自动隐藏悬浮窗。">
+                                       Description="在指定规则满足时，自动隐藏悬浮窗。此为全局设置，不随配置方案切换。">
                 <controls:SettingsExpander.Footer>
                     <StackPanel Orientation="Horizontal">
                         <Button HorizontalAlignment="Left"
                                 Theme="{StaticResource TransparentButton}"
                                 Click="ButtonOpenFloatingWindowRuleset_OnClick"
-                                IsVisible="{Binding ViewModel.CurrentFloatingWindowProfile.FloatingWindowHideOnRule}">
+                                IsVisible="{Binding ViewModel.Settings.FloatingWindowRulesetEnabled}">
                             <ci:IconText Glyph="&#xF17E;" Text="编辑规则集…" />
                         </Button>
                         <ToggleSwitch VerticalAlignment="Center"
                                       OnContent="启用" OffContent="禁用"
-                                      IsChecked="{Binding ViewModel.CurrentFloatingWindowProfile.FloatingWindowHideOnRule}" />
+                                      IsChecked="{Binding ViewModel.Settings.FloatingWindowRulesetEnabled}" />
                     </StackPanel>
                 </controls:SettingsExpander.Footer>
             </controls:SettingsExpander>
