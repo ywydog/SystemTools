@@ -53,6 +53,7 @@ public class FloatingWindowService
     private readonly Dictionary<string, double> _buttonWidthCache = new();
     private bool _allowWindowClose;
     private bool _restoringFromMinimized;
+    private bool _isStopped;
     private bool _isTouchDeviceDetected;
     private bool _touchDragAllowed;
     private PixelPoint _touchDragStartScreenPoint;
@@ -119,6 +120,7 @@ public class FloatingWindowService
 
     public void Stop()
     {
+        _isStopped = true;
         Dispatcher.UIThread.Post(() =>
         {
             if (_window != null)
@@ -164,8 +166,10 @@ public class FloatingWindowService
 
     public void UpdateWindowState()
     {
+        if (_isStopped) return;
         Dispatcher.UIThread.Post(() =>
         {
+            if (_isStopped) return;
             ApplyVisibility();
             RefreshLayerRecheckMode();
             RecheckWindowLayer();
@@ -176,8 +180,10 @@ public class FloatingWindowService
     private void NotifyEntriesChanged()
     {
         EntriesChanged?.Invoke(this, EventArgs.Empty);
+        if (_isStopped) return;
         Dispatcher.UIThread.Post(() =>
         {
+            if (_isStopped) return;
             ApplyVisibility();
             RecheckWindowLayer();
             RefreshWindowButtons();
@@ -258,7 +264,7 @@ public class FloatingWindowService
 
     private void EnsureWindow()
     {
-        if (_window != null)
+        if (_window != null || _isStopped)
         {
             return;
         }
@@ -293,10 +299,7 @@ public class FloatingWindowService
             if (!_allowWindowClose)
             {
                 e.Cancel = true;
-                if (_window is { IsVisible: false })
-                {
-                    _window.Show();
-                }
+                // 不在 Closing 事件中调用 Show()，窗口可能处于关闭过程中
             }
         };
         _window.PropertyChanged += OnWindowPropertyChanged;
@@ -319,7 +322,7 @@ public class FloatingWindowService
 
     private void RestoreWindowFromMinimized()
     {
-        if (_window == null || _restoringFromMinimized)
+        if (_window == null || _restoringFromMinimized || _isStopped)
         {
             return;
         }
@@ -330,17 +333,26 @@ public class FloatingWindowService
         {
             try
             {
-                if (_window == null)
+                if (_window == null || _isStopped)
                 {
                     return;
                 }
 
                 if (!_window.IsVisible)
                 {
-                    _window.Show();
+                    try { _window.Show(); }
+                    catch (InvalidOperationException)
+                    {
+                        _window = null;
+                        _stackPanel = null;
+                        _windowContainer = null;
+                    }
                 }
 
-                _window.WindowState = WindowState.Normal;
+                if (_window != null)
+                {
+                    _window.WindowState = WindowState.Normal;
+                }
             }
             finally
             {
@@ -524,6 +536,7 @@ public class FloatingWindowService
 
     private void ApplyVisibility()
     {
+        if (_isStopped) return;
         EnsureWindow();
         if (_window == null)
         {
@@ -543,13 +556,16 @@ public class FloatingWindowService
                 }
                 catch (InvalidOperationException)
                 {
+                    // 窗口已关闭（被外部关闭或竞态条件），需要重建
                     _window = null;
                     _stackPanel = null;
                     _windowContainer = null;
+                    if (_isStopped) return;
                     EnsureWindow();
                     if (_window != null)
                     {
-                        _window.Show();
+                        try { _window.Show(); }
+                        catch (InvalidOperationException) { /* 放弃重建 */ }
                     }
                 }
             }
