@@ -76,7 +76,10 @@
                     CornerRadius="8"
                     Padding="4"
                     MinHeight="80"
-                    x:Name="RowDropBorder">
+                    x:Name="RowDropBorder"
+                    AllowDrop="True"
+                    DragOver="OnRowDropBorderDragOver"
+                    Drop="OnRowDropBorderDrop">
                 <Grid RowDefinitions="*,Auto">
                     <!-- 空状态：没有行时显示引导 -->
                     <StackPanel Grid.Row="0" Spacing="8" HorizontalAlignment="Center" VerticalAlignment="Center"
@@ -125,7 +128,6 @@
                                     <!-- 行内按钮列表（水平 ListBox） -->
                                     <ListBox Grid.Column="1"
                                              ItemsSource="{Binding Buttons}"
-                                             SelectedItem="{Binding $parent[ListBoxItem].(ListBox.SelectedItem), RelativeSource={RelativeSource AncestorType=ListBox}, Mode=OneWayToSource}"
                                              x:Name="InnerButtonListBox"
                                              Background="Transparent"
                                              SelectionChanged="OnButtonSelectionChanged">
@@ -231,57 +233,47 @@
                           Background="Transparent"
                           Margin="0,2" />
 
-            <!-- TabControl 设置面板 -->
+            <!-- 组件库 -->
             <controls:SettingsExpander IconSource="{ci:FluentIconSource &#xE9D5;}"
-                                       Header="组件库与设置"
+                                       Header="组件库"
+                                       Description="点击按钮添加到悬浮窗，或拖拽到上方行中"
                                        IsExpanded="True"
                                        Margin="0,4,0,0">
-                <TabControl Margin="-12,4,-12,-12" Padding="0">
-
-                    <!-- 组件库 -->
-                    <TabItem Header="组件库">
-                        <ListBox ItemsSource="{Binding ViewModel.AvailableFloatingTriggerItems}"
-                                 x:Name="ListBoxAvailableItems"
-                                 Background="Transparent"
-                                 Margin="-4"
-                                 SelectionChanged="OnAvailableItemSelectionChanged">
-                            <ListBox.ItemsPanel>
-                                <ItemsPanelTemplate>
-                                    <WrapPanel />
-                                </ItemsPanelTemplate>
-                            </ListBox.ItemsPanel>
-                            <ListBox.ItemTemplate>
-                                <DataTemplate>
-                                    <Grid ColumnDefinitions="Auto,Auto,*" Margin="0,4" MinHeight="40"
-                                          PointerPressed="OnPoolItemPointerPressed">
-                                        <ci:TouchDragThumb Grid.Column="0" Width="20" VerticalAlignment="Center" />
-                                        <controls:IconSourceElement Grid.Column="1"
-                                                                    IconSource="{Binding IconSource}"
-                                                                    Width="20" Height="20"
-                                                                    VerticalAlignment="Center" />
-                                        <StackPanel Grid.Column="2" VerticalAlignment="Center" Margin="4,0,0,0">
-                                            <TextBlock Text="{Binding ButtonName}" FontSize="12" />
-                                            <TextBlock Text="拖拽或点击添加"
-                                                       Foreground="{DynamicResource TextFillColorTertiaryBrush}"
-                                                       FontSize="11" />
-                                        </StackPanel>
-                                    </Grid>
-                                </DataTemplate>
-                            </ListBox.ItemTemplate>
-                            <ListBox.ItemContainerTheme>
-                                <ControlTheme TargetType="ListBoxItem">
-                                    <Setter Property="Padding" Value="4,2" />
-                                    <Setter Property="Background" Value="{DynamicResource SubtleFillColorSecondaryBrush}" />
-                                    <Setter Property="CornerRadius" Value="6" />
-                                    <Setter Property="MinWidth" Value="140" />
-                                    <Setter Property="MaxWidth" Value="200" />
-                                    <Setter Property="Margin" Value="2" />
-                                </ControlTheme>
-                            </ListBox.ItemContainerTheme>
-                        </ListBox>
-                    </TabItem>
-
-                </TabControl>
+                <ListBox ItemsSource="{Binding ViewModel.AvailableFloatingTriggerItems}"
+                         x:Name="ListBoxAvailableItems"
+                         Background="Transparent"
+                         Margin="-4"
+                         SelectionChanged="OnAvailableItemSelectionChanged">
+                    <ListBox.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <WrapPanel />
+                        </ItemsPanelTemplate>
+                    </ListBox.ItemsPanel>
+                    <ListBox.ItemTemplate>
+                        <DataTemplate>
+                            <Grid ColumnDefinitions="Auto,*" Margin="0,4" MinHeight="36">
+                                <controls:IconSourceElement Grid.Column="0"
+                                                            IconSource="{Binding IconSource}"
+                                                            Width="20" Height="20"
+                                                            VerticalAlignment="Center"
+                                                            Margin="0,0,6,0" />
+                                <TextBlock Grid.Column="1"
+                                           Text="{Binding ButtonName}"
+                                           FontSize="12"
+                                           VerticalAlignment="Center" />
+                            </Grid>
+                        </DataTemplate>
+                    </ListBox.ItemTemplate>
+                    <ListBox.ItemContainerTheme>
+                        <ControlTheme TargetType="ListBoxItem">
+                            <Setter Property="Padding" Value="8,4" />
+                            <Setter Property="Background" Value="{DynamicResource SubtleFillColorSecondaryBrush}" />
+                            <Setter Property="CornerRadius" Value="6" />
+                            <Setter Property="MinWidth" Value="120" />
+                            <Setter Property="Margin" Value="2" />
+                        </ControlTheme>
+                    </ListBox.ItemContainerTheme>
+                </ListBox>
             </controls:SettingsExpander>
 
             <!-- 外观设置 -->
