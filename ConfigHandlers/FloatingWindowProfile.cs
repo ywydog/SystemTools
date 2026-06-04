@@ -73,8 +73,9 @@ public partial class FloatingWindowProfile : ObservableObject
     [JsonPropertyName("floatingWindowHideOnRule")]
     private bool _floatingWindowHideOnRule;
 
+    [ObservableProperty]
     [JsonPropertyName("floatingWindowHidingRules")]
-    public Ruleset FloatingWindowHidingRules { get; set; } = new();
+    private Ruleset _floatingWindowHidingRules = new();
 
     [JsonPropertyName("floatingWindowButtonRulesets")]
     public Dictionary<string, ButtonRulesetConfig> FloatingWindowButtonRulesets { get; set; } = new();

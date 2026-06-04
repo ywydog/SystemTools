@@ -12,6 +12,7 @@ using ClassIsland.Core;
 using ClassIsland.Core.Abstractions;
 using ClassIsland.Core.Abstractions.Controls;
 using ClassIsland.Core.Attributes;
+using ClassIsland.Core.Controls.Ruleset;
 using ClassIsland.Shared;
 using SystemTools.ConfigHandlers;
 using SystemTools.Services;
@@ -37,8 +38,6 @@ public partial class FloatingWindowEditorSettingsPage : SettingsPageBase
         DataContext = this;
         InitializeComponent();
 
-        DropHandler = new FloatingWindowDropHandler(this);
-
         ViewModel.RefreshFloatingWindowProfiles();
         ViewModel.RefreshFloatingTriggers();
         ViewModel.CurrentFloatingWindowProfile.PropertyChanged += OnProfilePropertyChanged;
@@ -46,14 +45,10 @@ public partial class FloatingWindowEditorSettingsPage : SettingsPageBase
         ViewModel.ProfileChanged += OnViewModelProfileChanged;
 
         // 注册悬浮窗规则集变更监听
-        if (ViewModel.CurrentFloatingWindowProfile.FloatingWindowHidingRules is INotifyPropertyChanged hidingRules)
-        {
-            hidingRules.PropertyChanged += OnHidingRulesPropertyChanged;
-        }
+        RegisterHidingRulesEvents();
     }
 
     public SystemToolsSettingsViewModel ViewModel { get; }
-    public FloatingWindowDropHandler DropHandler { get; }
 
     private bool _isDisposed;
 
@@ -63,7 +58,14 @@ public partial class FloatingWindowEditorSettingsPage : SettingsPageBase
     private FloatingTriggerRow? _dragRow;
     private bool _isDragging;
     private Point _dragStartPoint;
-    private const double DragThreshold = 5.0;
+    // 触摸屏需要更大阈值，避免误触拖拽
+    private const double DragThreshold = 8.0;
+
+    // ===== 规则集 Drawer 状态 =====
+    private enum RulesetTargetType { Button, Row, Window }
+    private RulesetTargetType _currentRulesetTarget;
+    private FloatingTriggerItem? _currentButtonTarget;
+    private FloatingTriggerRow? _currentRowTarget;
 
     protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
     {
@@ -81,11 +83,7 @@ public partial class FloatingWindowEditorSettingsPage : SettingsPageBase
         ViewModel.Settings.PropertyChanged -= OnSettingsPropertyChanged;
         ViewModel.ProfileChanged -= OnViewModelProfileChanged;
 
-        // 注销悬浮窗规则集变更监听
-        if (ViewModel.CurrentFloatingWindowProfile.FloatingWindowHidingRules is INotifyPropertyChanged hidingRules)
-        {
-            hidingRules.PropertyChanged -= OnHidingRulesPropertyChanged;
-        }
+        UnregisterHidingRulesEvents();
 
         ViewModel.Dispose();
         _isDisposed = true;
@@ -108,6 +106,13 @@ public partial class FloatingWindowEditorSettingsPage : SettingsPageBase
             IAppHost.GetService<FloatingWindowService>().ProfileManager.SaveProfile();
             IAppHost.GetService<FloatingWindowService>().UpdateWindowState();
         }
+        else if (e.PropertyName == nameof(FloatingWindowProfile.FloatingWindowHidingRules))
+        {
+            // Ruleset 对象被替换时，重新注册事件
+            UnregisterHidingRulesEvents();
+            RegisterHidingRulesEvents();
+            IAppHost.GetService<FloatingWindowService>().ProfileManager.SaveProfile();
+        }
     }
 
     /// <summary>
@@ -119,10 +124,23 @@ public partial class FloatingWindowEditorSettingsPage : SettingsPageBase
         ViewModel.CurrentFloatingWindowProfile.PropertyChanged += OnProfilePropertyChanged;
 
         // 重新注册悬浮窗规则集变更监听
+        UnregisterHidingRulesEvents();
+        RegisterHidingRulesEvents();
+    }
+
+    private void RegisterHidingRulesEvents()
+    {
+        if (ViewModel.CurrentFloatingWindowProfile.FloatingWindowHidingRules is INotifyPropertyChanged hidingRules)
+        {
+            hidingRules.PropertyChanged += OnHidingRulesPropertyChanged;
+        }
+    }
+
+    private void UnregisterHidingRulesEvents()
+    {
         if (ViewModel.CurrentFloatingWindowProfile.FloatingWindowHidingRules is INotifyPropertyChanged hidingRules)
         {
             hidingRules.PropertyChanged -= OnHidingRulesPropertyChanged;
-            hidingRules.PropertyChanged += OnHidingRulesPropertyChanged;
         }
     }
 
@@ -254,6 +272,8 @@ public partial class FloatingWindowEditorSettingsPage : SettingsPageBase
         ViewModel.RemoveTriggerToPool(buttonId);
     }
 
+    // ===== 规则集 Drawer（参照 ClassIsland，含 IsVisible/HideOnRule 开关） =====
+
     /// <summary>
     /// 按钮规则集按钮点击：打开该按钮的规则集 Drawer
     /// </summary>
@@ -269,14 +289,11 @@ public partial class FloatingWindowEditorSettingsPage : SettingsPageBase
         if (item == null) return;
 
         ViewModel.SelectedFloatingTriggerItem = item;
+        _currentRulesetTarget = RulesetTargetType.Button;
+        _currentButtonTarget = item;
+        _currentRowTarget = null;
 
-        // 自动启用按钮规则集，确保规则集生效
-        item.Config.HideOnRule = true;
-
-        if (this.FindResource("RulesetControl") is not ClassIsland.Core.Controls.Ruleset.RulesetControl control)
-            return;
-        control.Ruleset = item.Config.HidingRules;
-        OpenDrawer("RulesetControl");
+        OpenRulesetDrawer(item.Config.HidingRules, item.Config.IsVisible, item.Config.HideOnRule);
     }
 
     /// <summary>
@@ -287,19 +304,103 @@ public partial class FloatingWindowEditorSettingsPage : SettingsPageBase
         if (sender is not Control control)
             return;
 
-        // 通过 DataContext 获取所属行（比视觉树遍历更可靠）
+        // 通过 DataContext 获取所属行
         var row = control.DataContext as FloatingTriggerRow;
         if (row == null) return;
 
         ViewModel.SelectedFloatingTriggerRow = row;
+        _currentRulesetTarget = RulesetTargetType.Row;
+        _currentRowTarget = row;
+        _currentButtonTarget = null;
 
-        // 自动启用行规则集，确保规则集生效
-        row.RowRuleset.HideOnRule = true;
+        OpenRulesetDrawer(row.RowRuleset.HidingRules, row.RowRuleset.IsVisible, row.RowRuleset.HideOnRule);
+    }
 
-        if (this.FindResource("RulesetControl") is not ClassIsland.Core.Controls.Ruleset.RulesetControl rulesetControl)
+    private void ButtonOpenFloatingWindowRuleset_OnClick(object? sender, RoutedEventArgs e)
+    {
+        _currentRulesetTarget = RulesetTargetType.Window;
+        _currentButtonTarget = null;
+        _currentRowTarget = null;
+
+        var profile = ViewModel.CurrentFloatingWindowProfile;
+        OpenRulesetDrawer(profile.FloatingWindowHidingRules, true, profile.FloatingWindowHideOnRule);
+    }
+
+    /// <summary>
+    /// 打开规则集 Drawer，包含 IsVisible/HideOnRule 开关和规则集编辑器
+    /// </summary>
+    private void OpenRulesetDrawer(ClassIsland.Core.Models.Ruleset.Ruleset ruleset, bool isVisible, bool hideOnRule)
+    {
+        if (this.FindResource("RulesetDrawerContent") is not StackPanel panel)
             return;
-        rulesetControl.Ruleset = row.RowRuleset.HidingRules;
-        OpenDrawer("RulesetControl");
+
+        // 找到 Drawer 内的控件
+        if (panel.Children.Count >= 2
+            && panel.Children[0] is StackPanel togglesPanel
+            && panel.Children[1] is RulesetControl rulesetControl)
+        {
+            // 设置 IsVisible 开关
+            if (togglesPanel.Children.Count >= 2
+                && togglesPanel.Children[0] is ToggleSwitch isVisibleToggle
+                && togglesPanel.Children[1] is ToggleSwitch hideOnRuleToggle)
+            {
+                isVisibleToggle.IsChecked = isVisible;
+                isVisibleToggle.IsCheckedChanged -= OnDrawerIsVisibleChanged;
+                isVisibleToggle.IsCheckedChanged += OnDrawerIsVisibleChanged;
+
+                hideOnRuleToggle.IsChecked = hideOnRule;
+                hideOnRuleToggle.IsCheckedChanged -= OnDrawerHideOnRuleChanged;
+                hideOnRuleToggle.IsCheckedChanged += OnDrawerHideOnRuleChanged;
+
+                // 按钮和行才显示 IsVisible 开关，悬浮窗级别隐藏
+                isVisibleToggle.IsVisible = _currentRulesetTarget != RulesetTargetType.Window;
+            }
+
+            rulesetControl.Ruleset = ruleset;
+        }
+
+        OpenDrawer("RulesetDrawerContent");
+    }
+
+    private void OnDrawerIsVisibleChanged(object? sender, RoutedEventArgs e)
+    {
+        if (sender is not ToggleSwitch toggle) return;
+        var value = toggle.IsChecked == true;
+
+        switch (_currentRulesetTarget)
+        {
+            case RulesetTargetType.Button when _currentButtonTarget != null:
+                _currentButtonTarget.Config.IsVisible = value;
+                break;
+            case RulesetTargetType.Row when _currentRowTarget != null:
+                _currentRowTarget.RowRuleset.IsVisible = value;
+                break;
+        }
+
+        IAppHost.GetService<FloatingWindowService>().ProfileManager.SaveProfile();
+        IAppHost.GetService<FloatingWindowService>().UpdateWindowState();
+    }
+
+    private void OnDrawerHideOnRuleChanged(object? sender, RoutedEventArgs e)
+    {
+        if (sender is not ToggleSwitch toggle) return;
+        var value = toggle.IsChecked == true;
+
+        switch (_currentRulesetTarget)
+        {
+            case RulesetTargetType.Button when _currentButtonTarget != null:
+                _currentButtonTarget.Config.HideOnRule = value;
+                break;
+            case RulesetTargetType.Row when _currentRowTarget != null:
+                _currentRowTarget.RowRuleset.HideOnRule = value;
+                break;
+            case RulesetTargetType.Window:
+                ViewModel.CurrentFloatingWindowProfile.FloatingWindowHideOnRule = value;
+                break;
+        }
+
+        IAppHost.GetService<FloatingWindowService>().ProfileManager.SaveProfile();
+        IAppHost.GetService<FloatingWindowService>().UpdateWindowState();
     }
 
     // ===== 选中状态处理 =====
@@ -386,15 +487,6 @@ public partial class FloatingWindowEditorSettingsPage : SettingsPageBase
         e.Handled = true;
     }
 
-    /// <summary>
-    /// 组件库项按下：开始从组件库拖拽
-    /// </summary>
-    private void OnPoolItemPointerPressed(object? sender, PointerPressedEventArgs e)
-    {
-        // 组件库现在通过 SelectionChanged 点击添加，不再需要拖拽
-        // 保留此方法以避免编译错误，但不再执行拖拽逻辑
-    }
-
     protected override void OnPointerMoved(PointerEventArgs e)
     {
         base.OnPointerMoved(e);
@@ -422,11 +514,8 @@ public partial class FloatingWindowEditorSettingsPage : SettingsPageBase
         {
             // 按钮拖拽（行内/跨行/从组件库）
             var data = new DataObject();
-            data.Set("FloatingWindowButton", new FloatingWindowButtonDragData
-            {
-                Item = _dragItem,
-                SourceCollection = _dragSourceCollection
-            });
+            data.Set("FloatingWindowButtonId", _dragItem.ButtonId);
+            data.Set("FloatingWindowButtonSource", _dragSourceCollection);
             DragDrop.DoDragDrop(e, data, DragDropEffects.Move);
         }
 
@@ -445,21 +534,11 @@ public partial class FloatingWindowEditorSettingsPage : SettingsPageBase
         _isDragging = false;
     }
 
-    // ===== 规则集 Drawer（参照 ClassIsland） =====
-
-    private void ButtonOpenFloatingWindowRuleset_OnClick(object? sender, RoutedEventArgs e)
-    {
-        if (this.FindResource("RulesetControl") is not ClassIsland.Core.Controls.Ruleset.RulesetControl control)
-            return;
-        control.Ruleset = ViewModel.CurrentFloatingWindowProfile.FloatingWindowHidingRules;
-        OpenDrawer("RulesetControl");
-    }
-
     // ===== 行区域拖放处理 =====
 
     private void OnRowDropBorderDragOver(object? sender, DragEventArgs e)
     {
-        if (e.Data.Contains("FloatingWindowButton"))
+        if (e.Data.Contains("FloatingWindowButtonId") || e.Data.Contains("FloatingWindowRow"))
         {
             e.DragEffects = DragDropEffects.Move;
             e.Handled = true;
@@ -472,14 +551,42 @@ public partial class FloatingWindowEditorSettingsPage : SettingsPageBase
 
     private void OnRowDropBorderDrop(object? sender, DragEventArgs e)
     {
-        if (!e.Data.Contains("FloatingWindowButton"))
-            return;
-
-        var dragData = e.Data.Get("FloatingWindowButton") as FloatingWindowButtonDragData;
-        if (dragData?.Item == null)
-            return;
-
         e.Handled = true;
+
+        // 处理行拖拽排序
+        if (e.Data.Contains("FloatingWindowRow"))
+        {
+            var sourceRow = e.Data.Get("FloatingWindowRow") as FloatingTriggerRow;
+            if (sourceRow == null) return;
+
+            var targetIndex = FindTargetRowIndex(e, sender as Control);
+            if (targetIndex < 0) return;
+
+            var sourceIndex = ViewModel.FloatingTriggerRows.IndexOf(sourceRow);
+            if (sourceIndex < 0 || sourceIndex == targetIndex) return;
+
+            // 移动行
+            ViewModel.FloatingTriggerRows.RemoveAt(sourceIndex);
+            if (targetIndex > sourceIndex) targetIndex--;
+            ViewModel.FloatingTriggerRows.Insert(targetIndex, sourceRow);
+
+            // 重新计算行索引
+            for (int i = 0; i < ViewModel.FloatingTriggerRows.Count; i++)
+            {
+                ViewModel.FloatingTriggerRows[i].RowIndex = i + 1;
+            }
+
+            ViewModel.PersistFloatingTriggerRows();
+            return;
+        }
+
+        // 处理按钮拖拽
+        if (!e.Data.Contains("FloatingWindowButtonId")) return;
+
+        var buttonId = e.Data.Get("FloatingWindowButtonId") as string;
+        if (string.IsNullOrEmpty(buttonId)) return;
+
+        var sourceCollection = e.Data.Get("FloatingWindowButtonSource") as ObservableCollection<FloatingTriggerItem>;
 
         // 确定目标行和位置
         if (ViewModel.FloatingTriggerRows.Count == 0)
@@ -487,44 +594,130 @@ public partial class FloatingWindowEditorSettingsPage : SettingsPageBase
             ViewModel.AddFloatingTriggerRow();
         }
 
-        var targetRowIndex = 0;
-        var targetIndex = ViewModel.FloatingTriggerRows[0].Buttons.Count;
+        var targetRowIndex = FindTargetRowIndex(e, sender as Control);
+        if (targetRowIndex < 0) targetRowIndex = 0;
+        targetRowIndex = System.Math.Clamp(targetRowIndex, 0, ViewModel.FloatingTriggerRows.Count - 1);
+        var targetIndex = ViewModel.FloatingTriggerRows[targetRowIndex].Buttons.Count;
 
-        // 尝试确定更精确的放置位置
-        if (sender is Control targetControl)
+        if (sourceCollection == null)
         {
-            var pos = e.GetPosition(targetControl);
-            // 找到最近的行
-            if (this.FindControl<ListBox>("ListBoxRows") is ListBox rowsList)
+            // 从组件库拖入
+            ViewModel.AddTriggerFromPool(buttonId, targetRowIndex, targetIndex);
+        }
+        else
+        {
+            // 从其他行拖入
+            ViewModel.MoveFloatingTrigger(buttonId, targetRowIndex, targetIndex);
+        }
+    }
+
+    /// <summary>
+    /// 根据拖放位置确定目标行索引
+    /// </summary>
+    private int FindTargetRowIndex(DragEventArgs e, Control? targetControl)
+    {
+        if (targetControl == null) return -1;
+
+        var pos = e.GetPosition(targetControl);
+        if (this.FindControl<ListBox>("ListBoxRows") is not ListBox rowsList)
+            return -1;
+
+        for (int i = 0; i < ViewModel.FloatingTriggerRows.Count; i++)
+        {
+            if (rowsList.ContainerFromIndex(i) is ListBoxItem lbi)
             {
-                for (int i = 0; i < ViewModel.FloatingTriggerRows.Count; i++)
+                var transform = lbi.TransformToVisual(rowsList);
+                if (transform == null) continue;
+                var itemPos = transform.Value.Transform(new Point(0, 0));
+                var itemBounds = lbi.Bounds;
+                if (pos.Y >= itemPos.Y && pos.Y <= itemPos.Y + itemBounds.Height)
                 {
-                    if (rowsList.ContainerFromIndex(i) is ListBoxItem lbi)
+                    return i;
+                }
+            }
+        }
+
+        return -1;
+    }
+
+    // ===== 行内按钮拖放处理 =====
+
+    private void OnInnerButtonDragOver(object? sender, DragEventArgs e)
+    {
+        if (e.Data.Contains("FloatingWindowButtonId"))
+        {
+            e.DragEffects = DragDropEffects.Move;
+            e.Handled = true;
+        }
+        else
+        {
+            e.DragEffects = DragDropEffects.None;
+        }
+    }
+
+    private void OnInnerButtonDrop(object? sender, DragEventArgs e)
+    {
+        if (!e.Data.Contains("FloatingWindowButtonId")) return;
+
+        var buttonId = e.Data.Get("FloatingWindowButtonId") as string;
+        if (string.IsNullOrEmpty(buttonId)) return;
+
+        var sourceCollection = e.Data.Get("FloatingWindowButtonSource") as ObservableCollection<FloatingTriggerItem>;
+
+        // 通过 DataContext 获取目标行
+        if (sender is not Control targetControl) return;
+        var targetRow = targetControl.DataContext as FloatingTriggerRow;
+        if (targetRow == null) return;
+
+        var targetRowIndex = ViewModel.FloatingTriggerRows.IndexOf(targetRow);
+        if (targetRowIndex < 0) return;
+
+        // 尝试确定精确的插入位置
+        var targetIndex = targetRow.Buttons.Count;
+        if (sender is ListBox listBox)
+        {
+            var pos = e.GetPosition(listBox);
+            for (int i = 0; i < targetRow.Buttons.Count; i++)
+            {
+                if (listBox.ContainerFromIndex(i) is ListBoxItem lbi)
+                {
+                    var itemPos = lbi.TransformToVisual(listBox).Value.Transform(new Point(0, 0));
+                    var itemBounds = lbi.Bounds;
+                    if (pos.X >= itemPos.X && pos.X <= itemPos.X + itemBounds.Width / 2)
                     {
-                        var transform = lbi.TransformToVisual(rowsList);
-                        if (transform == null) continue;
-                        var itemPos = transform.Value.Transform(new Point(0, 0));
-                        var itemBounds = lbi.Bounds;
-                        if (pos.Y >= itemPos.Y && pos.Y <= itemPos.Y + itemBounds.Height)
-                        {
-                            targetRowIndex = i;
-                            targetIndex = ViewModel.FloatingTriggerRows[i].Buttons.Count;
-                            break;
-                        }
+                        targetIndex = i;
+                        break;
+                    }
+                    if (pos.X <= itemPos.X + itemBounds.Width && i == targetRow.Buttons.Count - 1)
+                    {
+                        targetIndex = i + 1;
                     }
                 }
             }
         }
 
-        if (dragData.SourceCollection == null)
+        e.Handled = true;
+
+        if (sourceCollection == null)
         {
             // 从组件库拖入
-            ViewModel.AddTriggerFromPool(dragData.Item.ButtonId, targetRowIndex, targetIndex);
+            ViewModel.AddTriggerFromPool(buttonId, targetRowIndex, targetIndex);
+        }
+        else if (!ReferenceEquals(sourceCollection, targetRow.Buttons))
+        {
+            // 跨行移动
+            ViewModel.MoveFloatingTrigger(buttonId, targetRowIndex, targetIndex);
         }
         else
         {
-            // 从其他行拖入
-            ViewModel.MoveFloatingTrigger(dragData.Item.ButtonId, targetRowIndex, targetIndex);
+            // 行内排序
+            var item = targetRow.Buttons.FirstOrDefault(b => b.ButtonId == buttonId);
+            if (item == null) return;
+            var sourceIndex = targetRow.Buttons.IndexOf(item);
+            if (sourceIndex < 0 || sourceIndex == targetIndex) return;
+
+            targetRow.Buttons.Move(sourceIndex, System.Math.Clamp(targetIndex, 0, targetRow.Buttons.Count - 1));
+            ViewModel.PersistFloatingTriggerRows();
         }
     }
 }

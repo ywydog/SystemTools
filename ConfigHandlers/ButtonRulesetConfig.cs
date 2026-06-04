@@ -14,13 +14,10 @@ public partial class ButtonRulesetConfig : ObservableObject
     private bool _isVisible = true;
 
     [ObservableProperty]
-    [JsonPropertyName("position")]
-    private int _position = -1;
-
-    [ObservableProperty]
     [JsonPropertyName("hideOnRule")]
     private bool _hideOnRule;
 
+    [ObservableProperty]
     [JsonPropertyName("hidingRules")]
-    public Ruleset HidingRules { get; set; } = new();
+    private Ruleset _hidingRules = new();
 }

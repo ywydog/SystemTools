@@ -543,6 +543,7 @@ public partial class SystemToolsSettingsViewModel : ObservableObject, IDisposabl
         var targetRow = index > 0 ? FloatingTriggerRows[index - 1] : FloatingTriggerRows[index + 1];
         foreach (var item in row.Buttons)
         {
+            // 按钮的 Config 事件监听保持不变（对象引用不变，事件仍有效）
             targetRow.Buttons.Add(item);
         }
 
@@ -623,6 +624,21 @@ public partial class SystemToolsSettingsViewModel : ObservableObject, IDisposabl
         targetIndex = Math.Clamp(targetIndex, 0, destinationRow.Buttons.Count);
 
         AvailableFloatingTriggerItems.Remove(poolItem);
+
+        // 确保按钮有 Config（池项可能没有），并注册事件监听
+        var profile = CurrentFloatingWindowProfile;
+        if (!profile.FloatingWindowButtonRulesets.TryGetValue(buttonId, out var btnConfig))
+        {
+            btnConfig = new ButtonRulesetConfig();
+            profile.FloatingWindowButtonRulesets[buttonId] = btnConfig;
+        }
+        poolItem.Config = btnConfig;
+        poolItem.Config.PropertyChanged += OnButtonConfigPropertyChanged;
+        if (poolItem.Config.HidingRules is INotifyPropertyChanged btnHidingRules)
+        {
+            btnHidingRules.PropertyChanged += OnButtonConfigPropertyChanged;
+        }
+
         destinationRow.Buttons.Insert(targetIndex, poolItem);
         PersistFloatingTriggerRows();
         return true;
@@ -703,7 +719,22 @@ public partial class SystemToolsSettingsViewModel : ObservableObject, IDisposabl
         // 同步每行的 RowRuleset 引用（确保ViewModel中的修改反映到profile）
         for (int i = 0; i < FloatingTriggerRows.Count; i++)
         {
-            FloatingTriggerRows[i].RowRuleset = rowRulesets[i];
+            var vmRow = FloatingTriggerRows[i];
+            if (!ReferenceEquals(vmRow.RowRuleset, rowRulesets[i]))
+            {
+                // RowRuleset 引用变更时，重新注册事件
+                vmRow.RowRuleset.PropertyChanged -= OnRowRulesetPropertyChanged;
+                if (vmRow.RowRuleset.HidingRules is INotifyPropertyChanged oldHidingRules)
+                {
+                    oldHidingRules.PropertyChanged -= OnRowRulesetPropertyChanged;
+                }
+                vmRow.RowRuleset = rowRulesets[i];
+                vmRow.RowRuleset.PropertyChanged += OnRowRulesetPropertyChanged;
+                if (vmRow.RowRuleset.HidingRules is INotifyPropertyChanged newHidingRules)
+                {
+                    newHidingRules.PropertyChanged += OnRowRulesetPropertyChanged;
+                }
+            }
         }
 
         // 清理不再使用的按钮规则集配置

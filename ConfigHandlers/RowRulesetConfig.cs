@@ -17,6 +17,7 @@ public partial class RowRulesetConfig : ObservableObject
     [JsonPropertyName("hideOnRule")]
     private bool _hideOnRule;
 
+    [ObservableProperty]
     [JsonPropertyName("hidingRules")]
-    public Ruleset HidingRules { get; set; } = new();
+    private Ruleset _hidingRules = new();
 }
