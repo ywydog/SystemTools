@@ -340,25 +340,25 @@ public partial class FloatingWindowEditorSettingsPage : SettingsPageBase
         var panel = new StackPanel { Spacing = 8, Margin = new Thickness(0, 8, 0, 0) };
 
         // 开关面板
-        var togglesPanel = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 16, Margin = new Thickness(0, 0, 0, 8) };
+        var togglesPanel = new StackPanel { Orientation = Avalonia.Layout.Orientation.Horizontal, Spacing = 16, Margin = new Thickness(0, 0, 0, 8) };
 
         _drawerIsVisibleToggle = new ToggleSwitch
         {
             OnContent = "显示",
             OffContent = "隐藏",
-            ToolTip.Tip = "控制此项目是否显示",
             IsChecked = isVisible,
             IsVisible = _currentRulesetTarget != RulesetTargetType.Window
         };
+        ToolTip.SetTip(_drawerIsVisibleToggle, "控制此项目是否显示");
         _drawerIsVisibleToggle.IsCheckedChanged += OnDrawerIsVisibleChanged;
 
         _drawerHideOnRuleToggle = new ToggleSwitch
         {
             OnContent = "按规则隐藏",
             OffContent = "禁用规则",
-            ToolTip.Tip = "启用后，满足规则集条件时自动隐藏",
             IsChecked = hideOnRule
         };
+        ToolTip.SetTip(_drawerHideOnRuleToggle, "启用后，满足规则集条件时自动隐藏");
         _drawerHideOnRuleToggle.IsCheckedChanged += OnDrawerHideOnRuleChanged;
 
         togglesPanel.Children.Add(_drawerIsVisibleToggle);
@@ -525,7 +525,7 @@ public partial class FloatingWindowEditorSettingsPage : SettingsPageBase
             // 按钮拖拽（行内/跨行/从组件库）
             var data = new DataObject();
             data.Set("FloatingWindowButtonId", _dragItem.ButtonId);
-            data.Set("FloatingWindowButtonSource", _dragSourceCollection);
+            data.Set("FloatingWindowButtonSource", _dragSourceCollection!);
             DragDrop.DoDragDrop(e, data, DragDropEffects.Move);
         }
 
@@ -569,16 +569,16 @@ public partial class FloatingWindowEditorSettingsPage : SettingsPageBase
             var sourceRow = e.Data.Get("FloatingWindowRow") as FloatingTriggerRow;
             if (sourceRow == null) return;
 
-            var targetIndex = FindTargetRowIndex(e, sender as Control);
-            if (targetIndex < 0) return;
+            var rowTargetIndex = FindTargetRowIndex(e, sender as Control);
+            if (rowTargetIndex < 0) return;
 
             var sourceIndex = ViewModel.FloatingTriggerRows.IndexOf(sourceRow);
-            if (sourceIndex < 0 || sourceIndex == targetIndex) return;
+            if (sourceIndex < 0 || sourceIndex == rowTargetIndex) return;
 
             // 移动行
             ViewModel.FloatingTriggerRows.RemoveAt(sourceIndex);
-            if (targetIndex > sourceIndex) targetIndex--;
-            ViewModel.FloatingTriggerRows.Insert(targetIndex, sourceRow);
+            if (rowTargetIndex > sourceIndex) rowTargetIndex--;
+            ViewModel.FloatingTriggerRows.Insert(rowTargetIndex, sourceRow);
 
             // 重新计算行索引
             for (int i = 0; i < ViewModel.FloatingTriggerRows.Count; i++)
@@ -607,17 +607,17 @@ public partial class FloatingWindowEditorSettingsPage : SettingsPageBase
         var targetRowIndex = FindTargetRowIndex(e, sender as Control);
         if (targetRowIndex < 0) targetRowIndex = 0;
         targetRowIndex = System.Math.Clamp(targetRowIndex, 0, ViewModel.FloatingTriggerRows.Count - 1);
-        var targetIndex = ViewModel.FloatingTriggerRows[targetRowIndex].Buttons.Count;
+        var btnTargetIndex = ViewModel.FloatingTriggerRows[targetRowIndex].Buttons.Count;
 
         if (sourceCollection == null)
         {
             // 从组件库拖入
-            ViewModel.AddTriggerFromPool(buttonId, targetRowIndex, targetIndex);
+            ViewModel.AddTriggerFromPool(buttonId, targetRowIndex, btnTargetIndex);
         }
         else
         {
             // 从其他行拖入
-            ViewModel.MoveFloatingTrigger(buttonId, targetRowIndex, targetIndex);
+            ViewModel.MoveFloatingTrigger(buttonId, targetRowIndex, btnTargetIndex);
         }
     }
 
@@ -691,7 +691,9 @@ public partial class FloatingWindowEditorSettingsPage : SettingsPageBase
             {
                 if (listBox.ContainerFromIndex(i) is ListBoxItem lbi)
                 {
-                    var itemPos = lbi.TransformToVisual(listBox).Value.Transform(new Point(0, 0));
+                    var transform = lbi.TransformToVisual(listBox);
+                    if (transform == null) continue;
+                    var itemPos = transform.Value.Transform(new Point(0, 0));
                     var itemBounds = lbi.Bounds;
                     if (pos.X >= itemPos.X && pos.X <= itemPos.X + itemBounds.Width / 2)
                     {
