@@ -52,14 +52,7 @@ public partial class FloatingWindowEditorSettingsPage : SettingsPageBase
 
     private bool _isDisposed;
 
-    // ===== 拖拽状态 =====
-    private FloatingTriggerItem? _dragItem;
-    private ObservableCollection<FloatingTriggerItem>? _dragSourceCollection;
-    private FloatingTriggerRow? _dragRow;
-    private bool _isDragging;
-    private Point _dragStartPoint;
-    // 触摸屏需要更大阈值，避免误触拖拽
-    private const double DragThreshold = 8.0;
+    // ===== 拖拽状态（已移除——拖拽现在直接在 PointerPressed 中启动） =====
 
     // ===== 规则集 Drawer 状态 =====
     private enum RulesetTargetType { Button, Row, Window }
@@ -473,13 +466,13 @@ public partial class FloatingWindowEditorSettingsPage : SettingsPageBase
         var row = control.DataContext as FloatingTriggerRow;
         if (row == null) return;
 
-        _dragRow = row;
-        _dragItem = null;
-        _dragSourceCollection = null;
-        _dragStartPoint = e.GetPosition(this);
-        _isDragging = false;
-
         e.Handled = true;
+
+        // 直接在 PointerPressed 中启动拖拽（TouchDragThumb 可能消费 PointerMoved 事件，
+        // 导致页面级别的 OnPointerMoved 收不到，因此不依赖 OnPointerMoved）
+        var data = new DataObject();
+        data.Set("FloatingWindowRow", row);
+        DragDrop.DoDragDrop(e, data, DragDropEffects.Move);
     }
 
     /// <summary>
@@ -493,60 +486,13 @@ public partial class FloatingWindowEditorSettingsPage : SettingsPageBase
         var row = ViewModel.FloatingTriggerRows.FirstOrDefault(r => r.Buttons.Contains(item));
         if (row == null) return;
 
-        _dragItem = item;
-        _dragSourceCollection = row.Buttons;
-        _dragRow = null;
-        _dragStartPoint = e.GetPosition(this);
-        _isDragging = false;
-
         e.Handled = true;
-    }
 
-    protected override void OnPointerMoved(PointerEventArgs e)
-    {
-        base.OnPointerMoved(e);
-
-        if (_dragItem == null && _dragRow == null) return;
-        if (_isDragging) return;
-
-        var currentPos = e.GetPosition(this);
-        var delta = currentPos - _dragStartPoint;
-
-        if (System.Math.Abs(delta.X) < DragThreshold && System.Math.Abs(delta.Y) < DragThreshold)
-            return;
-
-        _isDragging = true;
-
-        // 执行拖拽
-        if (_dragRow != null)
-        {
-            // 行拖拽
-            var data = new DataObject();
-            data.Set("FloatingWindowRow", _dragRow);
-            DragDrop.DoDragDrop(e, data, DragDropEffects.Move);
-        }
-        else if (_dragItem != null)
-        {
-            // 按钮拖拽（行内/跨行/从组件库）
-            var data = new DataObject();
-            data.Set("FloatingWindowButtonId", _dragItem.ButtonId);
-            data.Set("FloatingWindowButtonSource", _dragSourceCollection!);
-            DragDrop.DoDragDrop(e, data, DragDropEffects.Move);
-        }
-
-        _dragItem = null;
-        _dragSourceCollection = null;
-        _dragRow = null;
-        _isDragging = false;
-    }
-
-    protected override void OnPointerReleased(PointerReleasedEventArgs e)
-    {
-        base.OnPointerReleased(e);
-        _dragItem = null;
-        _dragSourceCollection = null;
-        _dragRow = null;
-        _isDragging = false;
+        // 直接启动拖拽（不依赖 OnPointerMoved，原因同行拖拽）
+        var data = new DataObject();
+        data.Set("FloatingWindowButtonId", item.ButtonId);
+        data.Set("FloatingWindowButtonSource", row.Buttons!);
+        DragDrop.DoDragDrop(e, data, DragDropEffects.Move);
     }
 
     // ===== 行区域拖放处理 =====

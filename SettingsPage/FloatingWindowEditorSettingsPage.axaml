@@ -114,12 +114,11 @@
                         </ListBox.ItemsPanel>
                         <ListBox.ItemTemplate>
                             <DataTemplate>
-                                <Grid ColumnDefinitions="Auto,*,Auto" MinHeight="40">
+                                <Grid ColumnDefinitions="Auto,*,Auto" MinHeight="44">
                                     <!-- 行拖拽把手 -->
                                     <ci:TouchDragThumb Grid.Column="0"
-                                                       Width="20"
+                                                       Width="28"
                                                        IsExplicitVisible="True"
-                                                       IsCompact="True"
                                                        VerticalAlignment="Center"
                                                        PointerPressed="OnRowDragThumbPointerPressed" />
 
@@ -141,23 +140,23 @@
                                             <DataTemplate>
                                                 <StackPanel Orientation="Horizontal" Spacing="2"
                                                             PointerPressed="OnButtonPointerPressed">
-                                                    <ci:TouchDragThumb Margin="-4,0,-2,0" IsCompact="True" VerticalAlignment="Center" />
+                                                    <ci:TouchDragThumb Margin="-2,0,0,0" VerticalAlignment="Center" />
                                                     <controls:IconSourceElement IconSource="{Binding IconSource}"
-                                                                                Width="16" Height="16"
+                                                                                Width="18" Height="18"
                                                                                 VerticalAlignment="Center" />
                                                     <TextBlock Text="{Binding ButtonName}"
-                                                               FontSize="12"
+                                                               FontSize="13"
                                                                VerticalAlignment="Center" />
                                                     <Button Content="{ci:FluentIcon &#xF17E;}"
-                                                            FontSize="10"
-                                                            Padding="2,0"
+                                                            FontSize="12"
+                                                            Padding="4,2"
                                                             ToolTip.Tip="规则集"
                                                             Click="OnButtonRulesetClick"
                                                             Theme="{StaticResource TransparentButton}"
                                                             Tag="{Binding ButtonId}" />
                                                     <Button Content="{ci:FluentIcon &#xE61D;}"
-                                                            FontSize="10"
-                                                            Padding="2,0"
+                                                            FontSize="12"
+                                                            Padding="4,2"
                                                             Foreground="{DynamicResource SystemFillColorCriticalBrush}"
                                                             Theme="{StaticResource TransparentButton}"
                                                             ToolTip.Tip="移除"
