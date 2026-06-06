@@ -52,7 +52,13 @@ public partial class FloatingWindowEditorSettingsPage : SettingsPageBase
 
     private bool _isDisposed;
 
-    // ===== 拖拽状态（已移除——拖拽现在直接在 PointerPressed 中启动） =====
+    // ===== 拖拽状态 =====
+    private const double DragThreshold = 4;
+    private Point? _rowDragStartPoint;
+    private FloatingTriggerRow? _rowDragSource;
+    private Point? _buttonDragStartPoint;
+    private Control? _buttonDragSourceThumb;
+    private FloatingTriggerItem? _buttonDragSourceItem;
 
     // ===== 规则集 Drawer 状态 =====
     private enum RulesetTargetType { Button, Row, Window }
@@ -453,46 +459,120 @@ public partial class FloatingWindowEditorSettingsPage : SettingsPageBase
         });
     }
 
-    // ===== 拖拽处理（标准 Avalonia DragDrop） =====
+    // ===== 拖拽处理（PointerPressed 记录 → PointerMoved 阈值判断 → DoDragDrop） =====
 
     /// <summary>
-    /// 行拖拽把手按下：开始行拖拽
+    /// 行拖拽把手按下：记录拖拽起始状态
     /// </summary>
     private void OnRowDragThumbPointerPressed(object? sender, PointerPressedEventArgs e)
     {
         if (sender is not Control control) return;
+        if (!e.GetCurrentPoint(control).Properties.IsLeftButtonPressed) return;
 
-        // 通过 DataContext 获取所属行
         var row = control.DataContext as FloatingTriggerRow;
         if (row == null) return;
 
-        e.Handled = true;
-
-        // 直接在 PointerPressed 中启动拖拽（TouchDragThumb 可能消费 PointerMoved 事件，
-        // 导致页面级别的 OnPointerMoved 收不到，因此不依赖 OnPointerMoved）
-        var data = new DataObject();
-        data.Set("FloatingWindowRow", row);
-        DragDrop.DoDragDrop(e, data, DragDropEffects.Move);
+        _rowDragSource = row;
+        _rowDragStartPoint = e.GetPosition(control);
+        e.Handled = e.Pointer.Type is PointerType.Touch or PointerType.Pen;
     }
 
     /// <summary>
-    /// 行内按钮按下：开始按钮拖拽
+    /// 行拖拽把手移动：超过阈值后启动拖拽
     /// </summary>
-    private void OnButtonPointerPressed(object? sender, PointerPressedEventArgs e)
+    private async void OnRowDragThumbPointerMoved(object? sender, PointerEventArgs e)
     {
-        if (sender is not Control control || control.DataContext is not FloatingTriggerItem item) return;
+        if (_rowDragSource == null || _rowDragStartPoint == null || sender is not Control control) return;
+        if (!e.GetCurrentPoint(control).Properties.IsLeftButtonPressed)
+        {
+            _rowDragSource = null;
+            _rowDragStartPoint = null;
+            return;
+        }
 
-        // 通过 ViewModel 查找所属行的 Buttons 集合
+        var now = e.GetPosition(control);
+        if (Math.Abs(now.X - _rowDragStartPoint.Value.X) + Math.Abs(now.Y - _rowDragStartPoint.Value.Y) < DragThreshold)
+            return;
+
+        var row = _rowDragSource;
+        _rowDragSource = null;
+        _rowDragStartPoint = null;
+
+        var data = new DataObject();
+        data.Set("FloatingWindowRow", row);
+        await DragDrop.DoDragDrop(e, data, DragDropEffects.Move);
+        e.Handled = e.Pointer.Type is PointerType.Touch or PointerType.Pen;
+    }
+
+    /// <summary>
+    /// 行拖拽把手释放：清除拖拽状态
+    /// </summary>
+    private void OnRowDragThumbPointerReleased(object? sender, PointerReleasedEventArgs e)
+    {
+        _rowDragSource = null;
+        _rowDragStartPoint = null;
+    }
+
+    /// <summary>
+    /// 按钮拖拽把手按下：记录拖拽起始状态
+    /// </summary>
+    private void OnButtonDragThumbPointerPressed(object? sender, PointerPressedEventArgs e)
+    {
+        if (sender is not Control control) return;
+        if (!e.GetCurrentPoint(control).Properties.IsLeftButtonPressed) return;
+
+        var item = control.DataContext as FloatingTriggerItem;
+        if (item == null) return;
+
+        _buttonDragSourceThumb = control;
+        _buttonDragSourceItem = item;
+        _buttonDragStartPoint = e.GetPosition(control);
+        e.Handled = e.Pointer.Type is PointerType.Touch or PointerType.Pen;
+    }
+
+    /// <summary>
+    /// 按钮拖拽把手移动：超过阈值后启动拖拽
+    /// </summary>
+    private async void OnButtonDragThumbPointerMoved(object? sender, PointerEventArgs e)
+    {
+        if (_buttonDragSourceThumb == null || _buttonDragSourceItem == null || _buttonDragStartPoint == null)
+            return;
+        if (sender is not Control control || _buttonDragSourceThumb != control) return;
+        if (!e.GetCurrentPoint(control).Properties.IsLeftButtonPressed)
+        {
+            _buttonDragSourceThumb = null;
+            _buttonDragSourceItem = null;
+            _buttonDragStartPoint = null;
+            return;
+        }
+
+        var now = e.GetPosition(control);
+        if (Math.Abs(now.X - _buttonDragStartPoint.Value.X) + Math.Abs(now.Y - _buttonDragStartPoint.Value.Y) < DragThreshold)
+            return;
+
+        var item = _buttonDragSourceItem;
         var row = ViewModel.FloatingTriggerRows.FirstOrDefault(r => r.Buttons.Contains(item));
+        _buttonDragSourceThumb = null;
+        _buttonDragSourceItem = null;
+        _buttonDragStartPoint = null;
+
         if (row == null) return;
 
-        e.Handled = true;
-
-        // 直接启动拖拽（不依赖 OnPointerMoved，原因同行拖拽）
         var data = new DataObject();
         data.Set("FloatingWindowButtonId", item.ButtonId);
         data.Set("FloatingWindowButtonSource", row.Buttons!);
-        DragDrop.DoDragDrop(e, data, DragDropEffects.Move);
+        await DragDrop.DoDragDrop(e, data, DragDropEffects.Move);
+        e.Handled = e.Pointer.Type is PointerType.Touch or PointerType.Pen;
+    }
+
+    /// <summary>
+    /// 按钮拖拽把手释放：清除拖拽状态
+    /// </summary>
+    private void OnButtonDragThumbPointerReleased(object? sender, PointerReleasedEventArgs e)
+    {
+        _buttonDragSourceThumb = null;
+        _buttonDragSourceItem = null;
+        _buttonDragStartPoint = null;
     }
 
     // ===== 行区域拖放处理 =====
