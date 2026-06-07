@@ -140,12 +140,11 @@
                                         </ListBox.ItemsPanel>
                                         <ListBox.ItemTemplate>
                                             <DataTemplate>
-                                                <StackPanel Orientation="Horizontal" Spacing="2">
-                                                    <ci:TouchDragThumb Margin="-2,0,0,0"
-                                                                       VerticalAlignment="Center"
-                                                                       PointerPressed="OnButtonDragThumbPointerPressed"
-                                                                       PointerMoved="OnButtonDragThumbPointerMoved"
-                                                                       PointerReleased="OnButtonDragThumbPointerReleased" />
+                                                <StackPanel Orientation="Horizontal" Spacing="2"
+                                                            PointerPressed="OnButtonPointerPressed"
+                                                            PointerMoved="OnButtonPointerMoved"
+                                                            PointerReleased="OnButtonPointerReleased">
+                                                    <ci:TouchDragThumb Margin="-2,0,0,0" VerticalAlignment="Center" />
                                                     <controls:IconSourceElement IconSource="{Binding IconSource}"
                                                                                 Width="18" Height="18"
                                                                                 VerticalAlignment="Center" />

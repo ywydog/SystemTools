@@ -514,9 +514,9 @@ public partial class FloatingWindowEditorSettingsPage : SettingsPageBase
     }
 
     /// <summary>
-    /// 按钮拖拽把手按下：记录拖拽起始状态
+    /// 按钮按下：记录拖拽起始状态
     /// </summary>
-    private void OnButtonDragThumbPointerPressed(object? sender, PointerPressedEventArgs e)
+    private void OnButtonPointerPressed(object? sender, PointerPressedEventArgs e)
     {
         if (sender is not Control control) return;
         if (!e.GetCurrentPoint(control).Properties.IsLeftButtonPressed) return;
@@ -531,9 +531,9 @@ public partial class FloatingWindowEditorSettingsPage : SettingsPageBase
     }
 
     /// <summary>
-    /// 按钮拖拽把手移动：超过阈值后启动拖拽
+    /// 按钮移动：超过阈值后启动拖拽
     /// </summary>
-    private async void OnButtonDragThumbPointerMoved(object? sender, PointerEventArgs e)
+    private async void OnButtonPointerMoved(object? sender, PointerEventArgs e)
     {
         if (_buttonDragSourceThumb == null || _buttonDragSourceItem == null || _buttonDragStartPoint == null)
             return;
@@ -566,9 +566,9 @@ public partial class FloatingWindowEditorSettingsPage : SettingsPageBase
     }
 
     /// <summary>
-    /// 按钮拖拽把手释放：清除拖拽状态
+    /// 按钮释放：清除拖拽状态
     /// </summary>
-    private void OnButtonDragThumbPointerReleased(object? sender, PointerReleasedEventArgs e)
+    private void OnButtonPointerReleased(object? sender, PointerReleasedEventArgs e)
     {
         _buttonDragSourceThumb = null;
         _buttonDragSourceItem = null;
