@@ -772,7 +772,8 @@ public class FloatingWindowService
 
         var values = _entries.Values
             .Where(x => !_rulesetHiddenButtons.Contains(x.ButtonId))
-            .ToDictionary(x => x.ButtonId, x => x);
+            .GroupBy(x => x.ButtonId)
+            .ToDictionary(g => g.Key, g => g.First());
 
         var rows = new List<List<FloatingWindowEntry>>();
 
