@@ -57,7 +57,6 @@ public partial class FloatingWindowEditorSettingsPage : SettingsPageBase
     private Point? _rowDragStartPoint;
     private FloatingTriggerRow? _rowDragSource;
     private Point? _buttonDragStartPoint;
-    private Control? _buttonDragSourceThumb;
     private FloatingTriggerItem? _buttonDragSourceItem;
 
     // ===== 规则集 Drawer 状态 =====
@@ -459,10 +458,14 @@ public partial class FloatingWindowEditorSettingsPage : SettingsPageBase
         });
     }
 
-    // ===== 拖拽处理（PointerPressed 记录 → PointerMoved 阈值判断 → DoDragDrop） =====
+    // ===== 拖拽处理（PointerPressed 记录 → TopLevel PointerMoved 阈值判断 → DoDragDrop） =====
+    // TouchDragThumb 继承自 Thumb，会捕获指针并消费 PointerMoved 事件，
+    // 因此 PointerMoved/Released 需挂载到 TopLevel 上才能收到（与 ClassIsland AdvancedManagedContextDragBehavior 同理）。
+
+    private TopLevel? _topLevel;
 
     /// <summary>
-    /// 行拖拽把手按下：记录拖拽起始状态
+    /// 行拖拽把手按下：记录拖拽起始状态，挂载 TopLevel 事件
     /// </summary>
     private void OnRowDragThumbPointerPressed(object? sender, PointerPressedEventArgs e)
     {
@@ -473,48 +476,14 @@ public partial class FloatingWindowEditorSettingsPage : SettingsPageBase
         if (row == null) return;
 
         _rowDragSource = row;
-        _rowDragStartPoint = e.GetPosition(control);
+        _rowDragStartPoint = e.GetPosition(null);
         e.Handled = e.Pointer.Type is PointerType.Touch or PointerType.Pen;
+
+        AttachTopLevelDragHandlers();
     }
 
     /// <summary>
-    /// 行拖拽把手移动：超过阈值后启动拖拽
-    /// </summary>
-    private async void OnRowDragThumbPointerMoved(object? sender, PointerEventArgs e)
-    {
-        if (_rowDragSource == null || _rowDragStartPoint == null || sender is not Control control) return;
-        if (!e.GetCurrentPoint(control).Properties.IsLeftButtonPressed)
-        {
-            _rowDragSource = null;
-            _rowDragStartPoint = null;
-            return;
-        }
-
-        var now = e.GetPosition(control);
-        if (Math.Abs(now.X - _rowDragStartPoint.Value.X) + Math.Abs(now.Y - _rowDragStartPoint.Value.Y) < DragThreshold)
-            return;
-
-        var row = _rowDragSource;
-        _rowDragSource = null;
-        _rowDragStartPoint = null;
-
-        var data = new DataObject();
-        data.Set("FloatingWindowRow", row);
-        await DragDrop.DoDragDrop(e, data, DragDropEffects.Move);
-        e.Handled = e.Pointer.Type is PointerType.Touch or PointerType.Pen;
-    }
-
-    /// <summary>
-    /// 行拖拽把手释放：清除拖拽状态
-    /// </summary>
-    private void OnRowDragThumbPointerReleased(object? sender, PointerReleasedEventArgs e)
-    {
-        _rowDragSource = null;
-        _rowDragStartPoint = null;
-    }
-
-    /// <summary>
-    /// 按钮按下：记录拖拽起始状态
+    /// 按钮按下：记录拖拽起始状态，挂载 TopLevel 事件
     /// </summary>
     private void OnButtonPointerPressed(object? sender, PointerPressedEventArgs e)
     {
@@ -524,55 +493,107 @@ public partial class FloatingWindowEditorSettingsPage : SettingsPageBase
         var item = control.DataContext as FloatingTriggerItem;
         if (item == null) return;
 
-        _buttonDragSourceThumb = control;
         _buttonDragSourceItem = item;
-        _buttonDragStartPoint = e.GetPosition(control);
+        _buttonDragStartPoint = e.GetPosition(null);
         e.Handled = e.Pointer.Type is PointerType.Touch or PointerType.Pen;
+
+        AttachTopLevelDragHandlers();
     }
 
-    /// <summary>
-    /// 按钮移动：超过阈值后启动拖拽
-    /// </summary>
-    private async void OnButtonPointerMoved(object? sender, PointerEventArgs e)
+    private void AttachTopLevelDragHandlers()
     {
-        if (_buttonDragSourceThumb == null || _buttonDragSourceItem == null || _buttonDragStartPoint == null)
-            return;
-        if (sender is not Control control || _buttonDragSourceThumb != control) return;
-        if (!e.GetCurrentPoint(control).Properties.IsLeftButtonPressed)
+        _topLevel = TopLevel.GetTopLevel(this);
+        if (_topLevel == null) return;
+
+        _topLevel.AddHandler(InputElement.PointerMovedEvent, OnTopLevelPointerMoved,
+            RoutingStrategies.Bubble, handledEventsToo: true);
+        _topLevel.AddHandler(InputElement.PointerReleasedEvent, OnTopLevelPointerReleased,
+            RoutingStrategies.Bubble, handledEventsToo: true);
+        _topLevel.AddHandler(InputElement.PointerCaptureLostEvent, OnTopLevelPointerCaptureLost,
+            RoutingStrategies.Bubble, handledEventsToo: true);
+    }
+
+    private void DetachTopLevelDragHandlers()
+    {
+        if (_topLevel == null) return;
+
+        _topLevel.RemoveHandler(InputElement.PointerMovedEvent, OnTopLevelPointerMoved);
+        _topLevel.RemoveHandler(InputElement.PointerReleasedEvent, OnTopLevelPointerReleased);
+        _topLevel.RemoveHandler(InputElement.PointerCaptureLostEvent, OnTopLevelPointerCaptureLost);
+        _topLevel = null;
+    }
+
+    private async void OnTopLevelPointerMoved(object? sender, PointerEventArgs e)
+    {
+        // 行拖拽
+        if (_rowDragSource != null && _rowDragStartPoint != null)
         {
-            _buttonDragSourceThumb = null;
-            _buttonDragSourceItem = null;
-            _buttonDragStartPoint = null;
+            if (!e.GetCurrentPoint(this).Properties.IsLeftButtonPressed)
+            {
+                CancelDrag();
+                return;
+            }
+
+            var now = e.GetPosition(null);
+            if (Math.Abs(now.X - _rowDragStartPoint.Value.X) + Math.Abs(now.Y - _rowDragStartPoint.Value.Y) < DragThreshold)
+                return;
+
+            var row = _rowDragSource;
+            _rowDragSource = null;
+            _rowDragStartPoint = null;
+            DetachTopLevelDragHandlers();
+
+            var data = new DataObject();
+            data.Set("FloatingWindowRow", row);
+            await DragDrop.DoDragDrop(e, data, DragDropEffects.Move);
             return;
         }
 
-        var now = e.GetPosition(control);
-        if (Math.Abs(now.X - _buttonDragStartPoint.Value.X) + Math.Abs(now.Y - _buttonDragStartPoint.Value.Y) < DragThreshold)
-            return;
+        // 按钮拖拽
+        if (_buttonDragSourceItem != null && _buttonDragStartPoint != null)
+        {
+            if (!e.GetCurrentPoint(this).Properties.IsLeftButtonPressed)
+            {
+                CancelDrag();
+                return;
+            }
 
-        var item = _buttonDragSourceItem;
-        var row = ViewModel.FloatingTriggerRows.FirstOrDefault(r => r.Buttons.Contains(item));
-        _buttonDragSourceThumb = null;
-        _buttonDragSourceItem = null;
-        _buttonDragStartPoint = null;
+            var now = e.GetPosition(null);
+            if (Math.Abs(now.X - _buttonDragStartPoint.Value.X) + Math.Abs(now.Y - _buttonDragStartPoint.Value.Y) < DragThreshold)
+                return;
 
-        if (row == null) return;
+            var item = _buttonDragSourceItem;
+            var row = ViewModel.FloatingTriggerRows.FirstOrDefault(r => r.Buttons.Contains(item));
+            _buttonDragSourceItem = null;
+            _buttonDragStartPoint = null;
+            DetachTopLevelDragHandlers();
 
-        var data = new DataObject();
-        data.Set("FloatingWindowButtonId", item.ButtonId);
-        data.Set("FloatingWindowButtonSource", row.Buttons!);
-        await DragDrop.DoDragDrop(e, data, DragDropEffects.Move);
-        e.Handled = e.Pointer.Type is PointerType.Touch or PointerType.Pen;
+            if (row == null) return;
+
+            var data = new DataObject();
+            data.Set("FloatingWindowButtonId", item.ButtonId);
+            data.Set("FloatingWindowButtonSource", row.Buttons!);
+            await DragDrop.DoDragDrop(e, data, DragDropEffects.Move);
+        }
     }
 
-    /// <summary>
-    /// 按钮释放：清除拖拽状态
-    /// </summary>
-    private void OnButtonPointerReleased(object? sender, PointerReleasedEventArgs e)
+    private void OnTopLevelPointerReleased(object? sender, PointerReleasedEventArgs e)
     {
-        _buttonDragSourceThumb = null;
+        CancelDrag();
+    }
+
+    private void OnTopLevelPointerCaptureLost(object? sender, PointerCaptureLostEventArgs e)
+    {
+        CancelDrag();
+    }
+
+    private void CancelDrag()
+    {
+        _rowDragSource = null;
+        _rowDragStartPoint = null;
         _buttonDragSourceItem = null;
         _buttonDragStartPoint = null;
+        DetachTopLevelDragHandlers();
     }
 
     // ===== 行区域拖放处理 =====
