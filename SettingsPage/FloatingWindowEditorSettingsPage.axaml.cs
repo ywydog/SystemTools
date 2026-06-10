@@ -480,16 +480,25 @@ public partial class FloatingWindowEditorSettingsPage : SettingsPageBase
         var source = e.Source as Control;
         if (source == null) return;
 
-        // 判断是否点击了行拖拽把手（TouchDragThumb 在行 Grid 的 Column=0）
-        var rowDragThumb = source.FindAncestorOfType<ClassIsland.Core.Controls.TouchDragThumb>();
-        if (rowDragThumb != null)
+        // 判断是否点击了 TouchDragThumb（行把手或按钮把手）
+        var dragThumb = source.FindAncestorOfType<ClassIsland.Core.Controls.TouchDragThumb>();
+        if (dragThumb != null)
         {
-            // 确认这个 TouchDragThumb 属于行（不是按钮内的）
-            var row = rowDragThumb.DataContext as FloatingTriggerRow;
-            if (row != null)
+            // 行拖拽把手：DataContext 是 FloatingTriggerRow
+            if (dragThumb.DataContext is FloatingTriggerRow row)
             {
                 _rowDragSource = row;
                 _rowDragStartPoint = e.GetPosition(null);
+                e.Handled = e.Pointer.Type is PointerType.Touch or PointerType.Pen;
+                AttachTopLevelDragHandlers();
+                return;
+            }
+
+            // 按钮拖拽把手：DataContext 是 FloatingTriggerItem
+            if (dragThumb.DataContext is FloatingTriggerItem thumbItem)
+            {
+                _buttonDragSourceItem = thumbItem;
+                _buttonDragStartPoint = e.GetPosition(null);
                 e.Handled = e.Pointer.Type is PointerType.Touch or PointerType.Pen;
                 AttachTopLevelDragHandlers();
                 return;
@@ -500,8 +509,8 @@ public partial class FloatingWindowEditorSettingsPage : SettingsPageBase
         var buttonItem = source.DataContext as FloatingTriggerItem;
         if (buttonItem != null)
         {
-            // 排除点击规则集/删除按钮（它们的 Tag 绑定了 ButtonId）
-            if (source is Button) return;
+            // 排除点击规则集/删除按钮
+            if (source is Button || source.FindAncestorOfType<Button>() != null) return;
 
             _buttonDragSourceItem = buttonItem;
             _buttonDragStartPoint = e.GetPosition(null);
