@@ -46,6 +46,11 @@ public partial class FloatingWindowEditorSettingsPage : SettingsPageBase
 
         // 注册全局设置变更监听（ShowFloatingWindow 和规则集不随方案切换）
         RegisterHidingRulesEvents();
+
+        // TouchDragThumb 继承自 Thumb，Thumb.OnPointerPressed 会设置 e.Handled = true，
+        // 导致 XAML 绑定的 PointerPressed 处理器不触发。因此用 AddHandler + handledEventsToo 在页面级别捕获。
+        this.AddHandler(InputElement.PointerPressedEvent, OnPagePointerPressed,
+            RoutingStrategies.Bubble, handledEventsToo: true);
     }
 
     public SystemToolsSettingsViewModel ViewModel { get; }
@@ -458,46 +463,51 @@ public partial class FloatingWindowEditorSettingsPage : SettingsPageBase
         });
     }
 
-    // ===== 拖拽处理（PointerPressed 记录 → TopLevel PointerMoved 阈值判断 → DoDragDrop） =====
-    // TouchDragThumb 继承自 Thumb，会捕获指针并消费 PointerMoved 事件，
-    // 因此 PointerMoved/Released 需挂载到 TopLevel 上才能收到（与 ClassIsland AdvancedManagedContextDragBehavior 同理）。
+    // ===== 拖拽处理（页面级 PointerPressed → TopLevel PointerMoved 阈值判断 → DoDragDrop） =====
+    // TouchDragThumb 继承自 Thumb，Thumb.OnPointerPressed 设置 e.Handled = true 并捕获指针，
+    // 导致 XAML 绑定的 PointerPressed 处理器不触发。因此用 AddHandler + handledEventsToo 在页面级别捕获，
+    // 然后通过视觉树判断事件来源是行把手还是按钮区域。PointerMoved/Released 挂载到 TopLevel（同理）。
 
     private TopLevel? _topLevel;
 
     /// <summary>
-    /// 行拖拽把手按下：记录拖拽起始状态，挂载 TopLevel 事件
+    /// 页面级 PointerPressed：判断来源是行拖拽把手还是按钮区域，记录拖拽起始状态
     /// </summary>
-    private void OnRowDragThumbPointerPressed(object? sender, PointerPressedEventArgs e)
+    private void OnPagePointerPressed(object? sender, PointerPressedEventArgs e)
     {
-        if (sender is not Control control) return;
-        if (!e.GetCurrentPoint(control).Properties.IsLeftButtonPressed) return;
+        if (!e.GetCurrentPoint(this).Properties.IsLeftButtonPressed) return;
 
-        var row = control.DataContext as FloatingTriggerRow;
-        if (row == null) return;
+        var source = e.Source as Control;
+        if (source == null) return;
 
-        _rowDragSource = row;
-        _rowDragStartPoint = e.GetPosition(null);
-        e.Handled = e.Pointer.Type is PointerType.Touch or PointerType.Pen;
+        // 判断是否点击了行拖拽把手（TouchDragThumb 在行 Grid 的 Column=0）
+        var rowDragThumb = source.FindAncestorOfType<ClassIsland.Core.Controls.TouchDragThumb>();
+        if (rowDragThumb != null)
+        {
+            // 确认这个 TouchDragThumb 属于行（不是按钮内的）
+            var row = rowDragThumb.DataContext as FloatingTriggerRow;
+            if (row != null)
+            {
+                _rowDragSource = row;
+                _rowDragStartPoint = e.GetPosition(null);
+                e.Handled = e.Pointer.Type is PointerType.Touch or PointerType.Pen;
+                AttachTopLevelDragHandlers();
+                return;
+            }
+        }
 
-        AttachTopLevelDragHandlers();
-    }
+        // 判断是否点击了按钮区域（按钮 StackPanel 内，排除操作按钮）
+        var buttonItem = source.DataContext as FloatingTriggerItem;
+        if (buttonItem != null)
+        {
+            // 排除点击规则集/删除按钮（它们的 Tag 绑定了 ButtonId）
+            if (source is Button) return;
 
-    /// <summary>
-    /// 按钮按下：记录拖拽起始状态，挂载 TopLevel 事件
-    /// </summary>
-    private void OnButtonPointerPressed(object? sender, PointerPressedEventArgs e)
-    {
-        if (sender is not Control control) return;
-        if (!e.GetCurrentPoint(control).Properties.IsLeftButtonPressed) return;
-
-        var item = control.DataContext as FloatingTriggerItem;
-        if (item == null) return;
-
-        _buttonDragSourceItem = item;
-        _buttonDragStartPoint = e.GetPosition(null);
-        e.Handled = e.Pointer.Type is PointerType.Touch or PointerType.Pen;
-
-        AttachTopLevelDragHandlers();
+            _buttonDragSourceItem = buttonItem;
+            _buttonDragStartPoint = e.GetPosition(null);
+            e.Handled = e.Pointer.Type is PointerType.Touch or PointerType.Pen;
+            AttachTopLevelDragHandlers();
+        }
     }
 
     private void AttachTopLevelDragHandlers()

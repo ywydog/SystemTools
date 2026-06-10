@@ -119,8 +119,7 @@
                                     <ci:TouchDragThumb Grid.Column="0"
                                                        Width="28"
                                                        IsExplicitVisible="True"
-                                                       VerticalAlignment="Center"
-                                                       PointerPressed="OnRowDragThumbPointerPressed" />
+                                                       VerticalAlignment="Center" />
 
                                     <!-- 行内按钮列表（水平 ListBox，支持拖放） -->
                                     <ListBox Grid.Column="1"
@@ -138,8 +137,7 @@
                                         </ListBox.ItemsPanel>
                                         <ListBox.ItemTemplate>
                                             <DataTemplate>
-                                                <StackPanel Orientation="Horizontal" Spacing="2"
-                                                            PointerPressed="OnButtonPointerPressed">
+                                                <StackPanel Orientation="Horizontal" Spacing="2">
                                                     <ci:TouchDragThumb Margin="-2,0,0,0" VerticalAlignment="Center" />
                                                     <controls:IconSourceElement IconSource="{Binding IconSource}"
                                                                                 Width="18" Height="18"
