@@ -480,39 +480,24 @@ public partial class FloatingWindowEditorSettingsPage : SettingsPageBase
         var source = e.Source as Control;
         if (source == null) return;
 
-        // 判断是否点击了 TouchDragThumb（行把手或按钮把手）
+        // 仅通过 TouchDragThumb 启动拖拽（行把手或按钮把手）
         var dragThumb = source.FindAncestorOfType<ClassIsland.Core.Controls.TouchDragThumb>();
-        if (dragThumb != null)
-        {
-            // 行拖拽把手：DataContext 是 FloatingTriggerRow
-            if (dragThumb.DataContext is FloatingTriggerRow row)
-            {
-                _rowDragSource = row;
-                _rowDragStartPoint = e.GetPosition(null);
-                e.Handled = e.Pointer.Type is PointerType.Touch or PointerType.Pen;
-                AttachTopLevelDragHandlers();
-                return;
-            }
+        if (dragThumb == null) return;
 
-            // 按钮拖拽把手：DataContext 是 FloatingTriggerItem
-            if (dragThumb.DataContext is FloatingTriggerItem thumbItem)
-            {
-                _buttonDragSourceItem = thumbItem;
-                _buttonDragStartPoint = e.GetPosition(null);
-                e.Handled = e.Pointer.Type is PointerType.Touch or PointerType.Pen;
-                AttachTopLevelDragHandlers();
-                return;
-            }
+        // 行拖拽把手：DataContext 是 FloatingTriggerRow
+        if (dragThumb.DataContext is FloatingTriggerRow row)
+        {
+            _rowDragSource = row;
+            _rowDragStartPoint = e.GetPosition(null);
+            e.Handled = e.Pointer.Type is PointerType.Touch or PointerType.Pen;
+            AttachTopLevelDragHandlers();
+            return;
         }
 
-        // 判断是否点击了按钮区域（按钮 StackPanel 内，排除操作按钮）
-        var buttonItem = source.DataContext as FloatingTriggerItem;
-        if (buttonItem != null)
+        // 按钮拖拽把手：DataContext 是 FloatingTriggerItem
+        if (dragThumb.DataContext is FloatingTriggerItem thumbItem)
         {
-            // 排除点击规则集/删除按钮
-            if (source is Button || source.FindAncestorOfType<Button>() != null) return;
-
-            _buttonDragSourceItem = buttonItem;
+            _buttonDragSourceItem = thumbItem;
             _buttonDragStartPoint = e.GetPosition(null);
             e.Handled = e.Pointer.Type is PointerType.Touch or PointerType.Pen;
             AttachTopLevelDragHandlers();
