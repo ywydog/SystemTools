@@ -86,6 +86,9 @@ public partial class FloatingWindowEditorSettingsPage : SettingsPageBase
             return;
         }
 
+        // 清理拖拽状态和 TopLevel 事件处理器，避免泄漏
+        CancelDrag();
+
         // 页面卸载时确保所有配置（包括规则集）都已保存
         IAppHost.GetService<FloatingWindowService>().ProfileManager.SaveProfile();
 
@@ -856,7 +859,7 @@ public partial class FloatingWindowEditorSettingsPage : SettingsPageBase
         var targetRowIndex = ViewModel.FloatingTriggerRows.IndexOf(targetRow);
         if (targetRowIndex < 0) return;
 
-        // 尝试确定精确的插入位置
+        // 尝试确定精确的插入位置（基于每个项的中心点判断：左半区插入前方，右半区继续下一项）
         var targetIndex = targetRow.Buttons.Count;
         if (sender is ListBox listBox)
         {
@@ -868,15 +871,11 @@ public partial class FloatingWindowEditorSettingsPage : SettingsPageBase
                     var transform = lbi.TransformToVisual(listBox);
                     if (transform == null) continue;
                     var itemPos = transform.Value.Transform(new Point(0, 0));
-                    var itemBounds = lbi.Bounds;
-                    if (pos.X >= itemPos.X && pos.X <= itemPos.X + itemBounds.Width / 2)
+                    var center = itemPos.X + lbi.Bounds.Width / 2;
+                    if (pos.X < center)
                     {
                         targetIndex = i;
                         break;
-                    }
-                    if (pos.X <= itemPos.X + itemBounds.Width && i == targetRow.Buttons.Count - 1)
-                    {
-                        targetIndex = i + 1;
                     }
                 }
             }
