@@ -486,15 +486,11 @@ public partial class FloatingWindowEditorSettingsPage : SettingsPageBase
     /// </summary>
     private static bool IsPrimaryPointerPressed(PointerEventArgs e)
     {
-        var props = e.GetCurrentPoint(null).Properties;
-        // 鼠标：检查左键；触摸/笔：检查对应的接触属性
+        // 鼠标：检查左键；触摸/笔：PointerPressed 本身即表示接触中，
+        // PointerMoved 也只在接触中才触发，无需额外检查按钮状态
         if (e.Pointer.Type == PointerType.Mouse)
-            return props.IsLeftButtonPressed;
-        if (e.Pointer.Type == PointerType.Touch)
-            return props.IsTouch; // 触摸接触中
-        if (e.Pointer.Type == PointerType.Pen)
-            return props.IsPen; // 笔接触中
-        return props.IsPrimary;
+            return e.GetCurrentPoint(null).Properties.IsLeftButtonPressed;
+        return true;
     }
 
     /// <summary>
@@ -619,6 +615,7 @@ public partial class FloatingWindowEditorSettingsPage : SettingsPageBase
                 return;
 
             var data = new DataObject();
+            var allowedEffects = DragDropEffects.Copy; // 组件库默认 Copy
 
             if (_buttonDragSourceItem != null)
             {
@@ -632,12 +629,13 @@ public partial class FloatingWindowEditorSettingsPage : SettingsPageBase
                 }
                 data.Set("FloatingWindowButtonId", item.ButtonId);
                 data.Set("FloatingWindowButtonSource", row.Buttons!);
+                allowedEffects = DragDropEffects.Move; // 行内移动
             }
             else if (_buttonDragId != null)
             {
                 // 组件库：只需要 ButtonId（sourceCollection = null 表示新增）
                 data.Set("FloatingWindowButtonId", _buttonDragId);
-                // 不设置 FloatingWindowButtonSource → sourceCollection 为 null → drop handler 走"组件库拖入"分支
+                // allowedEffects = Copy（默认）
             }
 
             _buttonDragSourceItem = null;
@@ -645,7 +643,7 @@ public partial class FloatingWindowEditorSettingsPage : SettingsPageBase
             _buttonDragStartPoint = null;
             DetachTopLevelDragHandlers();
 
-            await DragDrop.DoDragDrop(e, data, DragDropEffects.Copy);
+            await DragDrop.DoDragDrop(e, data, allowedEffects);
         }
     }
 
