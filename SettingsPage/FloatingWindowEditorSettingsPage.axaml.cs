@@ -47,10 +47,12 @@ public partial class FloatingWindowEditorSettingsPage : SettingsPageBase
         // 注册全局设置变更监听（ShowFloatingWindow 和规则集不随方案切换）
         RegisterHidingRulesEvents();
 
-        // TouchDragThumb 继承自 Thumb，Thumb.OnPointerPressed 会设置 e.Handled = true，
-        // 导致 XAML 绑定的 PointerPressed 处理器不触发。因此用 AddHandler + handledEventsToo 在页面级别捕获。
+        // TouchDragThumb 继承自 Thumb，Thumb.OnPointerPressed 会设置 e.Handled = true 并捕获指针；
+        // 组件库的 ListBoxItem 在 PointerPressed 中改变选择并触发 SelectionChanged → AddTriggerFromPool。
+        // 用 Tunnel（外部→内部）路由 + handledEventsToo=true 让我们先于这些处理器捕获事件，
+        // 确认来源后再决定是否拦截（设置 e.Handled=true）。PointerMoved/Released 注册到 TopLevel 确保总能收到。
         this.AddHandler(InputElement.PointerPressedEvent, OnPagePointerPressed,
-            RoutingStrategies.Bubble, handledEventsToo: true);
+            RoutingStrategies.Tunnel, handledEventsToo: true);
     }
 
     public SystemToolsSettingsViewModel ViewModel { get; }
@@ -463,15 +465,23 @@ public partial class FloatingWindowEditorSettingsPage : SettingsPageBase
         });
     }
 
-    // ===== 拖拽处理（页面级 PointerPressed → TopLevel PointerMoved 阈值判断 → DoDragDrop） =====
-    // TouchDragThumb 继承自 Thumb，Thumb.OnPointerPressed 设置 e.Handled = true 并捕获指针，
-    // 导致 XAML 绑定的 PointerPressed 处理器不触发。因此用 AddHandler + handledEventsToo 在页面级别捕获，
-    // 然后通过视觉树判断事件来源是行把手还是按钮区域。PointerMoved/Released 挂载到 TopLevel（同理）。
+    // ===== 拖拽处理总览 =====
+    // PointerPressed  : 页面级 AddHandler(Tunnel, handledEventsToo:true) → OnPagePointerPressed
+    //                    先于 TouchDragThumb 捕获事件，判断来源后设置 e.Handled=true 阻止默认行为，
+    //                    记录起始状态，并挂载 TopLevel 的 PointerMoved/Released/CaptureLost 监听。
+    // PointerMoved    : TopLevel 级监听 → OnTopLevelPointerMoved
+    //                    超过 DragThreshold 后调用 DragDrop.DoDragDrop 启动系统级拖拽。
+    // PointerReleased : TopLevel 级监听 → OnTopLevelPointerReleased
+    //                    组件库点击（未超过阈值）执行 AddTriggerFromPool；其他情况清理状态。
+    // Drop            : 行区域 Border (OnRowDropBorderDrop) 和 行内按钮 ListBox (OnInnerButtonDrop)
+    //                    分别处理行排序 / 按钮跨行移动 / 行内排序 / 组件库拖入。
 
     private TopLevel? _topLevel;
 
+    private string? _buttonDragId; // 用于组件库/按钮拖拽
+
     /// <summary>
-    /// 页面级 PointerPressed：判断来源是行拖拽把手还是按钮区域，记录拖拽起始状态
+    /// 页面级 PointerPressed：判断来源是 TouchDragThumb 还是组件库项，记录拖拽起始状态
     /// </summary>
     private void OnPagePointerPressed(object? sender, PointerPressedEventArgs e)
     {
@@ -480,30 +490,49 @@ public partial class FloatingWindowEditorSettingsPage : SettingsPageBase
         var source = e.Source as Control;
         if (source == null) return;
 
-        // 仅通过 TouchDragThumb 启动拖拽（行把手或按钮把手）
+        // 1) 行/按钮把手：优先处理 TouchDragThumb（Tunnel 路由下始终拦截，避免 Thumb 捕获指针）
         var dragThumb = source.FindAncestorOfType<ClassIsland.Core.Controls.TouchDragThumb>();
-        if (dragThumb == null) return;
-
-        // 释放 Thumb 的指针捕获，否则 PointerMoved 只会发送给 Thumb，TopLevel 收不到
-        e.Pointer.Capture(null);
-
-        // 行拖拽把手：DataContext 是 FloatingTriggerRow
-        if (dragThumb.DataContext is FloatingTriggerRow row)
+        if (dragThumb != null)
         {
-            _rowDragSource = row;
-            _rowDragStartPoint = e.GetPosition(null);
-            e.Handled = e.Pointer.Type is PointerType.Touch or PointerType.Pen;
-            AttachTopLevelDragHandlers();
-            return;
+            // 行拖拽把手：DataContext 是 FloatingTriggerRow
+            if (dragThumb.DataContext is FloatingTriggerRow row)
+            {
+                _rowDragSource = row;
+                _rowDragStartPoint = e.GetPosition(null);
+                e.Handled = true; // 始终阻断 Thumb 的默认处理
+                AttachTopLevelDragHandlers();
+                return;
+            }
+
+            // 按钮拖拽把手：DataContext 是 FloatingTriggerItem
+            if (dragThumb.DataContext is FloatingTriggerItem thumbItem)
+            {
+                _buttonDragSourceItem = thumbItem;
+                _buttonDragId = null; // 按钮项有对象引用，不需要 ButtonId 记录
+                _buttonDragStartPoint = e.GetPosition(null);
+                e.Handled = true; // 始终阻断 Thumb 的默认处理
+                AttachTopLevelDragHandlers();
+                return;
+            }
         }
 
-        // 按钮拖拽把手：DataContext 是 FloatingTriggerItem
-        if (dragThumb.DataContext is FloatingTriggerItem thumbItem)
+        // 2) 组件库项：检测是否在 AvailableFloatingTriggerItems 的 ListBox 内
+        var libItem = source.DataContext as FloatingTriggerItem;
+        if (libItem != null && !string.IsNullOrEmpty(libItem.ButtonId))
         {
-            _buttonDragSourceItem = thumbItem;
-            _buttonDragStartPoint = e.GetPosition(null);
-            e.Handled = e.Pointer.Type is PointerType.Touch or PointerType.Pen;
-            AttachTopLevelDragHandlers();
+            // 确认它属于组件库而不是行内按钮（行内按钮的祖先是 FloatingTriggerRow）
+            var rowAncestor = source.FindAncestor<Grid>()?.DataContext as FloatingTriggerRow
+                              ?? source.FindAncestor<StackPanel>()?.DataContext as FloatingTriggerRow
+                              ?? (source.Parent is Control p ? p.DataContext as FloatingTriggerRow : null);
+            if (rowAncestor == null)
+            {
+                _buttonDragId = libItem.ButtonId;
+                _buttonDragSourceItem = null; // 组件库项不需要记录对象引用
+                _buttonDragStartPoint = e.GetPosition(null);
+                e.Handled = true; // 阻断 ListBoxItem 的选择，避免 SelectionChanged 重复添加
+                AttachTopLevelDragHandlers();
+                return;
+            }
         }
     }
 
@@ -556,8 +585,8 @@ public partial class FloatingWindowEditorSettingsPage : SettingsPageBase
             return;
         }
 
-        // 按钮拖拽
-        if (_buttonDragSourceItem != null && _buttonDragStartPoint != null)
+        // 按钮拖拽（行内按钮把手）或组件库拖拽
+        if ((_buttonDragSourceItem != null || _buttonDragId != null) && _buttonDragStartPoint != null)
         {
             if (!e.GetCurrentPoint(this).Properties.IsLeftButtonPressed)
             {
@@ -569,23 +598,63 @@ public partial class FloatingWindowEditorSettingsPage : SettingsPageBase
             if (Math.Abs(now.X - _buttonDragStartPoint.Value.X) + Math.Abs(now.Y - _buttonDragStartPoint.Value.Y) < DragThreshold)
                 return;
 
-            var item = _buttonDragSourceItem;
-            var row = ViewModel.FloatingTriggerRows.FirstOrDefault(r => r.Buttons.Contains(item));
+            var data = new DataObject();
+
+            if (_buttonDragSourceItem != null)
+            {
+                // 行内按钮：需要 ButtonId + 源集合（用于跨行移动判断）
+                var item = _buttonDragSourceItem;
+                var row = ViewModel.FloatingTriggerRows.FirstOrDefault(r => r.Buttons.Contains(item));
+                if (row == null)
+                {
+                    CancelDrag();
+                    return;
+                }
+                data.Set("FloatingWindowButtonId", item.ButtonId);
+                data.Set("FloatingWindowButtonSource", row.Buttons!);
+            }
+            else if (_buttonDragId != null)
+            {
+                // 组件库：只需要 ButtonId（sourceCollection = null 表示新增）
+                data.Set("FloatingWindowButtonId", _buttonDragId);
+                // 不设置 FloatingWindowButtonSource → sourceCollection 为 null → drop handler 走"组件库拖入"分支
+            }
+
             _buttonDragSourceItem = null;
+            _buttonDragId = null;
             _buttonDragStartPoint = null;
             DetachTopLevelDragHandlers();
 
-            if (row == null) return;
-
-            var data = new DataObject();
-            data.Set("FloatingWindowButtonId", item.ButtonId);
-            data.Set("FloatingWindowButtonSource", row.Buttons!);
-            await DragDrop.DoDragDrop(e, data, DragDropEffects.Move);
+            await DragDrop.DoDragDrop(e, data, DragDropEffects.Copy);
         }
     }
 
     private void OnTopLevelPointerReleased(object? sender, PointerReleasedEventArgs e)
     {
+        // 组件库点击：按下后未超过拖拽阈值直接释放 → 执行点击添加
+        if (_buttonDragId != null && _buttonDragStartPoint != null)
+        {
+            var pos = e.GetPosition(null);
+            var dx = Math.Abs(pos.X - _buttonDragStartPoint.Value.X);
+            var dy = Math.Abs(pos.Y - _buttonDragStartPoint.Value.Y);
+            if (dx + dy < DragThreshold)
+            {
+                var buttonId = _buttonDragId;
+                CancelDrag();
+
+                // 点击添加：延迟执行避免与其他事件冲突
+                Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+                {
+                    if (ViewModel.FloatingTriggerRows.Count == 0)
+                    {
+                        ViewModel.AddFloatingTriggerRow();
+                    }
+                    ViewModel.AddTriggerFromPool(buttonId, 0, ViewModel.FloatingTriggerRows[0].Buttons.Count);
+                });
+                return;
+            }
+        }
+
         CancelDrag();
     }
 
@@ -599,6 +668,7 @@ public partial class FloatingWindowEditorSettingsPage : SettingsPageBase
         _rowDragSource = null;
         _rowDragStartPoint = null;
         _buttonDragSourceItem = null;
+        _buttonDragId = null;
         _buttonDragStartPoint = null;
         DetachTopLevelDragHandlers();
     }
@@ -681,7 +751,7 @@ public partial class FloatingWindowEditorSettingsPage : SettingsPageBase
     }
 
     /// <summary>
-    /// 根据拖放位置确定目标行索引
+    /// 根据拖放位置确定目标行索引（统一用 targetControl 作为坐标参考）
     /// </summary>
     private int FindTargetRowIndex(DragEventArgs e, Control? targetControl)
     {
@@ -695,11 +765,11 @@ public partial class FloatingWindowEditorSettingsPage : SettingsPageBase
         {
             if (rowsList.ContainerFromIndex(i) is ListBoxItem lbi)
             {
-                var transform = lbi.TransformToVisual(rowsList);
+                // 统一用 targetControl 作为坐标参考，避免混合参考系
+                var transform = lbi.TransformToVisual(targetControl);
                 if (transform == null) continue;
                 var itemPos = transform.Value.Transform(new Point(0, 0));
-                var itemBounds = lbi.Bounds;
-                if (pos.Y >= itemPos.Y && pos.Y <= itemPos.Y + itemBounds.Height)
+                if (pos.Y >= itemPos.Y && pos.Y <= itemPos.Y + lbi.Bounds.Height)
                 {
                     return i;
                 }
@@ -717,6 +787,12 @@ public partial class FloatingWindowEditorSettingsPage : SettingsPageBase
         {
             e.DragEffects = DragDropEffects.Move;
             e.Handled = true;
+        }
+        else if (e.Data.Contains("FloatingWindowRow"))
+        {
+            // 行拖拽时不阻断（不设置 Handled，让外层 Border 处理），但也不要拒绝
+            e.DragEffects = DragDropEffects.Move;
+            // 注意：不设置 e.Handled = true，让事件冒泡到外层 Border
         }
         else
         {
