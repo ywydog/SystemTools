@@ -484,6 +484,9 @@ public partial class FloatingWindowEditorSettingsPage : SettingsPageBase
         var dragThumb = source.FindAncestorOfType<ClassIsland.Core.Controls.TouchDragThumb>();
         if (dragThumb == null) return;
 
+        // 释放 Thumb 的指针捕获，否则 PointerMoved 只会发送给 Thumb，TopLevel 收不到
+        e.Pointer.Capture(null);
+
         // 行拖拽把手：DataContext 是 FloatingTriggerRow
         if (dragThumb.DataContext is FloatingTriggerRow row)
         {
