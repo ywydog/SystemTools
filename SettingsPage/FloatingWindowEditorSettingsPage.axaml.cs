@@ -487,10 +487,14 @@ public partial class FloatingWindowEditorSettingsPage : SettingsPageBase
     private static bool IsPrimaryPointerPressed(PointerEventArgs e)
     {
         var props = e.GetCurrentPoint(null).Properties;
-        // 鼠标：左键按下；触摸/笔：主要接触点按下
+        // 鼠标：检查左键；触摸/笔：检查对应的接触属性
         if (e.Pointer.Type == PointerType.Mouse)
             return props.IsLeftButtonPressed;
-        return props.IsPrimary; // 触摸/笔的主要接触
+        if (e.Pointer.Type == PointerType.Touch)
+            return props.IsTouch; // 触摸接触中
+        if (e.Pointer.Type == PointerType.Pen)
+            return props.IsPen; // 笔接触中
+        return props.IsPrimary;
     }
 
     /// <summary>
