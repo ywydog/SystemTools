@@ -8,6 +8,7 @@ using ClassIsland.Core;
 using ClassIsland.Core.Abstractions.Controls;
 using ClassIsland.Core.Abstractions.Services;
 using ClassIsland.Core.Models.Plugin;
+using ClassIsland.Shared;
 using SystemTools.Settings;
 
 namespace SystemTools.Controls;

@@ -5,6 +5,7 @@ using ClassIsland.Core;
 using ClassIsland.Core.Abstractions.Automation;
 using ClassIsland.Core.Abstractions.Services;
 using ClassIsland.Core.Attributes;
+using ClassIsland.Shared;
 using Microsoft.Extensions.Logging;
 using SystemTools.Settings;
 
