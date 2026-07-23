@@ -311,6 +311,8 @@ public partial class Plugin : PluginBase
         RegisterActionIfEnabled<OpenClassSwapWindowAction>(services, config, "SystemTools.OpenClassSwapWindow");
         RegisterActionIfEnabled<ToggleWorkflowAction, ToggleWorkflowSettingsControl>(services, config,
     "SystemTools.ToggleWorkflow");
+        RegisterActionIfEnabled<PluginToggleAction, PluginToggleActionSettingsControl>(services, config,
+            "SystemTools.PluginToggle");
     }
 
     private void RegisterBaseTriggers(IServiceCollection services)
@@ -527,7 +529,8 @@ public partial class Plugin : PluginBase
 
         if (HasAnyActionEnabled(config, "SystemTools.ClearAllNotifications", "SystemTools.RestartAsAdmin",
                 "SystemTools.LoadTemporaryClassPlan", "SystemTools.OpenAppSettings",
-                "SystemTools.OpenProfileEditor", "SystemTools.OpenClassSwapWindow","SystemTools.ToggleWorkflow"))
+                "SystemTools.OpenProfileEditor", "SystemTools.OpenClassSwapWindow","SystemTools.ToggleWorkflow",
+                "SystemTools.PluginToggle"))
         {
             IActionService.ActionMenuTree["SystemTools 行动"].Add(new ActionMenuTreeGroup("ClassIsland…", "\uE5CB"));
             BuildClassIslandMenu(config);
@@ -770,7 +773,9 @@ public partial class Plugin : PluginBase
         if (config.IsActionEnabled("SystemTools.OpenClassSwapWindow"))
             items.Add(new ActionMenuTreeItem("SystemTools.OpenClassSwapWindow", "打开换课窗口", "\uE13B"));
         if (config.IsActionEnabled("SystemTools.ToggleWorkflow"))
-            items.Add(new ActionMenuTreeItem("SystemTools.ToggleWorkflow", "开关自动化", "\uE8B8"));    
+            items.Add(new ActionMenuTreeItem("SystemTools.ToggleWorkflow", "开关自动化", "\uE8B8"));
+        if (config.IsActionEnabled("SystemTools.PluginToggle"))
+            items.Add(new ActionMenuTreeItem("SystemTools.PluginToggle", "开关插件", "\uE71D"));
 
         if (items.Count > 0)
         {
