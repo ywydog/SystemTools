@@ -28,13 +28,7 @@ public class PluginToggleAction(ILogger<PluginToggleAction> logger) : ActionBase
             throw new InvalidOperationException("未指定要操作的插件 ID。");
         }
 
-        var pluginService = IAppHost.TryGetService<IPluginService>();
-        if (pluginService == null)
-        {
-            throw new InvalidOperationException("无法获取插件服务，请确保 ClassIsland 已正确加载。");
-        }
-
-        var target = pluginService.LoadedPlugins
+        var target = IPluginService.LoadedPlugins
             .FirstOrDefault(p => p.IsLocal &&
                                  string.Equals(p.Manifest.Id, Settings.PluginId, StringComparison.OrdinalIgnoreCase));
 

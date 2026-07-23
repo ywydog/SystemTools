@@ -147,18 +147,7 @@ public class PluginToggleActionSettingsControl : ActionSettingsControlBase<Plugi
 
     private void RefreshPluginList()
     {
-        var pluginService = IAppHost.TryGetService<IPluginService>();
-        if (pluginService == null)
-        {
-            _infoTextBlock.Text = "无法获取插件服务，请确保 ClassIsland 已正确加载。";
-            _infoTextBlock.Foreground = Brushes.OrangeRed;
-            _infoTextBlock.IsVisible = true;
-            _plugins = new List<PluginInfo>();
-            _pluginComboBox.ItemsSource = null;
-            return;
-        }
-
-        _plugins = pluginService.LoadedPlugins.ToList();
+        _plugins = IPluginService.LoadedPlugins.ToList();
         _pluginComboBox.ItemsSource = _plugins;
 
         if (_plugins.Count == 0)
