@@ -411,6 +411,8 @@ public partial class Plugin : PluginBase
         RegisterActionIfEnabled<OpenClassSwapWindowAction, ShortcutKeyNotificationSettingsControl>(services, config, "SystemTools.OpenClassSwapWindow");
         RegisterActionIfEnabled<ToggleWorkflowAction, ToggleWorkflowSettingsControl>(services, config,
     "SystemTools.ToggleWorkflow");
+        RegisterActionIfEnabled<PluginToggleAction, PluginToggleActionSettingsControl>(services, config,
+            "SystemTools.PluginToggle");
         RegisterActionIfEnabled<ActionFlowExecutionConfirmationAction, ActionFlowExecutionConfirmationSettingsControl>(
             services, config, "SystemTools.ActionFlowExecutionConfirmation");
         if (config.EnableAiService)
@@ -683,7 +685,7 @@ public partial class Plugin : PluginBase
         // ClassIsland
         if (HasAnyActionEnabled(config, "SystemTools.ClearAllNotifications", "SystemTools.RestartAsAdmin",
                 "SystemTools.LoadTemporaryClassPlan", "SystemTools.OpenAppSettings",
-                "SystemTools.OpenProfileEditor", "SystemTools.OpenClassSwapWindow"))
+                "SystemTools.OpenProfileEditor", "SystemTools.OpenClassSwapWindow", "SystemTools.PluginToggle"))
         {
             IActionService.ActionMenuTree["SystemTools 行动"].Add(new ActionMenuTreeGroup("ClassIsland…", "\uE5CB"));
             BuildClassIslandMenu(config);
@@ -953,6 +955,8 @@ public partial class Plugin : PluginBase
             items.Add(new ActionMenuTreeItem("SystemTools.OpenProfileEditor", "打开档案编辑", "\uE699"));
         if (config.IsActionEnabled("SystemTools.OpenClassSwapWindow"))
             items.Add(new ActionMenuTreeItem("SystemTools.OpenClassSwapWindow", "打开换课窗口", "\uE13B"));
+        if (config.IsActionEnabled("SystemTools.PluginToggle"))
+            items.Add(new ActionMenuTreeItem("SystemTools.PluginToggle", "开关插件", "\uE71D"));
 
 
         if (items.Count > 0)
