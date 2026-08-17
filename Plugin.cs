@@ -661,7 +661,7 @@ public partial class Plugin : PluginBase
         
         // 高级自动化工具
         if (HasAnyActionEnabled(config, "SystemTools.ActionFlowExecutionConfirmation",
-                "SystemTools.TriggerCustomTrigger", "SystemTools.ToggleWorkflow"))
+                "SystemTools.TriggerCustomTrigger", "SystemTools.ToggleWorkflow", "SystemTools.PluginToggle"))
         {
             IActionService.ActionMenuTree["SystemTools 行动"].Add(new ActionMenuTreeGroup("高级自动化工具…", "\uE01F"));
             BuildAdvancedAutomationMenu(config);
@@ -915,6 +915,8 @@ public partial class Plugin : PluginBase
             items.Add(new ActionMenuTreeItem("SystemTools.TriggerCustomTrigger", "触发指定触发器", "\uEAB7"));
         if (config.IsActionEnabled("SystemTools.ToggleWorkflow"))
             items.Add(new ActionMenuTreeItem("SystemTools.ToggleWorkflow", "开关自动化", "\uE051"));
+        if (config.IsActionEnabled("SystemTools.PluginToggle"))
+            items.Add(new ActionMenuTreeItem("SystemTools.PluginToggle", "开关插件", "\uE71D"));
 
         if (items.Count > 0)
         {
@@ -955,8 +957,6 @@ public partial class Plugin : PluginBase
             items.Add(new ActionMenuTreeItem("SystemTools.OpenProfileEditor", "打开档案编辑", "\uE699"));
         if (config.IsActionEnabled("SystemTools.OpenClassSwapWindow"))
             items.Add(new ActionMenuTreeItem("SystemTools.OpenClassSwapWindow", "打开换课窗口", "\uE13B"));
-        if (config.IsActionEnabled("SystemTools.PluginToggle"))
-            items.Add(new ActionMenuTreeItem("SystemTools.PluginToggle", "开关插件", "\uE71D"));
 
 
         if (items.Count > 0)
