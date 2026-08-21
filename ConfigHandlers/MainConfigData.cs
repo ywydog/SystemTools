@@ -618,6 +618,65 @@ public class MainConfigData : INotifyPropertyChanged
         }
     }
 
+    bool _floatingWindowStickToEdge = false;
+
+    [JsonPropertyName("floatingWindowStickToEdge")]
+    public bool FloatingWindowStickToEdge
+    {
+        get => _floatingWindowStickToEdge;
+        set
+        {
+            if (value == _floatingWindowStickToEdge) return;
+            _floatingWindowStickToEdge = value;
+            OnPropertyChanged();
+        }
+    }
+
+    double _floatingWindowStickToEdgeRecoverSeconds = 3;
+
+    [JsonPropertyName("floatingWindowStickToEdgeRecoverSeconds")]
+    public double FloatingWindowStickToEdgeRecoverSeconds
+    {
+        get => _floatingWindowStickToEdgeRecoverSeconds;
+        set
+        {
+            var clamped = Math.Clamp(value, 0, 60);
+            if (Math.Abs(clamped - _floatingWindowStickToEdgeRecoverSeconds) < 0.0001) return;
+            _floatingWindowStickToEdgeRecoverSeconds = clamped;
+            OnPropertyChanged();
+        }
+    }
+
+    int _floatingWindowStickToEdgeDisplayStyle = 1;
+
+    [JsonPropertyName("floatingWindowStickToEdgeDisplayStyle")]
+    public int FloatingWindowStickToEdgeDisplayStyle
+    {
+        get => _floatingWindowStickToEdgeDisplayStyle;
+        set
+        {
+            var normalized = Math.Clamp(value, 0, 2);
+            if (normalized == _floatingWindowStickToEdgeDisplayStyle) return;
+            _floatingWindowStickToEdgeDisplayStyle = normalized;
+            OnPropertyChanged();
+        }
+    }
+
+    double _floatingWindowDockedWindowSize = 32;
+
+    [JsonPropertyName("floatingWindowDockedWindowSize")]
+    public double FloatingWindowDockedWindowSize
+    {
+        get => _floatingWindowDockedWindowSize;
+        set
+        {
+            var clamped = Math.Clamp(value, 28, 96);
+            if (Math.Abs(clamped - _floatingWindowDockedWindowSize) < 0.0001) return;
+            _floatingWindowDockedWindowSize = clamped;
+            OnPropertyChanged();
+        }
+    }
+
     [JsonPropertyName("floatingWindowRuleset")]
     public Ruleset FloatingWindowRuleset { get; set; } = new();
 

@@ -84,6 +84,21 @@ public class FloatingWindowService
     private PixelPoint _dragStartWindowPosition;
     private PointerPressedEventArgs? _lastPressedArgs;
     private bool _isThemeSubscribed;
+
+    // ===== 贴边(Dock)状态 =====
+    private Button? _dockButton;
+    private bool _isDocked;
+    private bool _isDockedOnLeft;
+    private int _dockRevision;
+    private bool _isDockTransitioning;
+    private int _dockTransitionRevision;
+    private int _dockAnchorCenterY;
+    private PixelRect? _dockWorkingArea;
+    private bool _isMovingDockHandle;
+    private bool _dockHandleWasDragged;
+    private PixelPoint _dockDragStartScreenPoint;
+    private PixelPoint _dockDragStartWindowPosition;
+
     private readonly Dictionary<string, double> _buttonWidthCache = new();
     private int _lastButtonLayoutStyle = -1;
     private double _lastButtonLayoutScale = double.NaN;
@@ -442,6 +457,9 @@ public class FloatingWindowService
                 _windowContainer
             }
         };
+        _dockButton = CreateDockButton();
+        _dockButton.IsVisible = false;
+        _windowRoot.Children.Add(_dockButton);
         _window = new Window
         {
             Width = 64,
@@ -600,6 +618,21 @@ public class FloatingWindowService
         RecheckWindowLayer();
         ApplyLiquidGlassAppearance();
         UpdateLiquidGlassCaptureLoop();
+        // 启动后按保存位置判断是否贴边（等待窗口完成布局后再调度折叠）
+        Dispatcher.UIThread.Post(RecheckDockAtStartup, DispatcherPriority.Render);
+    }
+
+    private void RecheckDockAtStartup()
+    {
+        if (_window == null || _isStopped)
+        {
+            return;
+        }
+
+        if (_configHandler.Data.FloatingWindowStickToEdge)
+        {
+            ScheduleDockIfAtEdge();
+        }
     }
 
     private void OnWindowOpened(object? sender, EventArgs e)
@@ -619,6 +652,32 @@ public class FloatingWindowService
         {
             _adaptiveBackgroundThemeVariant = null;
             _adaptiveThemeRefreshCount = 0;
+        }
+
+        if (e.PropertyName == nameof(MainConfigData.FloatingWindowStickToEdge))
+        {
+            Dispatcher.UIThread.Post(() =>
+            {
+                if (!_configHandler.Data.FloatingWindowStickToEdge)
+                {
+                    if (_isDocked)
+                    {
+                        RestoreFromDock();
+                    }
+                }
+                else if (_window is { IsVisible: true })
+                {
+                    ScheduleDockIfAtEdge();
+                }
+            });
+            return;
+        }
+
+        if (e.PropertyName is nameof(MainConfigData.FloatingWindowDockedWindowSize)
+            or nameof(MainConfigData.FloatingWindowStickToEdgeDisplayStyle))
+        {
+            Dispatcher.UIThread.Post(UpdateDockButton);
+            return;
         }
 
         if (e.PropertyName is nameof(MainConfigData.FloatingWindowAppearanceStyle)
@@ -1244,6 +1303,13 @@ public class FloatingWindowService
         _windowRoot = null;
         _stackPanel = null;
         _windowContainer = null;
+        _dockButton = null;
+        _isDocked = false;
+        _isDockedOnLeft = false;
+        _isDockTransitioning = false;
+        _dockWorkingArea = null;
+        _isMovingDockHandle = false;
+        _dockHandleWasDragged = false;
         _liquidGlassBackdropClip = null;
         _liquidGlassSurface = null;
         _touchDragHandle = null;
@@ -1612,6 +1678,19 @@ public class FloatingWindowService
 
         UpdateInputMode(e.Pointer.Type);
 
+        if (_isDocked && _window != null && IsDockButtonChild(e.Source))
+        {
+            // 贴边按钮：点击恢复展开，按住垂直拖动可调整贴边锚点位置
+            ++_dockRevision;
+            _isMovingDockHandle = true;
+            _dockHandleWasDragged = false;
+            _dockDragStartScreenPoint = _window.PointToScreen(e.GetPosition(_window));
+            _dockDragStartWindowPosition = _window.Position;
+            e.Pointer.Capture(_window);
+            e.Handled = true;
+            return;
+        }
+
         if (_isTouchDeviceDetected)
         {
             if (!IsTouchLikePointer(e) || !IsEventFromTouchDragHandle(e.Source))
@@ -1658,6 +1737,13 @@ public class FloatingWindowService
 
         UpdateInputMode(e.Pointer.Type);
 
+        if (_isMovingDockHandle)
+        {
+            MoveDockHandle(e);
+            e.Handled = true;
+            return;
+        }
+
         if (_isTouchDeviceDetected)
         {
             if (!IsTouchLikePointer(e) || !_touchDragAllowed)
@@ -1692,6 +1778,7 @@ public class FloatingWindowService
             }
 
             _dragInitiated = true;
+            ++_dockRevision; // 用户拖动窗口，取消挂起的贴边折叠
             if (!IsBackgroundCaptureRequested())
             {
                 if (_lastPressedArgs != null)
@@ -1734,6 +1821,22 @@ public class FloatingWindowService
 
         UpdateInputMode(e.Pointer.Type);
 
+        if (_isMovingDockHandle)
+        {
+            _isMovingDockHandle = false;
+            e.Pointer.Capture(null);
+            e.Handled = true;
+            if (_dockHandleWasDragged)
+            {
+                SavePosition(_window.Position);
+            }
+            else
+            {
+                RestoreFromDock();
+            }
+            return;
+        }
+
         if (_isTouchDeviceDetected)
         {
             if (!IsTouchLikePointer(e))
@@ -1769,8 +1872,20 @@ public class FloatingWindowService
         }
 
         var clamped = ClampToVisibleScreen(_window.Position);
-        _window.Position = clamped;
-        SavePosition(clamped);
+        if (_window.Position != clamped)
+        {
+            _window.Position = clamped;
+        }
+
+        if (_configHandler.Data.FloatingWindowStickToEdge)
+        {
+            // 靠近边缘则调度贴边折叠；否则在此保存普通位置
+            ScheduleDockIfAtEdge();
+        }
+        else
+        {
+            SavePosition(_window.Position);
+        }
     }
 
     private void BeginWindowDragCapture()
@@ -2464,6 +2579,338 @@ public class FloatingWindowService
         }
 
         return null;
+    }
+
+    // ===== 贴边(Dock)实现 =====
+    private Button CreateDockButton()
+    {
+        var button = new Button
+        {
+            Name = "DockButton",
+            Background = TryParseColor("#CC1F1F1F") ??
+                         new SolidColorBrush(Color.FromArgb(0xCC, 0x1F, 0x1F, 0x1F)),
+            HorizontalContentAlignment = HorizontalAlignment.Center,
+            VerticalContentAlignment = VerticalAlignment.Center,
+            Padding = new Thickness(4),
+            BorderThickness = new Thickness(0)
+        };
+        button.Click += DockButton_OnClick;
+        return button;
+    }
+
+    private void DockButton_OnClick(object? sender, RoutedEventArgs e)
+    {
+        RestoreFromDock();
+    }
+
+    private void UpdateDockButton()
+    {
+        if (_dockButton == null)
+        {
+            return;
+        }
+
+        var size = Math.Clamp(_configHandler.Data.FloatingWindowDockedWindowSize, 28, 96);
+        _dockButton.Width = size;
+        _dockButton.Height = size;
+        _dockButton.CornerRadius = new CornerRadius(IsLiquidGlassRequested() ? 12 : 8);
+        _dockButton.Content = BuildDockButtonContent(size);
+    }
+
+    /// <summary>
+    /// 按贴边按钮显示样式(SecRandom 对齐: 0=图标 1=文字 2=箭头)构建按钮内容
+    /// </summary>
+    private object BuildDockButtonContent(double size)
+    {
+        var foreground = IsLightTheme() ? Brushes.Black : Brushes.White;
+        return _configHandler.Data.FloatingWindowStickToEdgeDisplayStyle switch
+        {
+            // 图标
+            0 => new FluentIcon
+            {
+                Glyph = "\uE77B",
+                FontSize = Math.Max(14, size * 0.5),
+                Foreground = foreground,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center
+            },
+            // 文字：取当前配置方案名首字
+            1 => new TextBlock
+            {
+                Text = GetDockButtonText(),
+                FontSize = Math.Max(12, size * 0.4),
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center,
+                Foreground = foreground
+            },
+            // 箭头：指向展开方向
+            _ => new TextBlock
+            {
+                Text = _isDockedOnLeft ? "\uE76C" : "\uE76B",
+                FontSize = Math.Max(14, size * 0.5),
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center,
+                Foreground = foreground
+            }
+        };
+    }
+
+    private string GetDockButtonText()
+    {
+        var name = _profileManager.CurrentProfile.Name;
+        return string.IsNullOrWhiteSpace(name) ? "窗" : name[..1];
+    }
+
+    private static bool IsDockButtonChild(object? source)
+    {
+        var visual = source as Visual;
+        while (visual != null)
+        {
+            if (visual is Button { Name: "DockButton" })
+            {
+                return true;
+            }
+            visual = visual.GetVisualParent();
+        }
+        return false;
+    }
+
+    private PixelRect? FindWorkingAreaFor(PixelPoint position)
+    {
+        var screens = _window?.Screens?.All;
+        if (screens == null || screens.Count == 0)
+        {
+            return null;
+        }
+        return screens.FirstOrDefault(s => s.WorkingArea.Contains(position))?.WorkingArea
+               ?? _window?.Screens?.Primary?.WorkingArea
+               ?? screens[0].WorkingArea;
+    }
+
+    private void ScheduleDockIfAtEdge()
+    {
+        if (_window == null || _isDocked || _isStopped)
+        {
+            return;
+        }
+        if (!_configHandler.Data.FloatingWindowStickToEdge)
+        {
+            return;
+        }
+
+        var workingArea = FindWorkingAreaFor(_window.Position);
+        if (workingArea is null)
+        {
+            SavePosition(_window.Position);
+            return;
+        }
+
+        const int snapDistance = 36;
+        var size = GetWindowPixelSize();
+        var width = Math.Max(1, size.Width);
+        var height = Math.Max(1, size.Height);
+        var distanceToLeft = Math.Abs(_window.Position.X - workingArea.Value.X);
+        var distanceToRight = Math.Abs(workingArea.Value.Right - (_window.Position.X + width));
+        if (Math.Min(distanceToLeft, distanceToRight) > snapDistance)
+        {
+            SavePosition(_window.Position);
+            return;
+        }
+
+        _isDockedOnLeft = distanceToLeft <= distanceToRight;
+        _dockWorkingArea = workingArea.Value;
+        ScheduleDock();
+    }
+
+    private void ScheduleDock()
+    {
+        var seconds = _configHandler.Data.FloatingWindowStickToEdgeRecoverSeconds;
+        var revision = ++_dockRevision;
+        if (seconds <= 0)
+        {
+            return;
+        }
+
+        DispatcherTimer.RunOnce(() =>
+        {
+            if (revision == _dockRevision
+                && !_isDocked
+                && !_isDockTransitioning
+                && _window is { IsVisible: true }
+                && _configHandler.Data.FloatingWindowStickToEdge)
+            {
+                _ = CollapseToDockAsync();
+            }
+        }, TimeSpan.FromSeconds(seconds));
+    }
+
+    private async Task CollapseToDockAsync()
+    {
+        if (_window == null || _isDocked || _isDockTransitioning || _isStopped)
+        {
+            return;
+        }
+        if (!_configHandler.Data.FloatingWindowStickToEdge)
+        {
+            return;
+        }
+
+        _isDockTransitioning = true;
+        var revision = ++_dockTransitionRevision;
+        try
+        {
+            CaptureExpandedWindowSize();
+            _isDocked = true;
+            if (_windowContainer != null)
+            {
+                _windowContainer.IsVisible = false;
+            }
+            StopLiquidGlassCapture();
+            UpdateDockButton();
+            if (_dockButton != null)
+            {
+                _dockButton.IsVisible = true;
+            }
+            // 等待 SizeToContent 收缩后再按实际尺寸校正贴边定位
+            await Dispatcher.UIThread.InvokeAsync(() => { }, DispatcherPriority.Render).GetTask();
+            if (revision != _dockTransitionRevision)
+            {
+                return;
+            }
+            RepositionDockedWindow();
+            SavePosition(_window.Position);
+        }
+        finally
+        {
+            _isDockTransitioning = false;
+        }
+    }
+
+    private void RepositionDockedWindow()
+    {
+        if (_window == null)
+        {
+            return;
+        }
+        var workingArea = _dockWorkingArea ?? FindWorkingAreaFor(_window.Position);
+        if (workingArea is null)
+        {
+            return;
+        }
+        var size = GetWindowPixelSize();
+        MoveToDockedEdge(workingArea.Value, Math.Max(1, size.Width), Math.Max(1, size.Height));
+    }
+
+    private void MoveToDockedEdge(PixelRect workingArea, int width, int height)
+    {
+        if (_window == null)
+        {
+            return;
+        }
+        var x = _isDockedOnLeft
+            ? workingArea.X
+            : workingArea.Right - width;
+        var y = Math.Clamp(
+            _dockAnchorCenterY - height / 2,
+            workingArea.Y,
+            Math.Max(workingArea.Y, workingArea.Bottom - height));
+        _window.Position = new PixelPoint(x, y);
+    }
+
+    private void CaptureExpandedWindowSize()
+    {
+        if (_window == null)
+        {
+            return;
+        }
+        _dockAnchorCenterY = _window.Position.Y + GetWindowPixelSize().Height / 2;
+    }
+
+    private void MoveDockHandle(PointerEventArgs e)
+    {
+        if (_window == null)
+        {
+            return;
+        }
+        var workingArea = _dockWorkingArea ?? FindWorkingAreaFor(_window.Position);
+        if (workingArea is null)
+        {
+            return;
+        }
+        var pointerPosition = _window.PointToScreen(e.GetPosition(_window));
+        var deltaY = pointerPosition.Y - _dockDragStartScreenPoint.Y;
+        _dockHandleWasDragged |= Math.Abs(deltaY) > 2;
+        var size = GetWindowPixelSize();
+        var height = Math.Max(1, size.Height);
+        var y = Math.Clamp(
+            _dockDragStartWindowPosition.Y + deltaY,
+            workingArea.Value.Y,
+            Math.Max(workingArea.Value.Y, workingArea.Value.Bottom - height));
+        _window.Position = new PixelPoint(_dockDragStartWindowPosition.X, y);
+        _dockAnchorCenterY = y + (int)Math.Round(height / 2.0);
+    }
+
+    private void RestoreFromDock()
+    {
+        if (_window == null || !_isDocked || _isDockTransitioning || _isStopped)
+        {
+            return;
+        }
+
+        _isDockTransitioning = true;
+        ++_dockRevision;
+        try
+        {
+            if (_windowContainer != null)
+            {
+                _windowContainer.IsVisible = true;
+            }
+            if (_dockButton != null)
+            {
+                _dockButton.IsVisible = false;
+            }
+            // 等窗口因 SizeToContent 展开后再校正位置并恢复背景捕获
+            Dispatcher.UIThread.Post(() =>
+            {
+                if (_window == null)
+                {
+                    return;
+                }
+                RepositionExpandedWindow();
+                UpdateLiquidGlassCaptureLoop();
+                SavePosition(_window.Position);
+            }, DispatcherPriority.Render);
+        }
+        finally
+        {
+            _isDocked = false;
+            _isDockTransitioning = false;
+        }
+    }
+
+    private void RepositionExpandedWindow()
+    {
+        if (_window == null)
+        {
+            return;
+        }
+        var workingArea = _dockWorkingArea ?? FindWorkingAreaFor(_window.Position);
+        if (workingArea is null)
+        {
+            return;
+        }
+        var size = GetWindowPixelSize();
+        var width = Math.Max(1, size.Width);
+        var height = Math.Max(1, size.Height);
+        var x = Math.Clamp(
+            _window.Position.X,
+            workingArea.Value.X,
+            Math.Max(workingArea.Value.X, workingArea.Value.Right - width));
+        var y = Math.Clamp(
+            _dockAnchorCenterY - height / 2,
+            workingArea.Value.Y,
+            Math.Max(workingArea.Value.Y, workingArea.Value.Bottom - height));
+        _window.Position = new PixelPoint(x, y);
     }
 }
 
