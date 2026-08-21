@@ -2617,23 +2617,51 @@ public class FloatingWindowService
 
         if (style == 3)
         {
-            // 条纹把手：液态玻璃外观下背景透明直接透出底层玻璃材质；经典外观为半透明黑条
-            _dockButton.Background = isGlass
-                ? Brushes.Transparent
-                : new SolidColorBrush(Color.FromArgb(0x73, 0, 0, 0));
-            _dockButton.BorderBrush = isGlass
-                ? new SolidColorBrush(Color.FromArgb(
-                    0x4D,
-                    (byte)(isLight ? 0x00 : 0xFF),
-                    (byte)(isLight ? 0x00 : 0xFF),
-                    (byte)(isLight ? 0x00 : 0xFF)))
-                : new SolidColorBrush(Color.FromArgb(0x66, 0, 0, 0));
-            _dockButton.BorderThickness = new Thickness(1);
-            _dockButton.CornerRadius = new CornerRadius(6);
-            _dockButton.Width = 12;
+            // 条纹：面板保持 size×size 的整块玻璃（外观与悬浮窗一致），条纹仅作为面板内的指示形状
+            var stripeHeight = Math.Max(28, size * 0.72);
+            _dockButton.Width = size;
             _dockButton.Height = size;
-            _dockButton.Padding = default;
-            _dockButton.Content = null;
+            _dockButton.Padding = new Thickness(4);
+            if (isGlass)
+            {
+                // 面板透出底层玻璃材质，条纹用跟随主题明暗的对比色
+                _dockButton.Background = Brushes.Transparent;
+                _dockButton.BorderBrush = new SolidColorBrush(Color.FromArgb(
+                    0x4D, (byte)(isLight ? 0x00 : 0xFF), (byte)(isLight ? 0x00 : 0xFF), (byte)(isLight ? 0x00 : 0xFF)));
+                _dockButton.BorderThickness = new Thickness(1);
+                _dockButton.CornerRadius = new CornerRadius(0);
+                _dockButton.Content = new Border
+                {
+                    Width = 12,
+                    Height = stripeHeight,
+                    HorizontalAlignment = HorizontalAlignment.Center,
+                    VerticalAlignment = VerticalAlignment.Center,
+                    Background = new SolidColorBrush(Color.FromArgb(
+                        0x40, (byte)(isLight ? 0x00 : 0xFF), (byte)(isLight ? 0x00 : 0xFF), (byte)(isLight ? 0x00 : 0xFF))),
+                    BorderBrush = new SolidColorBrush(Color.FromArgb(
+                        0x33, (byte)(isLight ? 0x00 : 0xFF), (byte)(isLight ? 0x00 : 0xFF), (byte)(isLight ? 0x00 : 0xFF))),
+                    BorderThickness = new Thickness(1),
+                    CornerRadius = new CornerRadius(6)
+                };
+            }
+            else
+            {
+                _dockButton.Background = new SolidColorBrush(Color.FromArgb(0x73, 0, 0, 0));
+                _dockButton.BorderBrush = new SolidColorBrush(Color.FromArgb(0x66, 0, 0, 0));
+                _dockButton.BorderThickness = new Thickness(1);
+                _dockButton.CornerRadius = new CornerRadius(6);
+                _dockButton.Content = new Border
+                {
+                    Width = 12,
+                    Height = stripeHeight,
+                    HorizontalAlignment = HorizontalAlignment.Center,
+                    VerticalAlignment = VerticalAlignment.Center,
+                    Background = new SolidColorBrush(Color.FromArgb(0x99, 0xFF, 0xFF, 0xFF)),
+                    BorderBrush = new SolidColorBrush(Color.FromArgb(0x59, 0, 0, 0)),
+                    BorderThickness = new Thickness(1),
+                    CornerRadius = new CornerRadius(6)
+                };
+            }
             return;
         }
 
