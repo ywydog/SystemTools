@@ -655,7 +655,8 @@ public class MainConfigData : INotifyPropertyChanged
         get => _floatingWindowStickToEdgeDisplayStyle;
         set
         {
-            var normalized = Math.Clamp(value, 0, 2);
+            // 0=图标 1=文字 2=箭头 3=条纹
+            var normalized = Math.Clamp(value, 0, 3);
             if (normalized == _floatingWindowStickToEdgeDisplayStyle) return;
             _floatingWindowStickToEdgeDisplayStyle = normalized;
             OnPropertyChanged();

@@ -2610,10 +2610,49 @@ public class FloatingWindowService
             return;
         }
 
+        var style = _configHandler.Data.FloatingWindowStickToEdgeDisplayStyle;
         var size = Math.Clamp(_configHandler.Data.FloatingWindowDockedWindowSize, 28, 96);
+        var isGlass = IsLiquidGlassRequested();
+        var isLight = IsLightTheme();
+
+        if (style == 3)
+        {
+            // 条纹把手：液态玻璃外观下背景透明直接透出底层玻璃材质；经典外观为半透明黑条
+            _dockButton.Background = isGlass
+                ? Brushes.Transparent
+                : new SolidColorBrush(Color.FromArgb(0x73, 0, 0, 0));
+            _dockButton.BorderBrush = isGlass
+                ? new SolidColorBrush(Color.FromArgb(
+                    0x4D,
+                    (byte)(isLight ? 0x00 : 0xFF),
+                    (byte)(isLight ? 0x00 : 0xFF),
+                    (byte)(isLight ? 0x00 : 0xFF)))
+                : new SolidColorBrush(Color.FromArgb(0x66, 0, 0, 0));
+            _dockButton.BorderThickness = new Thickness(1);
+            _dockButton.CornerRadius = new CornerRadius(6);
+            _dockButton.Width = 12;
+            _dockButton.Height = size;
+            _dockButton.Padding = default;
+            _dockButton.Content = null;
+            return;
+        }
+
         _dockButton.Width = size;
         _dockButton.Height = size;
-        _dockButton.CornerRadius = new CornerRadius(IsLiquidGlassRequested() ? 12 : 8);
+        _dockButton.CornerRadius = new CornerRadius(isGlass ? 12 : 8);
+        // 液态玻璃外观下按钮背景透明，交由底层玻璃材质呈现
+        if (isGlass)
+        {
+            _dockButton.Background = Brushes.Transparent;
+        }
+        else
+        {
+            _dockButton.Background = TryParseColor("#CC1F1F1F") ??
+                                     new SolidColorBrush(Color.FromArgb(0xCC, 0x1F, 0x1F, 0x1F));
+        }
+        _dockButton.BorderBrush = Brushes.Transparent;
+        _dockButton.BorderThickness = new Thickness(0);
+        _dockButton.Padding = new Thickness(4);
         _dockButton.Content = BuildDockButtonContent(size);
     }
 
@@ -2765,7 +2804,8 @@ public class FloatingWindowService
             {
                 _windowContainer.IsVisible = false;
             }
-            StopLiquidGlassCapture();
+            // 贴边后仍需保持背景捕获，让贴边按钮在液态玻璃外观下能直接透出底层玻璃材质
+            UpdateLiquidGlassCaptureLoop();
             UpdateDockButton();
             if (_dockButton != null)
             {

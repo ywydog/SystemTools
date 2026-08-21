@@ -472,6 +472,9 @@
                             <ComboBoxItem>
                                 <ci:IconText Glyph="&#xE76B;" Text="箭头" />
                             </ComboBoxItem>
+                            <ComboBoxItem>
+                                <ci:IconText Glyph="&#xE719;" Text="条纹" />
+                            </ComboBoxItem>
                         </ComboBox>
                     </controls:FASettingsExpanderItem.Footer>
                 </controls:FASettingsExpanderItem>
