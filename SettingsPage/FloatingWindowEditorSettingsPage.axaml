@@ -414,6 +414,75 @@
                         <ToggleSwitch IsChecked="{Binding ViewModel.Settings.FloatingWindowDragHandleAlwaysVisible, Mode=TwoWay}" />
                     </controls:FASettingsExpanderItem.Footer>
                 </controls:FASettingsExpanderItem>
+
+                <controls:FASettingsExpanderItem IconSource="{ci:FluentIconSource &#xE77A;}"
+                                               Content="贴边隐藏"
+                                               Description="把窗口拖到屏幕边缘时自动收起，点击贴边按钮恢复">
+                    <controls:FASettingsExpanderItem.Footer>
+                        <ToggleSwitch IsChecked="{Binding ViewModel.Settings.FloatingWindowStickToEdge, Mode=TwoWay}" />
+                    </controls:FASettingsExpanderItem.Footer>
+                </controls:FASettingsExpanderItem>
+
+                <controls:FASettingsExpanderItem IconSource="{ci:FluentIconSource &#xE823;}"
+                                               Content="贴边触发延迟"
+                                               Description="停到屏幕边缘后间隔多久开始贴边收起">
+                    <controls:FASettingsExpanderItem.Footer>
+                        <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                            <Slider Width="160"
+                                    Minimum="0"
+                                    Maximum="60"
+                                    TickFrequency="1"
+                                    IsSnapToTickEnabled="True"
+                                    ToolTip.Tip="{Binding ViewModel.Settings.FloatingWindowStickToEdgeRecoverSeconds, StringFormat='{}{0:F0}秒'}"
+                                    Value="{Binding ViewModel.Settings.FloatingWindowStickToEdgeRecoverSeconds, Mode=TwoWay}" />
+                            <TextBlock
+                                Text="{Binding ViewModel.Settings.FloatingWindowStickToEdgeRecoverSeconds, StringFormat='{}{0:F0}秒'}"
+                                Width="54"
+                                VerticalAlignment="Center" />
+                        </StackPanel>
+                    </controls:FASettingsExpanderItem.Footer>
+                </controls:FASettingsExpanderItem>
+
+                <controls:FASettingsExpanderItem IconSource="{ci:FluentIconSource &#xE10B;}"
+                                               Content="贴边按钮大小"
+                                               Description="调整收起后贴边按钮的尺寸">
+                    <controls:FASettingsExpanderItem.Footer>
+                        <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                            <Slider Width="160"
+                                    Minimum="28"
+                                    Maximum="96"
+                                    TickFrequency="4"
+                                    IsSnapToTickEnabled="True"
+                                    ToolTip.Tip="{Binding ViewModel.Settings.FloatingWindowDockedWindowSize, StringFormat='{}{0:F0}px'}"
+                                    Value="{Binding ViewModel.Settings.FloatingWindowDockedWindowSize, Mode=TwoWay}" />
+                            <TextBlock
+                                Text="{Binding ViewModel.Settings.FloatingWindowDockedWindowSize, StringFormat='{}{0:F0}px'}"
+                                Width="46"
+                                VerticalAlignment="Center" />
+                        </StackPanel>
+                    </controls:FASettingsExpanderItem.Footer>
+                </controls:FASettingsExpanderItem>
+
+                <controls:FASettingsExpanderItem IconSource="{ci:FluentIconSource &#xE7B8;}"
+                                               Content="贴边显示样式"
+                                               Description="选择收起后贴边按钮的显示内容">
+                    <controls:FASettingsExpanderItem.Footer>
+                        <ComboBox SelectedIndex="{Binding ViewModel.Settings.FloatingWindowStickToEdgeDisplayStyle, Mode=TwoWay}">
+                            <ComboBoxItem>
+                                <ci:IconText Glyph="&#xE77B;" Text="图标" />
+                            </ComboBoxItem>
+                            <ComboBoxItem>
+                                <ci:IconText Glyph="&#xE8C2;" Text="文字" />
+                            </ComboBoxItem>
+                            <ComboBoxItem>
+                                <ci:IconText Glyph="&#xE76B;" Text="箭头" />
+                            </ComboBoxItem>
+                            <ComboBoxItem>
+                                <ci:IconText Glyph="&#xE719;" Text="条纹" />
+                            </ComboBoxItem>
+                        </ComboBox>
+                    </controls:FASettingsExpanderItem.Footer>
+                </controls:FASettingsExpanderItem>
             </controls:FASettingsExpander>
 
             <!-- 层级设置 -->
