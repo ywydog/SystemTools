@@ -8,13 +8,19 @@
                      xmlns:controls1="clr-namespace:SystemTools.Controls"
                      xmlns:ruleset="clr-namespace:ClassIsland.Core.Controls.Ruleset;assembly=ClassIsland.Core"
                      xmlns:local="clr-namespace:SystemTools"
+                     xmlns:loading="clr-namespace:SystemTools.Controls"
+                     x:CompileBindings="False"
                      mc:Ignorable="d"
                      d:DesignHeight="800"
                      d:DesignWidth="800">
 
     <ci:SettingsPageBase.Resources>
     </ci:SettingsPageBase.Resources>
+    <ci:SettingsPageBase.Styles>
+        <StyleInclude Source="avares://SystemTools/Controls/SettingsPageLazy.axaml" />
+    </ci:SettingsPageBase.Styles>
 
+    <loading:SettingsPageLazy>
     <ScrollViewer>
         <StackPanel Classes="settings-container animated-intro">
             <TextBlock FontSize="20"
@@ -32,43 +38,44 @@
             </StackPanel>
 
             <!-- 方案管理 + 显示开关（紧凑顶部栏） -->
-            <Grid ColumnDefinitions="*,Auto" VerticalAlignment="Center">
-                <ci:Field Grid.Column="0" Label="配置方案">
-                    <StackPanel Orientation="Horizontal" Spacing="4">
-                        <ComboBox ItemsSource="{Binding ViewModel.FloatingWindowProfileNames}"
-                                  SelectedItem="{Binding ViewModel.SelectedFloatingWindowProfile, Mode=TwoWay}"
-                                  SelectionChanged="OnFloatingWindowProfileSelectionChanged"
-                                  MinWidth="150"
-                                  MaxWidth="250" />
-                        <Button Content="{ci:FluentIcon &#xE00D;}"
-                                ToolTip.Tip="新建"
-                                Click="OnAddFloatingWindowProfileClick"
-                                Theme="{StaticResource TransparentButton}" />
-                        <Button Content="{ci:FluentIcon &#xE88D;}"
-                                ToolTip.Tip="打开悬浮窗配置文件夹"
-                                Click="OnOpenFloatingWindowProfileFolderClick"
-                                Theme="{StaticResource TransparentButton}" />
-                        <Button Content="{ci:FluentIcon &#xE61D;}"
-                                ToolTip.Tip="删除当前方案"
-                                Click="OnRemoveCurrentProfileClick"
-                                Theme="{StaticResource TransparentButton}" />
-                    </StackPanel>
-                </ci:Field>
-                <ToggleSwitch Grid.Column="1"
-                              OnContent="显示" OffContent="隐藏"
-                              IsChecked="{Binding ViewModel.Settings.ShowFloatingWindow, Mode=OneWay}"
-                              IsEnabled="{Binding ViewModel.HasFloatingTriggerEntries}"
-                              VerticalAlignment="Center"
-                              IsCheckedChanged="OnFloatingWindowVisibleToggleChanged" />
-            </Grid>
-
-            <!-- ===== 按钮布局区域 ===== -->
-            <controls:SettingsExpander IconSource="{ci:FluentIconSource &#xEA37;}"
+            
+                        <controls:FASettingsExpander IconSource="{ci:FluentIconSource &#xEA37;}"
                                        Header="悬浮窗按钮布局"
                                        Description="您可在下方通过拖拽调整行内按钮顺序，或添加行以实现纵列排布等功能"
                                        IsExpanded="True">
                 <StackPanel Margin="12,8,12,12" Spacing="8">
-                    <Grid>
+                                        <Grid ColumnDefinitions="*,Auto" VerticalAlignment="Center">
+                                    <ci:Field Grid.Column="0" Label="配置方案">
+                                        <StackPanel Orientation="Horizontal" Spacing="4">
+                                            <ComboBox ItemsSource="{Binding ViewModel.FloatingWindowProfileNames}"
+                                                      SelectedItem="{Binding ViewModel.SelectedFloatingWindowProfile, Mode=TwoWay}"
+                                                      SelectionChanged="OnFloatingWindowProfileSelectionChanged"
+                                                      MinWidth="150"
+                                                      MaxWidth="250" />
+                                            <Button Content="{ci:FluentIcon &#xE00D;}"
+                                                    ToolTip.Tip="新建"
+                                                    Click="OnAddFloatingWindowProfileClick"
+                                                    Theme="{StaticResource TransparentButton}" />
+                                            <Button Content="{ci:FluentIcon &#xE88D;}"
+                                                    ToolTip.Tip="打开悬浮窗配置文件夹"
+                                                    Click="OnOpenFloatingWindowProfileFolderClick"
+                                                    Theme="{StaticResource TransparentButton}" />
+                                            <Button Content="{ci:FluentIcon &#xE61D;}"
+                                                    ToolTip.Tip="删除当前方案"
+                                                    Click="OnRemoveCurrentProfileClick"
+                                                    Theme="{StaticResource TransparentButton}" />
+                                        </StackPanel>
+                                    </ci:Field>
+                                    <ToggleSwitch Grid.Column="1"
+                                                  OnContent="显示" OffContent="隐藏"
+                                                  IsChecked="{Binding ViewModel.Settings.ShowFloatingWindow, Mode=OneWay}"
+                                                  IsEnabled="{Binding ViewModel.HasFloatingTriggerEntries}"
+                                                  VerticalAlignment="Center"
+                                                  IsCheckedChanged="OnFloatingWindowVisibleToggleChanged" />
+                                </Grid>
+
+
+<Grid>
                         <Button Content="添加行" Width="92" HorizontalAlignment="Left"
                                 Click="OnAddFloatingTriggerRowClick" />
                     </Grid>
@@ -120,7 +127,10 @@
                                         <Border MinHeight="52"
                                                 CornerRadius="6"
                                                 Background="{DynamicResource SubtleFillColorTertiaryBrush}"
-                                                Padding="6">
+                                                Padding="6"
+                                                DragDrop.AllowDrop="True"
+                                                DragDrop.DragOver="OnFloatingTriggerRowDragOver"
+                                                DragDrop.Drop="OnFloatingTriggerRowDrop">
                                             <ItemsControl ItemsSource="{Binding Buttons}"
                                                           HorizontalAlignment="Stretch"
                                                           VerticalAlignment="Center"
@@ -183,18 +193,116 @@
                         </ItemsControl.ItemTemplate>
                     </ItemsControl>
                 </StackPanel>
-            </controls:SettingsExpander>
+            </controls:FASettingsExpander>
 
             <!-- 外观设置 -->
-            <controls:SettingsExpander IconSource="{ci:FluentIconSource &#xE51E;}"
+            <controls:FASettingsExpander IconSource="{ci:FluentIconSource &#xE51E;}"
                                        Header="外观设置"
                                        Description="设置悬浮窗外观"
                                        IsExpanded="False">
 
-                <controls:SettingsExpanderItem IconSource="{ci:FluentIconSource &#xE10B;}"
+                <controls:FASettingsExpanderItem IconSource="{ci:FluentIconSource &#xF4A3;}"
+                                               Content="悬浮窗样式"
+                                               Description="选择悬浮窗使用的外观材质">
+                    <controls:FASettingsExpanderItem.Footer>
+                        <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                            <controls1:ExperimentalBadge />
+                            <ComboBox SelectedIndex="{Binding ViewModel.Settings.FloatingWindowAppearanceStyle, Mode=TwoWay}">
+                            <ComboBoxItem>
+                                <ci:IconText Glyph="&#xF4AB;" Text="经典" />
+                            </ComboBoxItem>
+                            <ComboBoxItem>
+                                <ci:IconText Glyph="&#xF4BD;" Text="液态玻璃(实验性)" />
+                            </ComboBoxItem>
+                            </ComboBox>
+                        </StackPanel>
+                    </controls:FASettingsExpanderItem.Footer>
+                </controls:FASettingsExpanderItem>
+
+                <controls:FASettingsExpanderItem x:Name="LiquidGlassBlurSettingItem"
+                                               IconSource="{ci:FluentIconSource &#xF4AB;}"
+                                               Content="玻璃模糊"
+                                               Description="调整悬浮窗背景的柔化程度">
+                    <controls:FASettingsExpanderItem.Footer>
+                        <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                            <Slider Width="160"
+                                    Minimum="0"
+                                    Maximum="24"
+                                    TickFrequency="1"
+                                    IsSnapToTickEnabled="True"
+                                    ToolTip.Tip="{Binding ViewModel.Settings.FloatingWindowLiquidGlass.BlurRadius, StringFormat='{}{0:F0}px'}"
+                                    Value="{Binding ViewModel.Settings.FloatingWindowLiquidGlass.BlurRadius, Mode=TwoWay}" />
+                            <TextBlock Text="{Binding ViewModel.Settings.FloatingWindowLiquidGlass.BlurRadius, StringFormat='{}{0:F0}px'}"
+                                       Width="46"
+                                       VerticalAlignment="Center" />
+                        </StackPanel>
+                    </controls:FASettingsExpanderItem.Footer>
+                </controls:FASettingsExpanderItem>
+
+                <controls:FASettingsExpanderItem x:Name="LiquidGlassRefractionSettingItem"
+                                               IconSource="{ci:FluentIconSource &#xF047;}"
+                                               Content="玻璃折射"
+                                               Description="调整玻璃边缘的折射位移">
+                    <controls:FASettingsExpanderItem.Footer>
+                        <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                            <Slider Width="160"
+                                    Minimum="0"
+                                    Maximum="80"
+                                    TickFrequency="5"
+                                    IsSnapToTickEnabled="True"
+                                    ToolTip.Tip="{Binding ViewModel.Settings.FloatingWindowLiquidGlass.RefractionAmount, StringFormat='{}{0:F0}'}"
+                                    Value="{Binding ViewModel.Settings.FloatingWindowLiquidGlass.RefractionAmount, Mode=TwoWay}" />
+                            <TextBlock Text="{Binding ViewModel.Settings.FloatingWindowLiquidGlass.RefractionAmount, StringFormat='{}{0:F0}'}"
+                                       Width="46"
+                                       VerticalAlignment="Center" />
+                        </StackPanel>
+                    </controls:FASettingsExpanderItem.Footer>
+                </controls:FASettingsExpanderItem>
+
+                <controls:FASettingsExpanderItem x:Name="LiquidGlassRefreshIntervalSettingItem"
+                                               IconSource="{ci:FluentIconSource &#xE823;}"
+                                               Content="背景刷新频率"
+                                               Description="设置实时背景捕获间隔 间隔越短CPU资源占用越高；越低则动画越卡顿">
+                    <controls:FASettingsExpanderItem.Footer>
+                        <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                            <Slider Width="160"
+                                    Minimum="16"
+                                    Maximum="120"
+                                    TickFrequency="8"
+                                    IsSnapToTickEnabled="True"
+                                    ToolTip.Tip="{Binding ViewModel.Settings.FloatingWindowLiquidGlass.BackdropRefreshIntervalMs, StringFormat='{}{0:F0}ms'}"
+                                    Value="{Binding ViewModel.Settings.FloatingWindowLiquidGlass.BackdropRefreshIntervalMs, Mode=TwoWay}" />
+                            <TextBlock Text="{Binding ViewModel.Settings.FloatingWindowLiquidGlass.BackdropRefreshIntervalMs, StringFormat='{}{0:F0}ms'}"
+                                       Width="54"
+                                       VerticalAlignment="Center" />
+                        </StackPanel>
+                    </controls:FASettingsExpanderItem.Footer>
+                </controls:FASettingsExpanderItem>
+
+                <controls:FASettingsExpanderItem x:Name="LiquidGlassButtonElasticitySettingItem"
+                                               IconSource="{ci:FluentIconSource &#xE2FC;}"
+                                               Content="按钮弹性"
+                                               Description="调整按钮点按后的回弹幅度">
+                    <controls:FASettingsExpanderItem.Footer>
+                        <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                            <Slider Width="160"
+                                    Minimum="0"
+                                    Maximum="8"
+                                    TickFrequency="0.5"
+                                    IsSnapToTickEnabled="True"
+                                    ToolTip.Tip="{Binding ViewModel.Settings.FloatingWindowGlassButtonScaleDip, StringFormat='{}{0:F1}dp'}"
+                                    Value="{Binding ViewModel.Settings.FloatingWindowGlassButtonScaleDip, Mode=TwoWay}" />
+                            <TextBlock Text="{Binding ViewModel.Settings.FloatingWindowGlassButtonScaleDip, StringFormat='{}{0:F1}dp'}"
+                                       Width="54"
+                                       VerticalAlignment="Center" />
+                        </StackPanel>
+                    </controls:FASettingsExpanderItem.Footer>
+                </controls:FASettingsExpanderItem>
+
+                <controls:FASettingsExpanderItem IconSource="{ci:FluentIconSource &#xE10B;}"
                                                Content="悬浮窗缩放"
                                                Description="调整悬浮窗缩放大小">
-                    <controls:SettingsExpanderItem.Footer>
+                    <controls:FASettingsExpanderItem.Footer>
                         <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
                             <Slider Width="160"
                                     Minimum="0.5"
@@ -208,13 +316,13 @@
                                 Width="46"
                                 VerticalAlignment="Center" />
                         </StackPanel>
-                    </controls:SettingsExpanderItem.Footer>
-                </controls:SettingsExpanderItem>
+                    </controls:FASettingsExpanderItem.Footer>
+                </controls:FASettingsExpanderItem>
 
-                <controls:SettingsExpanderItem IconSource="{ci:FluentIconSource &#xE721;}"
+                <controls:FASettingsExpanderItem IconSource="{ci:FluentIconSource &#xE721;}"
                                                Content="图标大小"
                                                Description="调整悬浮窗内图标缩放">
-                    <controls:SettingsExpanderItem.Footer>
+                    <controls:FASettingsExpanderItem.Footer>
                         <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
                             <Slider Width="160"
                                     Minimum="15"
@@ -228,13 +336,13 @@
                                 Width="46"
                                 VerticalAlignment="Center" />
                         </StackPanel>
-                    </controls:SettingsExpanderItem.Footer>
-                </controls:SettingsExpanderItem>
+                    </controls:FASettingsExpanderItem.Footer>
+                </controls:FASettingsExpanderItem>
 
-                <controls:SettingsExpanderItem IconSource="{ci:FluentIconSource &#xF26F;}"
+                <controls:FASettingsExpanderItem IconSource="{ci:FluentIconSource &#xF26F;}"
                                                Content="文字大小"
                                                Description="调整悬浮窗内文字缩放">
-                    <controls:SettingsExpanderItem.Footer>
+                    <controls:FASettingsExpanderItem.Footer>
                         <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
                             <Slider Width="160"
                                     Minimum="8"
@@ -248,13 +356,13 @@
                                 Width="46"
                                 VerticalAlignment="Center" />
                         </StackPanel>
-                    </controls:SettingsExpanderItem.Footer>
-                </controls:SettingsExpanderItem>
+                    </controls:FASettingsExpanderItem.Footer>
+                </controls:FASettingsExpanderItem>
 
-                <controls:SettingsExpanderItem IconSource="{ci:FluentIconSource &#xE772;}"
+                <controls:FASettingsExpanderItem IconSource="{ci:FluentIconSource &#xE772;}"
                                                Content="透明度"
                                                Description="调整悬浮窗透明度">
-                    <controls:SettingsExpanderItem.Footer>
+                    <controls:FASettingsExpanderItem.Footer>
                         <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
                             <Slider Width="160"
                                     Minimum="10"
@@ -267,13 +375,13 @@
                                        Width="46"
                                        VerticalAlignment="Center" />
                         </StackPanel>
-                    </controls:SettingsExpanderItem.Footer>
-                </controls:SettingsExpanderItem>
+                    </controls:FASettingsExpanderItem.Footer>
+                </controls:FASettingsExpanderItem>
 
-                <controls:SettingsExpanderItem IconSource="{ci:FluentIconSource &#xE5CB;}"
+                <controls:FASettingsExpanderItem IconSource="{ci:FluentIconSource &#xE5CB;}"
                                                Content="主题"
                                                Description="设置悬浮窗主题">
-                    <controls:SettingsExpanderItem.Footer>
+                    <controls:FASettingsExpanderItem.Footer>
                         <ComboBox SelectedIndex="{Binding ViewModel.Settings.FloatingWindowTheme, Mode=TwoWay}">
                             <ComboBoxItem>
                                 <ci:IconText Glyph="&#xE5CB;" Text="跟随ClassIsland" />
@@ -284,33 +392,36 @@
                             <ComboBoxItem>
                                 <ci:IconText Glyph="&#xF44B;" Text="黑暗" />
                             </ComboBoxItem>
+                            <ComboBoxItem>
+                                <ci:IconText Glyph="&#xE520;" Text="自适应背景" />
+                            </ComboBoxItem>
                         </ComboBox>
-                    </controls:SettingsExpanderItem.Footer>
-                </controls:SettingsExpanderItem>
+                    </controls:FASettingsExpanderItem.Footer>
+                </controls:FASettingsExpanderItem>
 
-                <controls:SettingsExpanderItem IconSource="{ci:FluentIconSource &#xE20B;}"
+                <controls:FASettingsExpanderItem IconSource="{ci:FluentIconSource &#xE20B;}"
                                                Content="阴影效果"
                                                Description="悬浮窗阴影效果">
-                    <controls:SettingsExpanderItem.Footer>
+                    <controls:FASettingsExpanderItem.Footer>
                         <ToggleSwitch IsChecked="{Binding ViewModel.Settings.FloatingWindowShadowEnabled, Mode=TwoWay}" />
-                    </controls:SettingsExpanderItem.Footer>
-                </controls:SettingsExpanderItem>
+                    </controls:FASettingsExpanderItem.Footer>
+                </controls:FASettingsExpanderItem>
 
-                <controls:SettingsExpanderItem IconSource="{ci:FluentIconSource &#xE7C3;}"
+                <controls:FASettingsExpanderItem IconSource="{ci:FluentIconSource &#xE94F;}"
                                                Content="一直显示拖动把手"
                                                Description="即使未检测到触摸设备也显示拖动把手">
-                    <controls:SettingsExpanderItem.Footer>
+                    <controls:FASettingsExpanderItem.Footer>
                         <ToggleSwitch IsChecked="{Binding ViewModel.Settings.FloatingWindowDragHandleAlwaysVisible, Mode=TwoWay}" />
-                    </controls:SettingsExpanderItem.Footer>
-                </controls:SettingsExpanderItem>
-            </controls:SettingsExpander>
+                    </controls:FASettingsExpanderItem.Footer>
+                </controls:FASettingsExpanderItem>
+            </controls:FASettingsExpander>
 
             <!-- 层级设置 -->
-            <controls:SettingsExpander IconSource="{ci:FluentIconSource &#xEA2F;}"
+            <controls:FASettingsExpander IconSource="{ci:FluentIconSource &#xEA2F;}"
                                        Header="悬浮窗层级"
                                        Description="悬浮窗在屏幕上的层级。置底则会显示在所有窗口的后方，置顶则将显示在所有窗口的前方。"
                                        IsExpanded="False">
-                <controls:SettingsExpander.Footer>
+                <controls:FASettingsExpander.Footer>
                     <ComboBox SelectedIndex="{Binding ViewModel.Settings.FloatingWindowLayer, Mode=TwoWay}">
                         <ComboBoxItem>
                             <ci:IconText Glyph="&#xE0CB;" Text="置底" />
@@ -319,11 +430,11 @@
                             <ci:IconText Glyph="&#xE197;" Text="置顶" />
                         </ComboBoxItem>
                     </ComboBox>
-                </controls:SettingsExpander.Footer>
-                <controls:SettingsExpanderItem IconSource="{ci:FluentIconSource &#xE125;}"
+                </controls:FASettingsExpander.Footer>
+                <controls:FASettingsExpanderItem IconSource="{ci:FluentIconSource &#xE125;}"
                                                Content="层级设置频率"
                                                Description="在什么时候重新设置悬浮窗层级。请注意，较高的频率可能会产生较高的性能占用并导致悬浮窗闪烁。">
-                    <controls:SettingsExpanderItem.Footer>
+                    <controls:FASettingsExpanderItem.Footer>
                         <ComboBox
                             SelectedIndex="{Binding ViewModel.Settings.FloatingWindowLayerRecheckMode, Mode=TwoWay}">
                             <ComboBoxItem>窗口层级变化时</ComboBoxItem>
@@ -351,15 +462,15 @@
                                 </StackPanel>
                             </ComboBoxItem>
                         </ComboBox>
-                    </controls:SettingsExpanderItem.Footer>
-                </controls:SettingsExpanderItem>
-            </controls:SettingsExpander>
+                    </controls:FASettingsExpanderItem.Footer>
+                </controls:FASettingsExpanderItem>
+            </controls:FASettingsExpander>
 
             <!-- 规则集设置（全局设置，不随方案切换） -->
-            <controls:SettingsExpander IconSource="{ci:FluentIconSource &#xEFBF;}"
+            <controls:FASettingsExpander IconSource="{ci:FluentIconSource &#xEFBF;}"
                                        Header="按规则隐藏"
                                        Description="在指定规则满足时，自动隐藏悬浮窗。此为全局设置，不随配置方案切换。">
-                <controls:SettingsExpander.Footer>
+                <controls:FASettingsExpander.Footer>
                     <StackPanel Orientation="Horizontal">
                         <Button HorizontalAlignment="Left"
                                 Theme="{StaticResource TransparentButton}"
@@ -371,8 +482,8 @@
                                       OnContent="启用" OffContent="禁用"
                                       IsChecked="{Binding ViewModel.Settings.FloatingWindowRulesetEnabled}" />
                     </StackPanel>
-                </controls:SettingsExpander.Footer>
-            </controls:SettingsExpander>
+                </controls:FASettingsExpander.Footer>
+            </controls:FASettingsExpander>
 
             <TextBlock Text="Programmer_Wang ©2026"
                        Foreground="Gray"
@@ -382,4 +493,5 @@
                        Opacity="0.7" />
         </StackPanel>
     </ScrollViewer>
+    </loading:SettingsPageLazy>
 </ci:SettingsPageBase>

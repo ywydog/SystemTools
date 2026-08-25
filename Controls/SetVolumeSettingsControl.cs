@@ -1,4 +1,4 @@
-﻿using Avalonia.Controls;
+using Avalonia.Controls;
 using Avalonia.Data;
 using ClassIsland.Core.Abstractions.Controls;
 using SystemTools.Actions;
@@ -8,6 +8,7 @@ namespace SystemTools.Controls;
 public class SetVolumeSettingsControl : ActionSettingsControlBase<SetVolumeSettings>
 {
     private NumericUpDown _volumeInput;
+    private CheckBox _notifyCheckBox;
 
     public SetVolumeSettingsControl()
     {
@@ -26,7 +27,7 @@ public class SetVolumeSettingsControl : ActionSettingsControlBase<SetVolumeSetti
             Maximum = 100,
             Increment = 1,
             FormatString = "0",
-            Watermark = "输入 0-100 的整数"
+            PlaceholderText = "输入 0-100 的整数"
         };
         panel.Children.Add(_volumeInput);
 
@@ -36,7 +37,11 @@ public class SetVolumeSettingsControl : ActionSettingsControlBase<SetVolumeSetti
             Foreground = Avalonia.Media.Brushes.Gray,
             FontSize = 12,
             Margin = new(0, 5, 0, 0)
-        });
+        });        _notifyCheckBox = new CheckBox { Content = "当执行时发出提醒" };
+        _notifyCheckBox.IsCheckedChanged += (s, e) => { Settings.NotifyOnExecute = _notifyCheckBox.IsChecked ?? false; };
+        panel.Children.Add(_notifyCheckBox);
+
+        
 
         Content = panel;
     }
@@ -44,11 +49,12 @@ public class SetVolumeSettingsControl : ActionSettingsControlBase<SetVolumeSetti
     protected override void OnInitialized()
     {
         base.OnInitialized();
+        _notifyCheckBox.IsChecked = Settings.NotifyOnExecute;
 
-        _volumeInput[!NumericUpDown.ValueProperty] = new Binding(nameof(Settings.VolumePercent))
+        _volumeInput.Bind(NumericUpDown.ValueProperty, new Binding(nameof(Settings.VolumePercent))
         {
             Source = Settings,
             Mode = BindingMode.TwoWay
-        };
+        });
     }
 }

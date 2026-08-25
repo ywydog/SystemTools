@@ -1,4 +1,4 @@
-﻿using Avalonia.Controls;
+using Avalonia.Controls;
 using Avalonia.Data;
 using ClassIsland.Core.Abstractions.Controls;
 using SystemTools.Settings;
@@ -23,7 +23,7 @@ public class ShowToastSettingsControl : ActionSettingsControlBase<ShowToastSetti
 
         _titleBox = new TextBox
         {
-            Watermark = "输入通知标题",
+            PlaceholderText = "输入通知标题",
             Text = "SystemTools"
         };
         panel.Children.Add(_titleBox);
@@ -37,7 +37,7 @@ public class ShowToastSettingsControl : ActionSettingsControlBase<ShowToastSetti
 
         _contentBox = new TextBox
         {
-            Watermark = "输入通知内容",
+            PlaceholderText = "输入通知内容",
             AcceptsReturn = true,
             Height = 80
         };
@@ -50,16 +50,16 @@ public class ShowToastSettingsControl : ActionSettingsControlBase<ShowToastSetti
     {
         base.OnInitialized();
 
-        _titleBox[!TextBox.TextProperty] = new Binding(nameof(Settings.Title))
+        _titleBox.Bind(TextBox.TextProperty, new Binding(nameof(Settings.Title))
         {
             Source = Settings,
             Mode = BindingMode.TwoWay
-        };
+        });
 
-        _contentBox[!TextBox.TextProperty] = new Binding(nameof(Settings.Content))
+        _contentBox.Bind(TextBox.TextProperty, new Binding(nameof(Settings.Content))
         {
             Source = Settings,
             Mode = BindingMode.TwoWay
-        };
+        });
     }
 }

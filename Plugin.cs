@@ -1,4 +1,4 @@
-﻿using Avalonia.Controls;
+using Avalonia.Controls;
 using Avalonia.Threading;
 using AvaloniaEdit.Utils;
 using ClassIsland.Core;
@@ -10,6 +10,7 @@ using ClassIsland.Core.Controls;
 using ClassIsland.Core.Extensions.Registry;
 using ClassIsland.Core.Helpers;
 using ClassIsland.Core.Models.Automation;
+using ClassIsland.Core.Models.XamlTheme;
 using ClassIsland.Core.Services.Registry;
 using ClassIsland.Shared;
 using Microsoft.Extensions.DependencyInjection;
@@ -47,8 +48,10 @@ public partial class Plugin : PluginBase
     private ILogger<Plugin>? _logger;
     private NativeMenuItem? _toggleFloatingWindowMenuItem;
     private bool _faceRecognitionRegistered = false;
+    private bool _windowsHelloRegistered;
     private bool _ffmpegDisabledDueToMissingDependency;
     private bool _faceRecognitionDisabledDueToMissingDependency;
+    private bool _windowsHelloDisabledDueToUnsupportedSystem;
 
     public override void Initialize(HostBuilderContext context, IServiceCollection services)
     {
@@ -66,12 +69,53 @@ public partial class Plugin : PluginBase
         DependencyPaths.InitializeResolvers();
 
         services.AddLogging();
+        services.AddXamlTheme(
+            new Uri("avares://SystemTools/Themes/CardTypeComponent/Styles.axaml"),
+            new ThemeManifest
+            {
+                Id = "Card-type-component",
+                Name = "Card-type Component",
+                Description = "A theme that provides a main interface with higher components",
+                Version = "1.0.0.0",
+                Author = "Programmer-MrWang",
+                Banner = ThemeBannerCacheService.BannerPath,
+                VerticalSafeAreaPx = 20
+            });
         services.AddSingleton(GlobalConstants.MainConfig);
+        services.AddSingleton<ThemeBannerCacheService>();
+        services.AddSingleton<AboutTitleImageCacheService>();
         services.AddSingleton<FloatingWindowProfileManager>();
         services.AddSingleton<FloatingWindowService>();
+        services.AddSingleton<MainWindowAreaService>();
+        services.AddSingleton<MainWindowBackgroundCaptureService>();
+        services.AddSingleton<ClassIslandSettingsService>();
         services.AddSingleton<AdaptiveThemeSyncService>();
+        services.AddSingleton<MainWindowTextOcclusionService>();
         services.AddSingleton<UsbAutoPlayService>();
         services.AddSingleton<ClassIslandMemoryAutoCleanupService>();
+        services.AddSingleton<SystemMemoryCleanupService>();
+        services.AddSingleton<MainWindowClickService>();
+        services.AddSingleton<IOpenAiCompatibleService, OpenAiCompatibleService>();
+        if (GlobalConstants.MainConfig?.Data.EnableAiService == true)
+        {
+            services.AddSingleton<AiConversationStore>();
+            services.AddSingleton<AiChatOperationGate>();
+            services.AddSingleton<AiPromptService>();
+            services.AddSingleton<ClassIslandProfileAiService>();
+            services.AddSingleton<ClassIslandActionAiService>();
+            services.AddSingleton<AiChatWindowService>();
+            services.AddSingleton<AiVoiceConversationService>();
+        }
+
+        services.AddNotificationProvider<SystemToolsNotificationProvider>();
+        // 让具体类型和托管服务复用同一实例，避免每个提醒渠道被注册两次。
+        var notificationHostedService = services.Single(descriptor =>
+            descriptor.ServiceType == typeof(IHostedService) &&
+            descriptor.ImplementationType == typeof(SystemToolsNotificationProvider));
+        services.Remove(notificationHostedService);
+        services.AddSingleton<SystemToolsNotificationProvider>();
+        services.AddSingleton<IHostedService>(serviceProvider =>
+            serviceProvider.GetRequiredService<SystemToolsNotificationProvider>());
 
         // ========== 注册可选人脸识别 ==========
         if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
@@ -88,16 +132,28 @@ public partial class Plugin : PluginBase
                     _faceRecognitionRegistered = false;
                 }
             }
+
+            if (GlobalConstants.MainConfig?.Data.EnableWindowsHello == true &&
+                OperatingSystem.IsWindowsVersionAtLeast(10, 0, WindowsHelloService.MinimumWindowsBuild))
+            {
+                services.AddAuthorizeProvider<WindowsHelloAuthorizer>();
+                _windowsHelloRegistered = true;
+            }
         }
 
         // ========== 注册设置页面 ==========
         services.AddSettingsPage<SystemToolsSettingsPage>();
         services.AddSettingsPage<MoreFeaturesOptionsSettingsPage>();
+        if (GlobalConstants.MainConfig?.Data.EnableAiService == true)
+        {
+            services.AddSettingsPage<AiChatSettingsPage>();
+        }
         if (GlobalConstants.MainConfig?.Data.EnableFloatingWindowFeature == true)
         {
             services.AddSettingsPage<FloatingWindowEditorSettingsPage>();
         }
         services.AddSettingsPage<AboutSettingsPage>();
+        services.AddSettingsPage<PluginDebugSettingsPage>();
 
         // ========== 构建行动树（根据配置）==========
         BuildBaseActionTree();
@@ -114,15 +170,21 @@ public partial class Plugin : PluginBase
         AppBase.Current.AppStarted += (o, args) =>
         {
             // 迁移旧版悬浮窗配置到文件存储
+            IAppHost.GetService<ThemeBannerCacheService>().Start();
+            IAppHost.GetService<AboutTitleImageCacheService>().Start();
             IAppHost.GetService<FloatingWindowProfileManager>().MigrateFromLegacyConfig(GlobalConstants.MainConfig!.Data);
+            IAppHost.TryGetService<ClassIslandActionAiService>()?.StartWarmup();
 
             if (GlobalConstants.MainConfig?.Data.EnableFloatingWindowFeature == true)
             {
                 IAppHost.GetService<FloatingWindowService>().Start();
             }
+            IAppHost.TryGetService<AiVoiceConversationService>()?.Start();
             IAppHost.GetService<AdaptiveThemeSyncService>().Start();
+            IAppHost.GetService<MainWindowTextOcclusionService>().Start();
             IAppHost.GetService<UsbAutoPlayService>().Start();
             IAppHost.GetService<ClassIslandMemoryAutoCleanupService>().ApplyConfig();
+            IAppHost.GetService<SystemMemoryCleanupService>().ApplyConfig();
             _logger = IAppHost.GetService<ILogger<Plugin>>();
 
             _logger?.LogInformation("[SystemTools]实验性功能状态: {Status}", experimentalEnabled);
@@ -147,6 +209,23 @@ public partial class Plugin : PluginBase
             {
                 _logger?.LogWarning("[SystemTools]人脸识别功能已自动关闭：缺少 runtimes、Models 或 OpenCvSharp/Dlib 依赖，并已清理对应验证器配置。");
             }
+
+            if (GlobalConstants.MainConfig?.Data.EnableWindowsHello == true)
+            {
+                if (_windowsHelloRegistered)
+                {
+                    _logger?.LogInformation("[SystemTools]Windows Hello 验证器已注册");
+                }
+                else
+                {
+                    _logger?.LogWarning("[SystemTools]Windows Hello 验证器已启用，但当前系统版本不受支持，已跳过注册。");
+                }
+            }
+            else if (_windowsHelloDisabledDueToUnsupportedSystem)
+            {
+                _logger?.LogWarning("[SystemTools]Windows Hello 验证器已自动关闭：当前系统低于 Windows build {MinimumBuild}，并已清理对应验证器配置。",
+                    WindowsHelloService.MinimumWindowsBuild);
+            }
             _logger?.LogInformation("[SystemTools]SystemTools 启动完成");
             RegisterOrUpdateFloatingWindowTrayMenu();
         };
@@ -164,9 +243,11 @@ public partial class Plugin : PluginBase
         }
 
         // ========== 注册热键服务 ==========
-        services.AddSingleton<IHotkeyService, HotkeyService>();
+       services.AddSingleton<IHotkeyService, HotkeyService>();
 
-        // ========== 版本检查 ==========
+        services.AddSingleton<KeywordSpeechService>();
+        services.AddSingleton<VoskSpeechService>();
+       // ========== 版本检查 ==========
         AppBase.Current.AppStarted += (_, _) => { VersionCheckService.CheckAndNotify(); };
 
         // ========== 订阅关闭事件 ==========
@@ -203,6 +284,15 @@ public partial class Plugin : PluginBase
             changed = true;
         }
 
+        if (config.EnableWindowsHello &&
+            !OperatingSystem.IsWindowsVersionAtLeast(10, 0, WindowsHelloService.MinimumWindowsBuild))
+        {
+            config.EnableWindowsHello = false;
+            FaceRecognitionCredentialCleanup.RemoveWindowsHelloProviderFromManagementCredentials();
+            _windowsHelloDisabledDueToUnsupportedSystem = true;
+            changed = true;
+        }
+
         if (changed)
         {
             GlobalConstants.MainConfig?.Save();
@@ -219,6 +309,8 @@ public partial class Plugin : PluginBase
         var config = GlobalConstants.MainConfig!.Data;
 
         // 模拟操作
+        RegisterActionIfEnabled<SimulateKeyCombinationAction, SimulateKeyCombinationSettingsControl>(services, config,
+            "SystemTools.SimulateKeyCombination");
         RegisterActionIfEnabled<SimulateKeyboardAction, SimulateKeyboardSettingsControl>(services, config,
             "SystemTools.SimulateKeyboard");
         RegisterActionIfEnabled<SimulateMouseAction, SimulateMouseSettingsControl>(services, config,
@@ -229,28 +321,28 @@ public partial class Plugin : PluginBase
             "SystemTools.WindowOperation");
 
         // 常用按键
-        RegisterActionIfEnabled<EnterKeyAction>(services, config, "SystemTools.EnterKey");
-        RegisterActionIfEnabled<EscAction>(services, config, "SystemTools.EscKey");
-        RegisterActionIfEnabled<AltF4Action>(services, config, "SystemTools.AltF4");
-        RegisterActionIfEnabled<CtrlZAction>(services, config, "SystemTools.CtrlZ");
-        RegisterActionIfEnabled<AltTabAction>(services, config, "SystemTools.AltTab");
-        RegisterActionIfEnabled<F11Action>(services, config, "SystemTools.F11Key");
+        RegisterActionIfEnabled<EnterKeyAction, ShortcutKeyNotificationSettingsControl>(services, config, "SystemTools.EnterKey");
+        RegisterActionIfEnabled<EscAction, ShortcutKeyNotificationSettingsControl>(services, config, "SystemTools.EscKey");
+        RegisterActionIfEnabled<AltF4Action, ShortcutKeyNotificationSettingsControl>(services, config, "SystemTools.AltF4");
+        RegisterActionIfEnabled<CtrlZAction, ShortcutKeyNotificationSettingsControl>(services, config, "SystemTools.CtrlZ");
+        RegisterActionIfEnabled<AltTabAction, ShortcutKeyNotificationSettingsControl>(services, config, "SystemTools.AltTab");
+        RegisterActionIfEnabled<F11Action, ShortcutKeyNotificationSettingsControl>(services, config, "SystemTools.F11Key");
 
         // 显示设置
-        RegisterActionIfEnabled<CloneDisplayAction>(services, config, "SystemTools.CloneDisplay");
-        RegisterActionIfEnabled<ExtendDisplayAction>(services, config, "SystemTools.ExtendDisplay");
-        RegisterActionIfEnabled<InternalDisplayAction>(services, config, "SystemTools.InternalDisplay");
-        RegisterActionIfEnabled<ExternalDisplayAction>(services, config, "SystemTools.ExternalDisplay");
-        RegisterActionIfEnabled<BlackScreenHtmlAction>(services, config, "SystemTools.BlackScreenHtml");
-        RegisterActionIfEnabled<ShowDesktopAction>(services, config, "SystemTools.ShowDesktop");
+        RegisterActionIfEnabled<CloneDisplayAction, ShortcutKeyNotificationSettingsControl>(services, config, "SystemTools.CloneDisplay");
+        RegisterActionIfEnabled<ExtendDisplayAction, ShortcutKeyNotificationSettingsControl>(services, config, "SystemTools.ExtendDisplay");
+        RegisterActionIfEnabled<InternalDisplayAction, ShortcutKeyNotificationSettingsControl>(services, config, "SystemTools.InternalDisplay");
+        RegisterActionIfEnabled<ExternalDisplayAction, ShortcutKeyNotificationSettingsControl>(services, config, "SystemTools.ExternalDisplay");
+        RegisterActionIfEnabled<BlackScreenHtmlAction, ShortcutKeyNotificationSettingsControl>(services, config, "SystemTools.BlackScreenHtml");
+        RegisterActionIfEnabled<ShowDesktopAction, ShortcutKeyNotificationSettingsControl>(services, config, "SystemTools.ShowDesktop");
         RegisterActionIfEnabled<AdjustScreenBrightnessAction, AdjustScreenBrightnessSettingsControl>(services, config, "SystemTools.AdjustScreenBrightness");
 
         // 电源选项
         RegisterActionIfEnabled<ShutdownAction, ShutdownSettingsControl>(services, config, "SystemTools.Shutdown");
         RegisterActionIfEnabled<AdvancedShutdownAction, AdvancedShutdownSettingsControl>(services, config,
             "SystemTools.AdvancedShutdown");
-        RegisterActionIfEnabled<LockScreenAction>(services, config, "SystemTools.LockScreen");
-        RegisterActionIfEnabled<CancelShutdownAction>(services, config, "SystemTools.CancelShutdown");
+        RegisterActionIfEnabled<LockScreenAction, ShortcutKeyNotificationSettingsControl>(services, config, "SystemTools.LockScreen");
+        RegisterActionIfEnabled<CancelShutdownAction, ShortcutKeyNotificationSettingsControl>(services, config, "SystemTools.CancelShutdown");
         RegisterActionIfEnabled<ImmediateRestartAction>(services, config, "SystemTools.ImmediateRestart");
         RegisterActionIfEnabled<ImmediateShutdownAction>(services, config, "SystemTools.ImmediateShutdown");
         RegisterActionIfEnabled<SleepAction>(services, config, "SystemTools.Sleep");
@@ -301,16 +393,34 @@ public partial class Plugin : PluginBase
         RegisterActionIfEnabled<FullscreenClockAction, FullscreenClockSettingsControl>(services, config,
             "SystemTools.FullscreenClock");
 
+        // 更多功能选项
+        RegisterActionIfEnabled<AutoSwitchClassIslandThemeAction, AutoSwitchClassIslandThemeActionSettingsControl>(services, config,
+            "SystemTools.AutoSwitchClassIslandTheme");
+        RegisterActionIfEnabled<AutoHideMainWindowWhenOccludedAction, AutoHideMainWindowWhenOccludedActionSettingsControl>(services, config,
+            "SystemTools.AutoHideMainWindowWhenOccluded");
+        RegisterActionIfEnabled<AutoOpenUsbDriveOnInsertAction, AutoOpenUsbDriveOnInsertActionSettingsControl>(services, config,
+            "SystemTools.AutoOpenUsbDriveOnInsert");
+
         // 独立行动
         RegisterActionIfEnabled<TriggerCustomTriggerAction, TriggerCustomTriggerSettingsControl>(services, config,
             "SystemTools.TriggerCustomTrigger");
         RegisterActionIfEnabled<RestartAsAdminAction>(services, config, "SystemTools.RestartAsAdmin");
-        RegisterActionIfEnabled<ClearAllNotificationsAction>(services, config, "SystemTools.ClearAllNotifications");
-        RegisterActionIfEnabled<OpenAppSettingsAction>(services, config, "SystemTools.OpenAppSettings");
-        RegisterActionIfEnabled<OpenProfileEditorAction>(services, config, "SystemTools.OpenProfileEditor");
-        RegisterActionIfEnabled<OpenClassSwapWindowAction>(services, config, "SystemTools.OpenClassSwapWindow");
+        RegisterActionIfEnabled<ClearAllNotificationsAction, ShortcutKeyNotificationSettingsControl>(services, config, "SystemTools.ClearAllNotifications");
+        RegisterActionIfEnabled<OpenAppSettingsAction, ShortcutKeyNotificationSettingsControl>(services, config, "SystemTools.OpenAppSettings");
+        RegisterActionIfEnabled<OpenProfileEditorAction, ShortcutKeyNotificationSettingsControl>(services, config, "SystemTools.OpenProfileEditor");
+        RegisterActionIfEnabled<OpenClassSwapWindowAction, ShortcutKeyNotificationSettingsControl>(services, config, "SystemTools.OpenClassSwapWindow");
         RegisterActionIfEnabled<ToggleWorkflowAction, ToggleWorkflowSettingsControl>(services, config,
     "SystemTools.ToggleWorkflow");
+        RegisterActionIfEnabled<ActionFlowExecutionConfirmationAction, ActionFlowExecutionConfirmationSettingsControl>(
+            services, config, "SystemTools.ActionFlowExecutionConfirmation");
+        if (config.EnableAiService)
+        {
+            RegisterActionIfEnabled<EnableVoiceWakeAiAction, EnableVoiceWakeAiActionSettingsControl>(services, config,
+                "SystemTools.EnableVoiceWakeAi");
+            RegisterActionIfEnabled<WakeUpVoiceConversationAiAction>(services, config,
+                "SystemTools.WakeUpVoiceConversationAi");
+            RegisterActionIfEnabled<ShowAiChatDialogAction>(services, config, "SystemTools.ShowAiChatDialog");
+        }
     }
 
     private void RegisterBaseTriggers(IServiceCollection services)
@@ -322,9 +432,13 @@ public partial class Plugin : PluginBase
         RegisterTriggerIfEnabled<HotkeyTrigger, HotkeyTriggerSettings>(services, config, "SystemTools.HotkeyTrigger");
         RegisterTriggerIfEnabled<ActionInProgressTrigger, ActionInProgressTriggerSettings>(services, config,
             "SystemTools.ActionInProgressTrigger");
-        RegisterTriggerIfEnabled<LongIdleTrigger, LongIdleTriggerSettings>(services, config,
-            "SystemTools.LongIdleTrigger");
-        if (config.EnableFloatingWindowFeature)
+       RegisterTriggerIfEnabled<LongIdleTrigger, LongIdleTriggerSettings>(services, config,
+           "SystemTools.LongIdleTrigger");
+        RegisterTriggerIfEnabled<KeywordTrigger, KeywordTriggerSettings>(services, config,
+            "SystemTools.KeywordTrigger");
+        RegisterTriggerIfEnabled<MainWindowClickTrigger, MainWindowClickTriggerSettings>(services, config,
+            "SystemTools.MainWindowClickTrigger");
+       if (config.EnableFloatingWindowFeature)
         {
             RegisterTriggerIfEnabled<FloatingWindowTrigger, FloatingWindowTriggerSettings>(services, config,
                 "SystemTools.FloatingWindowTrigger");
@@ -474,7 +588,7 @@ public partial class Plugin : PluginBase
         IActionService.ActionMenuTree.Add(new ActionMenuTreeGroup("SystemTools 行动", "\uE079"));
 
         // 模拟操作
-        if (HasAnyActionEnabled(config, "SystemTools.SimulateKeyboard", "SystemTools.SimulateMouse",
+        if (HasAnyActionEnabled(config, "SystemTools.SimulateKeyCombination", "SystemTools.SimulateKeyboard", "SystemTools.SimulateMouse",
                 "SystemTools.TypeContent", "SystemTools.WindowOperation", "SystemTools.EnterKey",
                 "SystemTools.EscKey", "SystemTools.AltF4", "SystemTools.AltTab", "SystemTools.CtrlZ", "SystemTools.F11Key"))
         {
@@ -510,7 +624,7 @@ public partial class Plugin : PluginBase
             IActionService.ActionMenuTree["SystemTools 行动"].Add(new ActionMenuTreeGroup("系统个性化…", "\uF42F"));
             BuildPersonalizationMenu(config);
         }
-
+        
         // 实用工具
         if (config.EnableFfmpegFeatures || HasAnyActionEnabled(config, "SystemTools.ScreenShot", "SystemTools.KillProcess",
                 "SystemTools.EnableDevice", "SystemTools.DisableDevice", "SystemTools.ShowToast"))
@@ -518,21 +632,7 @@ public partial class Plugin : PluginBase
             IActionService.ActionMenuTree["SystemTools 行动"].Add(new ActionMenuTreeGroup("实用工具…", "\uE352"));
             BuildUtilityMenu(config);
         }
-
-        if (config.EnableFfmpegFeatures || HasAnyActionEnabled(config, "SystemTools.BackgroundPlayAudio", "SystemTools.SetVolume", "SystemTools.ShowDesktop"))
-        {
-            IActionService.ActionMenuTree["SystemTools 行动"].Add(new ActionMenuTreeGroup("媒体工具…", "\uE342"));
-            BuildMediaToolsMenu(config);
-        }
-
-        if (HasAnyActionEnabled(config, "SystemTools.ClearAllNotifications", "SystemTools.RestartAsAdmin",
-                "SystemTools.LoadTemporaryClassPlan", "SystemTools.OpenAppSettings",
-                "SystemTools.OpenProfileEditor", "SystemTools.OpenClassSwapWindow","SystemTools.ToggleWorkflow"))
-        {
-            IActionService.ActionMenuTree["SystemTools 行动"].Add(new ActionMenuTreeGroup("ClassIsland…", "\uE5CB"));
-            BuildClassIslandMenu(config);
-        }
-
+        
         // 悬浮窗设置
         if (config.EnableFloatingWindowFeature && HasAnyActionEnabled(config, "SystemTools.ShowFloatingWindow",
                 "SystemTools.ToggleFloatingWindowLayer", "SystemTools.ToggleFloatingWindowProfile",
@@ -540,6 +640,37 @@ public partial class Plugin : PluginBase
         {
             IActionService.ActionMenuTree["SystemTools 行动"].Add(new ActionMenuTreeGroup("悬浮窗设置…", "\uEA37"));
             BuildFloatingWindowMenu(config);
+        }
+        
+        // 媒体工具
+        if (config.EnableFfmpegFeatures || HasAnyActionEnabled(config, "SystemTools.BackgroundPlayAudio", "SystemTools.SetVolume", "SystemTools.ShowDesktop"))
+        {
+            IActionService.ActionMenuTree["SystemTools 行动"].Add(new ActionMenuTreeGroup("媒体工具…", "\uE342"));
+            BuildMediaToolsMenu(config);
+        }
+        
+        // 更多功能选项
+        if (HasAnyActionEnabled(config, "SystemTools.AutoSwitchClassIslandTheme",
+                "SystemTools.AutoHideMainWindowWhenOccluded", "SystemTools.AutoOpenUsbDriveOnInsert"))
+        {
+            IActionService.ActionMenuTree["SystemTools 行动"].Add(new ActionMenuTreeGroup("更多功能选项…", "\uE28E"));
+            BuildMoreFeaturesMenu(config);
+        }
+        
+        // 高级自动化工具
+        if (HasAnyActionEnabled(config, "SystemTools.ActionFlowExecutionConfirmation",
+                "SystemTools.TriggerCustomTrigger", "SystemTools.ToggleWorkflow"))
+        {
+            IActionService.ActionMenuTree["SystemTools 行动"].Add(new ActionMenuTreeGroup("高级自动化工具…", "\uE01F"));
+            BuildAdvancedAutomationMenu(config);
+        }
+
+        // AI 功能
+        if (config.EnableAiService && HasAnyActionEnabled(config, "SystemTools.EnableVoiceWakeAi",
+                "SystemTools.WakeUpVoiceConversationAi", "SystemTools.ShowAiChatDialog"))
+        {
+            IActionService.ActionMenuTree["SystemTools 行动"].Add(new ActionMenuTreeGroup("AI 功能…", "\uEFFF"));
+            BuildAiMenu(config);
         }
 
         // 其他工具
@@ -549,15 +680,15 @@ public partial class Plugin : PluginBase
             BuildOtherMenu(config);
         }
 
-        // 独立行动项
-        var standaloneActions = new List<ActionMenuTreeItem>();
-        if (config.IsActionEnabled("SystemTools.TriggerCustomTrigger"))
-            standaloneActions.Add(new ActionMenuTreeItem("SystemTools.TriggerCustomTrigger", "触发指定触发器", "\uEAB7"));
-
-        if (standaloneActions.Count > 0)
+        // ClassIsland
+        if (HasAnyActionEnabled(config, "SystemTools.ClearAllNotifications", "SystemTools.RestartAsAdmin",
+                "SystemTools.LoadTemporaryClassPlan", "SystemTools.OpenAppSettings",
+                "SystemTools.OpenProfileEditor", "SystemTools.OpenClassSwapWindow"))
         {
-            IActionService.ActionMenuTree["SystemTools 行动"].AddRange(standaloneActions);
+            IActionService.ActionMenuTree["SystemTools 行动"].Add(new ActionMenuTreeGroup("ClassIsland…", "\uE5CB"));
+            BuildClassIslandMenu(config);
         }
+
     }
 
     private bool HasAnyActionEnabled(MainConfigData config, params string[] actionIds)
@@ -568,9 +699,11 @@ public partial class Plugin : PluginBase
     private void BuildSimulationMenu(MainConfigData config)
     {
         var items = new List<ActionMenuTreeItem>();
-
+        
         if (config.IsActionEnabled("SystemTools.SimulateKeyboard"))
             items.Add(new ActionMenuTreeItem("SystemTools.SimulateKeyboard", "模拟键盘", "\uEA0F"));
+        if (config.IsActionEnabled("SystemTools.SimulateKeyCombination"))
+            items.Add(new ActionMenuTreeItem("SystemTools.SimulateKeyCombination", "模拟组合键", "\uEA15"));
         if (config.IsActionEnabled("SystemTools.SimulateMouse"))
             items.Add(new ActionMenuTreeItem("SystemTools.SimulateMouse", "模拟鼠标", "\uE5C1"));
         if (config.IsActionEnabled("SystemTools.TypeContent"))
@@ -753,6 +886,57 @@ public partial class Plugin : PluginBase
         }
     }
 
+    private void BuildMoreFeaturesMenu(MainConfigData config)
+    {
+        var items = new List<ActionMenuTreeItem>();
+
+        if (config.IsActionEnabled("SystemTools.AutoSwitchClassIslandTheme"))
+            items.Add(new ActionMenuTreeItem("SystemTools.AutoSwitchClassIslandTheme", "自动切换 ClassIsland 主题", "\uE5CB"));
+        if (config.IsActionEnabled("SystemTools.AutoHideMainWindowWhenOccluded"))
+            items.Add(new ActionMenuTreeItem("SystemTools.AutoHideMainWindowWhenOccluded", "遮挡文字时隐藏主界面", "\uEEE3"));
+        if (config.IsActionEnabled("SystemTools.AutoOpenUsbDriveOnInsert"))
+            items.Add(new ActionMenuTreeItem("SystemTools.AutoOpenUsbDriveOnInsert", "自动播放", "\uEE81"));
+
+        if (items.Count > 0)
+        {
+            IActionService.ActionMenuTree["SystemTools 行动"]["更多功能选项…"].AddRange(items);
+        }
+    }
+
+    private void BuildAdvancedAutomationMenu(MainConfigData config)
+    {
+        var items = new List<ActionMenuTreeItem>();
+
+        if (config.IsActionEnabled("SystemTools.ActionFlowExecutionConfirmation"))
+            items.Add(new ActionMenuTreeItem("SystemTools.ActionFlowExecutionConfirmation", "行动流执行确认", "\uE01D"));
+        if (config.IsActionEnabled("SystemTools.TriggerCustomTrigger"))
+            items.Add(new ActionMenuTreeItem("SystemTools.TriggerCustomTrigger", "触发指定触发器", "\uEAB7"));
+        if (config.IsActionEnabled("SystemTools.ToggleWorkflow"))
+            items.Add(new ActionMenuTreeItem("SystemTools.ToggleWorkflow", "开关自动化", "\uE051"));
+
+        if (items.Count > 0)
+        {
+            IActionService.ActionMenuTree["SystemTools 行动"]["高级自动化工具…"].AddRange(items);
+        }
+    }
+
+    private void BuildAiMenu(MainConfigData config)
+    {
+        var items = new List<ActionMenuTreeItem>();
+
+        if (config.EnableAiService && config.IsActionEnabled("SystemTools.EnableVoiceWakeAi"))
+            items.Add(new ActionMenuTreeItem("SystemTools.EnableVoiceWakeAi", "启用语音唤醒 AI", "\uED53"));
+        if (config.EnableAiService && config.IsActionEnabled("SystemTools.WakeUpVoiceConversationAi"))
+            items.Add(new ActionMenuTreeItem("SystemTools.WakeUpVoiceConversationAi", "唤醒语音对话 AI", "\uEFF9"));
+        if (config.EnableAiService && config.IsActionEnabled("SystemTools.ShowAiChatDialog"))
+            items.Add(new ActionMenuTreeItem("SystemTools.ShowAiChatDialog", "显示AI对话框", "\uE8C3"));
+
+        if (items.Count > 0)
+        {
+            IActionService.ActionMenuTree["SystemTools 行动"]["AI 功能…"].AddRange(items);
+        }
+    }
+
     private void BuildClassIslandMenu(MainConfigData config)
     {
         var items = new List<ActionMenuTreeItem>();
@@ -769,8 +953,7 @@ public partial class Plugin : PluginBase
             items.Add(new ActionMenuTreeItem("SystemTools.OpenProfileEditor", "打开档案编辑", "\uE699"));
         if (config.IsActionEnabled("SystemTools.OpenClassSwapWindow"))
             items.Add(new ActionMenuTreeItem("SystemTools.OpenClassSwapWindow", "打开换课窗口", "\uE13B"));
-        if (config.IsActionEnabled("SystemTools.ToggleWorkflow"))
-            items.Add(new ActionMenuTreeItem("SystemTools.ToggleWorkflow", "开关自动化", "\uE8B8"));    
+
 
         if (items.Count > 0)
         {
@@ -815,9 +998,15 @@ public partial class Plugin : PluginBase
     private void OnAppStopping(object? sender, EventArgs e)
     {
         IAppHost.GetService<AdaptiveThemeSyncService>().Stop();
+        IAppHost.TryGetService<AiVoiceConversationService>()?.Dispose();
+        IAppHost.GetService<MainWindowTextOcclusionService>().Shutdown(restoreMainWindow: true);
         IAppHost.GetService<UsbAutoPlayService>().Stop();
         IAppHost.GetService<ClassIslandMemoryAutoCleanupService>().Stop();
+        IAppHost.GetService<SystemMemoryCleanupService>().Stop();
         AdvancedShutdownAction.CancelPlanOnAppStopping();
+        IAppHost.TryGetService<AiChatWindowService>()?.Close();
+        IAppHost.TryGetService<VoskSpeechService>()?.Dispose();
+        IAppHost.TryGetService<KeywordSpeechService>()?.Dispose();
         if (GlobalConstants.MainConfig?.Data.EnableFloatingWindowFeature == true)
         {
             IAppHost.GetService<FloatingWindowService>().Stop();

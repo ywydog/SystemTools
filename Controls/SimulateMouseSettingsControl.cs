@@ -14,6 +14,7 @@ namespace SystemTools.Controls;
 
 public class SimulateMouseSettingsControl : ActionSettingsControlBase<MouseInputSettings>
 {
+    private CheckBox _notifyCheckBox;
     private Avalonia.Controls.Button _startButton;
     private Avalonia.Controls.ListBox _actionsListBox;
     private Avalonia.Controls.CheckBox _disableMouseCheckBox;
@@ -71,10 +72,10 @@ public class SimulateMouseSettingsControl : ActionSettingsControlBase<MouseInput
         var editor = new Avalonia.Controls.StackPanel { Spacing = 6 };
         var row = new Avalonia.Controls.StackPanel { Orientation = Avalonia.Layout.Orientation.Horizontal, Spacing = 8 };
         _typeBox = new Avalonia.Controls.ComboBox { ItemsSource = Enum.GetValues<MouseAction.ActionType>(), SelectedIndex = 0, MinWidth = 120 };
-        _xBox = new Avalonia.Controls.TextBox { Watermark = "X", Width = 70 };
-        _yBox = new Avalonia.Controls.TextBox { Watermark = "Y", Width = 70 };
-        _scrollBox = new Avalonia.Controls.TextBox { Watermark = "滚动", Width = 70 };
-        _intervalBox = new Avalonia.Controls.TextBox { Watermark = "延迟(ms)", Width = 90 };
+        _xBox = new Avalonia.Controls.TextBox { PlaceholderText = "X", Width = 70 };
+        _yBox = new Avalonia.Controls.TextBox { PlaceholderText = "Y", Width = 70 };
+        _scrollBox = new Avalonia.Controls.TextBox { PlaceholderText = "滚动", Width = 70 };
+        _intervalBox = new Avalonia.Controls.TextBox { PlaceholderText = "延迟(ms)", Width = 90 };
         _dragEndBox = new Avalonia.Controls.CheckBox { Content = "拖动结束" };
         row.Children.Add(new Avalonia.Controls.TextBlock { Text = "操作", VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center });
         row.Children.Add(_typeBox);
@@ -105,6 +106,10 @@ public class SimulateMouseSettingsControl : ActionSettingsControlBase<MouseInput
         };
         panel.Children.Add(_disableMouseCheckBox);
 
+        _notifyCheckBox = new CheckBox { Content = "当执行时发出提醒" };
+        _notifyCheckBox.IsCheckedChanged += (s, e) => { Settings.NotifyOnExecute = _notifyCheckBox.IsChecked ?? false; };
+        panel.Children.Add(_notifyCheckBox);
+
         Content = panel;
     }
 
@@ -118,6 +123,7 @@ public class SimulateMouseSettingsControl : ActionSettingsControlBase<MouseInput
     protected override void OnInitialized()
     {
         base.OnInitialized();
+        _notifyCheckBox.IsChecked = Settings.NotifyOnExecute;
         if (Settings.Actions != null)
         {
             _recordedActions.Clear();

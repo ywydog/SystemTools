@@ -25,7 +25,7 @@ public class FloatingWindowTriggerSettings : TriggerSettingsControlBase<Floating
     private readonly TextBox _nameTextBox;
     private readonly List<string> _iconTokens = new();
 
-    private ContentDialog? _iconPickerDialog;
+    private FAContentDialog? _iconPickerDialog;
 
     public FloatingWindowTriggerSettings()
     {
@@ -37,7 +37,7 @@ public class FloatingWindowTriggerSettings : TriggerSettingsControlBase<Floating
             TextWrapping = TextWrapping.Wrap
         });
 
-        _iconTextBox = new TextBox { Watermark = "/uEA73", HorizontalAlignment = HorizontalAlignment.Stretch };
+        _iconTextBox = new TextBox { PlaceholderText = "/uEA73", HorizontalAlignment = HorizontalAlignment.Stretch };
         _iconTextBox.TextChanged += (_, _) => { Settings.Icon = _iconTextBox.Text ?? string.Empty; };
 
         var iconRow = new Grid
@@ -63,7 +63,7 @@ public class FloatingWindowTriggerSettings : TriggerSettingsControlBase<Floating
             TextWrapping = TextWrapping.Wrap
         });
 
-        _nameTextBox = new TextBox { Watermark = "例如：按钮1" };
+        _nameTextBox = new TextBox { PlaceholderText = "例如：按钮1" };
         _nameTextBox.TextChanged += (_, _) => { Settings.ButtonName = _nameTextBox.Text ?? string.Empty; };
         panel.Children.Add(_nameTextBox);
 
@@ -88,11 +88,11 @@ public class FloatingWindowTriggerSettings : TriggerSettingsControlBase<Floating
         EnsureIconsLoaded();
         var rows = BuildVirtualizedRows(460);
 
-        _iconPickerDialog = new ContentDialog
+        _iconPickerDialog = new FAContentDialog
         {
             Title = "选择悬浮窗图标",
             PrimaryButtonText = "关闭",
-            DefaultButton = ContentDialogButton.Primary,
+            DefaultButton = FAContentDialogButton.Primary,
             Content = BuildIconPickerContent(rows)
         };
 

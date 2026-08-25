@@ -8,6 +8,7 @@ namespace SystemTools.Controls;
 public class AdjustScreenBrightnessSettingsControl : ActionSettingsControlBase<AdjustScreenBrightnessSettings>
 {
     private NumericUpDown _brightnessInput;
+    private CheckBox _notifyCheckBox;
 
     public AdjustScreenBrightnessSettingsControl()
     {
@@ -25,7 +26,7 @@ public class AdjustScreenBrightnessSettingsControl : ActionSettingsControlBase<A
             Maximum = 100,
             Increment = 1,
             FormatString = "0",
-            Watermark = "输入 0-100 的整数"
+            PlaceholderText = "输入 0-100 的整数"
         };
         panel.Children.Add(_brightnessInput);
 
@@ -44,7 +45,11 @@ public class AdjustScreenBrightnessSettingsControl : ActionSettingsControlBase<A
             Foreground = Avalonia.Media.Brushes.Gray,
             FontSize = 11,
             Margin = new(0, 10, 0, 0)
-        });
+        });        _notifyCheckBox = new CheckBox { Content = "当执行时发出提醒" };
+        _notifyCheckBox.IsCheckedChanged += (s, e) => { Settings.NotifyOnExecute = _notifyCheckBox.IsChecked ?? false; };
+        panel.Children.Add(_notifyCheckBox);
+
+        
 
         Content = panel;
     }
@@ -52,11 +57,12 @@ public class AdjustScreenBrightnessSettingsControl : ActionSettingsControlBase<A
     protected override void OnInitialized()
     {
         base.OnInitialized();
+        _notifyCheckBox.IsChecked = Settings.NotifyOnExecute;
 
-        _brightnessInput[!NumericUpDown.ValueProperty] = new Binding(nameof(Settings.BrightnessPercent))
+        _brightnessInput.Bind(NumericUpDown.ValueProperty, new Binding(nameof(Settings.BrightnessPercent))
         {
             Source = Settings,
             Mode = BindingMode.TwoWay
-        };
+        });
     }
 }

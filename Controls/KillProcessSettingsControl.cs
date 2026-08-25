@@ -1,4 +1,4 @@
-﻿using Avalonia.Controls;
+using Avalonia.Controls;
 using Avalonia.Layout;
 using Avalonia.Media;
 using Avalonia.Platform.Storage;
@@ -6,6 +6,7 @@ using ClassIsland.Core.Abstractions.Controls;
 using System;
 using System.Diagnostics;
 using System.Threading.Tasks;
+using Avalonia.Input.Platform;
 using SystemTools.Settings;
 
 namespace SystemTools.Controls;
@@ -13,7 +14,8 @@ namespace SystemTools.Controls;
 public class KillProcessSettingsControl : ActionSettingsControlBase<KillProcessSettings>
 {
     private TextBox _processNameBox;
-    private Button _viewProcessesButton;
+        private Button _viewProcessesButton;
+    private CheckBox _notifyCheckBox;
 
     public KillProcessSettingsControl()
     {
@@ -34,7 +36,7 @@ public class KillProcessSettingsControl : ActionSettingsControlBase<KillProcessS
 
         _processNameBox = new TextBox
         {
-            Watermark = "输入进程名（如: notepad）"
+            PlaceholderText = "输入进程名（如: notepad）"
         };
         panel.Children.Add(_processNameBox);
 
@@ -71,7 +73,11 @@ public class KillProcessSettingsControl : ActionSettingsControlBase<KillProcessS
             Margin = new(0, 10, 0, 0)
         };
         _viewProcessesButton.Click += async (s, e) => await ShowProcessList();
-        panel.Children.Add(_viewProcessesButton);
+        panel.Children.Add(_viewProcessesButton);        _notifyCheckBox = new CheckBox { Content = "当执行时发出提醒" };
+        _notifyCheckBox.IsCheckedChanged += (s, e) => { Settings.NotifyOnExecute = _notifyCheckBox.IsChecked ?? false; };
+        panel.Children.Add(_notifyCheckBox);
+
+        
 
         Content = panel;
     }
@@ -79,10 +85,11 @@ public class KillProcessSettingsControl : ActionSettingsControlBase<KillProcessS
     protected override void OnInitialized()
     {
         base.OnInitialized();
-        _processNameBox[!TextBox.TextProperty] = new Avalonia.Data.Binding(nameof(Settings.ProcessName))
+        _notifyCheckBox.IsChecked = Settings.NotifyOnExecute;
+        _processNameBox.Bind(TextBox.TextProperty, new Avalonia.Data.Binding(nameof(Settings.ProcessName))
         {
             Source = Settings
-        };
+        });
     }
 
     private async Task ShowProcessList()

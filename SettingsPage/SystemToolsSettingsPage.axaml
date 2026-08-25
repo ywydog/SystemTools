@@ -8,10 +8,16 @@
                      xmlns:systemTools="clr-namespace:SystemTools"
                      xmlns:behavior="clr-namespace:System.Windows.Forms.Design.Behavior;assembly=System.Windows.Forms.Design"
                      xmlns:controls1="clr-namespace:SystemTools.Controls"
+                     xmlns:loading="clr-namespace:SystemTools.Controls"
+                     x:CompileBindings="False"
                      mc:Ignorable="d"
                      d:DesignHeight="450"
                      d:DesignWidth="800">
 
+    <ci:SettingsPageBase.Styles>
+        <StyleInclude Source="avares://SystemTools/Controls/SettingsPageLazy.axaml" />
+    </ci:SettingsPageBase.Styles>
+    <loading:SettingsPageLazy>
     <ci:DrawerHost x:Name="DrawerHost"
                    DrawerPlacement="Right"
                    IsDrawerOpen="{Binding ViewModel.IsFeatureDrawerOpen, Mode=TwoWay}"
@@ -23,6 +29,7 @@
                       Background="{DynamicResource LayerFillColorDefaultBrush}">
 
                     <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
                         <RowDefinition Height="Auto" />
                         <RowDefinition Height="Auto" />
                         <RowDefinition Height="*" />
@@ -43,9 +50,14 @@
                             <ci:FluentIcon Glyph="&#xE0F6;" FontSize="19" />
                         </Button>
                     </Grid>
+                    <TextBox x:Name="FeatureSearchTextBox"
+                             Grid.Row="1"
+                             Margin="16,0,16,8"
+                             TextChanged="OnFeatureSearchTextBoxTextChanged"
+                             PlaceholderText="搜索启用功能…" />
 
-                    <Border Grid.Row="1"
-                            Margin="16,8,16,12"
+                    <Border Grid.Row="2"
+                            Margin="16,0,16,12"
                             Padding="12,0"
                             Height="40"
                             Background="{DynamicResource SystemFillColorCautionBackgroundBrush}"
@@ -65,47 +77,55 @@
                         </StackPanel>
                     </Border>
 
-                    <Border Grid.Row="2"
+                    <Border Grid.Row="3"
                             Margin="16,0,16,0"
                             BorderThickness="0">
-                        <DataGrid AutoGenerateColumns="False"
-                                  ItemsSource="{Binding DataContext.ViewModel.FeatureItems, 
+                        <Grid>
+                            <DataGrid AutoGenerateColumns="False"
+                                      ItemsSource="{Binding DataContext.ViewModel.FeatureSearchResults,
                           RelativeSource={RelativeSource AncestorType=ci:SettingsPageBase}}"
-                                  CanUserSortColumns="True"
-                                  CanUserReorderColumns="False"
-                                  GridLinesVisibility="Horizontal"
-                                  VerticalScrollBarVisibility="Auto"
-                                  HorizontalScrollBarVisibility="Disabled">
+                                      CanUserSortColumns="True"
+                                      CanUserReorderColumns="False"
+                                      GridLinesVisibility="Horizontal"
+                                      VerticalScrollBarVisibility="Auto"
+                                      HorizontalScrollBarVisibility="Disabled">
 
-                            <DataGrid.Styles>
-                                <Style Selector="DataGridRow TextBlock">
-                                    <Setter Property="TextElement.FontSize" Value="13" />
-                                </Style>
-                                <Style Selector="DataGridRow">
-                                    <Setter Property="Height" Value="32" />
-                                </Style>
-                            </DataGrid.Styles>
-                            <DataGrid.Columns>
-                                <DataGridCheckBoxColumn Header="启用"
-                                                        Width="75"
-                                                        Binding="{Binding IsEnabled, Mode=TwoWay}" />
-                                <DataGridTextColumn Header="类型"
-                                                    Width="80"
-                                                    IsReadOnly="True"
-                                                    Binding="{Binding TypeDisplayName}" />
-                                <DataGridTextColumn Header="所属组别"
-                                                    Width="132"
-                                                    IsReadOnly="True"
-                                                    Binding="{Binding GroupName}" />
-                                <DataGridTextColumn Header="名称"
-                                                    Width="*"
-                                                    IsReadOnly="True"
-                                                    Binding="{Binding DisplayName}" />
-                            </DataGrid.Columns>
-                        </DataGrid>
+                                <DataGrid.Styles>
+                                    <Style Selector="DataGridRow TextBlock">
+                                        <Setter Property="TextElement.FontSize" Value="13" />
+                                    </Style>
+                                    <Style Selector="DataGridRow">
+                                        <Setter Property="Height" Value="32" />
+                                    </Style>
+                                </DataGrid.Styles>
+                                <DataGrid.Columns>
+                                    <DataGridCheckBoxColumn Header="启用"
+                                                            Width="75"
+                                                            Binding="{Binding IsEnabled, Mode=TwoWay}" />
+                                    <DataGridTextColumn Header="类型"
+                                                        Width="80"
+                                                        IsReadOnly="True"
+                                                        Binding="{Binding TypeDisplayName}" />
+                                    <DataGridTextColumn Header="所属组别"
+                                                        Width="132"
+                                                        IsReadOnly="True"
+                                                        Binding="{Binding GroupName}" />
+                                    <DataGridTextColumn Header="名称"
+                                                        Width="*"
+                                                        IsReadOnly="True"
+                                                        Binding="{Binding DisplayName}" />
+                                </DataGrid.Columns>
+                            </DataGrid>
+                            <StackPanel Margin="0,50"
+                                        HorizontalAlignment="Center"
+                                        VerticalAlignment="Center"
+                                        IsVisible="{Binding DataContext.ViewModel.IsFeatureSearchEmpty, RelativeSource={RelativeSource AncestorType=ci:SettingsPageBase}}">
+                                <ci:Empty Text="找不到启用功能。" />
+                            </StackPanel>
+                        </Grid>
                     </Border>
 
-                    <Grid Grid.Row="3"
+                    <Grid Grid.Row="4"
                           Height="68"
                           Margin="16,0,16,0">
                         <StackPanel Orientation="Horizontal"
@@ -144,95 +164,240 @@
                     <Label VerticalAlignment="Center" FontSize="28">功能 · 主设置</Label>
                 </StackPanel>
 
-                <controls:SettingsExpander IconSource="{ci:FluentIconSource &#xE079;}"
+                <controls:FASettingsExpander IconSource="{ci:FluentIconSource &#xE079;}"
                                            Header="启用功能选项"
                                            Description="选择需要本插件要启用的功能">
-                    <controls:SettingsExpander.Footer>
+                    <controls:FASettingsExpander.Footer>
                         <StackPanel Orientation="Horizontal">
                             <Button Content="管理启用的功能..."
                                     Width="165"
                                     Click="OnManageFeaturesClick" />
                         </StackPanel>
-                    </controls:SettingsExpander.Footer>
-                </controls:SettingsExpander>
+                    </controls:FASettingsExpander.Footer>
+                </controls:FASettingsExpander>
 
-                <controls:SettingsExpander IconSource="{ci:FluentIconSource &#xE508;}"
+                <controls:FASettingsExpander IconSource="{ci:FluentIconSource &#xE508;}"
                                            Header="实验性功能"
                                            Description="启用后可以使用实验性功能，不保证其稳定性。">
-                    <controls:SettingsExpander.Footer>
+                    <controls:FASettingsExpander.Footer>
                         <StackPanel Orientation="Horizontal">
                             <controls1:ExperimentalBadge IsVisible="{Binding Settings.IsExperimentalModeActivated}" />
                             <ToggleSwitch
                                 IsChecked="{Binding ViewModel.Settings.EnableExperimentalFeatures, Mode=TwoWay}" />
                         </StackPanel>
-                    </controls:SettingsExpander.Footer>
-                </controls:SettingsExpander>
+                    </controls:FASettingsExpander.Footer>
+                </controls:FASettingsExpander>
                 
-                
-                <!--<controls:SettingsExpander IconSource="{ci:FluentIconSource &#xE28E;}"
-                                           Header="更多功能选项……"
-                                           Description="在这里启用相对小众的 / 正处于预览阶段的更多功能">
-                    <controls:SettingsExpander.Footer>
-                        <Button Content="更多功能选项..."
-                                Width="165"
-                                Click="OnOpenMoreFeaturesClick" />
-                    </controls:SettingsExpander.Footer>
-                </controls:SettingsExpander>-->
-                
-                <controls:SettingsExpander IconSource="{ci:FluentIconSource &#xE28E;}"
+                <controls:FASettingsExpander IconSource="{ci:FluentIconSource &#xE28E;}"
                                            Header="更多功能选项……"
                                            Description="在这里启用相对小众的 / 正处于预览阶段的更多功能"
                                            ActionIconSource="{ci:FluentIconSource &#xEC2E;}"
+                                           IsClickEnabled="{Binding ViewModel.IsMoreFeaturesClickEnabled}"
                                            Click="OnOpenMoreFeaturesClick" />
+                
 
-                <controls:SettingsExpander IconSource="{ci:FluentIconSource &#xEA37;}"
+                <controls:FASettingsExpander IconSource="{ci:FluentIconSource &#xEA37;}"
                                            Header="启用悬浮窗功能"
                                            Description="关闭后将禁用悬浮窗相关全部功能">
-                    <controls:SettingsExpander.Footer>
+                    <controls:FASettingsExpander.Footer>
                         <ToggleSwitch IsChecked="{Binding ViewModel.Settings.EnableFloatingWindowFeature, Mode=TwoWay}"
                                       Click="OnFloatingFeatureToggleClick" />
-                    </controls:SettingsExpander.Footer>
-                </controls:SettingsExpander>
+                    </controls:FASettingsExpander.Footer>
+                </controls:FASettingsExpander>
 
-                <controls:SettingsExpander IconSource="{ci:FluentIconSource &#xE071;}"
+                <controls:FASettingsExpander IconSource="{ci:FluentIconSource &#xF005;}"
+                                             Header="AI 服务"
+                                             Description="配置兼容 OpenAI 格式的 AI 服务，供插件功能调用。">
+                    <controls:FASettingsExpander.Footer>
+                        <ToggleSwitch IsChecked="{Binding Config.EnableAiService, Mode=OneWay}"
+                                      Click="AiServiceToggle_OnClick" />
+                    </controls:FASettingsExpander.Footer>
+
+                    <controls:FASettingsExpanderItem Content="供应商名称"
+                                                     Description="用于标识当前配置的 AI 服务供应商。"
+                                                     IsEnabled="{Binding Config.EnableAiService}">
+                        <controls:FASettingsExpanderItem.Footer>
+                            <TextBox Width="300"
+                                     PlaceholderText="OpenAI"
+                                     Text="{Binding Config.AiProviderName, Mode=TwoWay}" />
+                        </controls:FASettingsExpanderItem.Footer>
+                    </controls:FASettingsExpanderItem>
+
+                    <controls:FASettingsExpanderItem Content="API Key"
+                                                     Description="请求服务时使用的 Bearer API 密钥。"
+                                                     IsEnabled="{Binding Config.EnableAiService}">
+                        <controls:FASettingsExpanderItem.Footer>
+                            <TextBox Width="300"
+                                     PasswordChar="*"
+                                     PlaceholderText="sk-..."
+                                     Text="{Binding Config.AiApiKey, Mode=TwoWay}" />
+                        </controls:FASettingsExpanderItem.Footer>
+                    </controls:FASettingsExpanderItem>
+
+                    <controls:FASettingsExpanderItem Content="API 请求地址"
+                                                     Description="兼容 OpenAI 的 API 基址，例如 https://api.openai.com/v1。"
+                                                     IsEnabled="{Binding Config.EnableAiService}">
+                        <controls:FASettingsExpanderItem.Footer>
+                            <TextBox Width="300"
+                                     PlaceholderText="https://api.openai.com/v1"
+                                     Text="{Binding Config.AiApiUrl, Mode=TwoWay}" />
+                        </controls:FASettingsExpanderItem.Footer>
+                    </controls:FASettingsExpanderItem>
+
+                    <controls:FASettingsExpanderItem Content="模型"
+                                                     Description="从供应商获取可用模型并选择默认模型。"
+                                                     IsEnabled="{Binding Config.EnableAiService}">
+                        <controls:FASettingsExpanderItem.Footer>
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <ComboBox Width="200"
+                                          ItemsSource="{Binding AvailableAiModels}"
+                                          SelectedItem="{Binding Config.AiModel, Mode=TwoWay}"
+                                          PlaceholderText="请先获取模型" />
+                                <Button Width="92"
+                                        Content="获取模型"
+                                        Click="GetAiModelsButton_OnClick" />
+                            </StackPanel>
+                        </controls:FASettingsExpanderItem.Footer>
+                    </controls:FASettingsExpanderItem>
+
+                    <controls:FASettingsExpanderItem Content="语音唤醒 AI"
+                                                     Description="检测唤醒词后进入连续语音对话。"
+                                                     IconSource="{ci:FluentIconSource &#xED53;}"
+                                                     IsEnabled="{Binding Config.EnableAiService}">
+                        <controls:FASettingsExpanderItem.Footer>
+                            <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                                <controls1:ExperimentalBadge />
+                                <ToggleSwitch IsChecked="{Binding Config.EnableVoiceWakeAi, Mode=OneWay}"
+                                              Click="VoiceWakeAiToggle_OnClick" />
+                            </StackPanel>
+                        </controls:FASettingsExpanderItem.Footer>
+                    </controls:FASettingsExpanderItem>
+
+                    <controls:FASettingsExpanderItem Content="AI 唤醒词"
+                                                     Description="用于进入语音对话的关键词，默认为“你好ci”。"
+                                                     IsEnabled="{Binding Config.EnableAiService}">
+                        <controls:FASettingsExpanderItem.Footer>
+                            <TextBox Width="260"
+                                     PlaceholderText="你好ci"
+                                     Text="{Binding Config.AiWakeWord, Mode=TwoWay}" />
+                        </controls:FASettingsExpanderItem.Footer>
+                    </controls:FASettingsExpanderItem>
+
+                    <controls:FASettingsExpanderItem Content="当前使用模型"
+                                                     Description="读取当前语音识别模型的认证信息。">
+                        <controls:FASettingsExpanderItem.Footer>
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <Button MinWidth="132"
+                                        Content="检查当前使用模型"
+                                        Click="CheckCurrentVoskModelButton_OnClick" />
+                                <TextBlock x:Name="CurrentVoskModelText"
+                                           MaxWidth="360"
+                                           VerticalAlignment="Center"
+                                           TextWrapping="Wrap"
+                                           IsVisible="False" />
+                            </StackPanel>
+                        </controls:FASettingsExpanderItem.Footer>
+                    </controls:FASettingsExpanderItem>
+                    
+                    <controls:FASettingsExpanderItem Content="AI 对话悬浮窗样式"
+                                                     Description="选择 语音对话窗口 和“行动”显示AI对话框 使用的背景材质。"
+                                                     IconSource="{ci:FluentIconSource &#xED53;}">
+                        <controls:FASettingsExpanderItem.Footer>
+                            <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                                <controls1:ExperimentalBadge />
+                                <ComboBox Width="180"
+                                          SelectedIndex="{Binding Config.AiConversationFloatingWindowStyle, Mode=TwoWay}">
+                                    <ComboBoxItem Content="磨砂效果" />
+                                    <ComboBoxItem Content="液态玻璃" />
+                                </ComboBox>
+                            </StackPanel>
+                        </controls:FASettingsExpanderItem.Footer>
+                    </controls:FASettingsExpanderItem>
+                </controls:FASettingsExpander>
+
+                <controls:FASettingsExpander IconSource="{ci:FluentIconSource &#xE071;}"
                                            Header="启用扩展功能"
                                            Description="启用需要下载依赖的更多可选功能">
 
-                    <controls:SettingsExpanderItem Content="启用需要添加 FFmpeg 依赖的功能">
-                        <controls:SettingsExpanderItem.Footer>
+                    <controls:FASettingsExpanderItem Content="启用需要添加 FFmpeg 依赖的功能"
+                                                     IconSource="{ci:FluentIconSource &#xEBCC;}">
+                        <controls:FASettingsExpanderItem.Footer>
                             <ToggleSwitch IsChecked="{Binding ViewModel.Settings.EnableFfmpegFeatures, Mode=TwoWay}"
                                           Click="OnFfmpegToggleClick" />
-                        </controls:SettingsExpanderItem.Footer>
-                    </controls:SettingsExpanderItem>
+                        </controls:FASettingsExpanderItem.Footer>
+                    </controls:FASettingsExpanderItem>
 
-                    <controls:SettingsExpanderItem Content="下载插件所需 FFmpeg 依赖">
-                        <controls:SettingsExpanderItem.Footer>
+                    <controls:FASettingsExpanderItem Content="下载插件所需 FFmpeg 依赖">
+                        <controls:FASettingsExpanderItem.Footer>
                             <Button Content="点击下载（190 MB）"
                                     Width="165"
                                     Click="OnDownloadFfmpegClick"
                                     IsEnabled="{Binding ViewModel.IsFfmpegDownloadEnabled}" />
-                        </controls:SettingsExpanderItem.Footer>
-                    </controls:SettingsExpanderItem>
+                        </controls:FASettingsExpanderItem.Footer>
+                    </controls:FASettingsExpanderItem>
 
-                    <controls:SettingsExpanderItem Content="启用人脸识别验证功能">
-                        <controls:SettingsExpanderItem.Footer>
+                    <controls:FASettingsExpanderItem Content="启用人脸识别验证功能"
+                                                     IconSource="{ci:FluentIconSource &#xED2B;}">
+                        <controls:FASettingsExpanderItem.Footer>
                             <StackPanel Orientation="Horizontal">
                                 <controls1:ExperimentalBadge IsVisible="{Binding Settings.IsExperimentalModeActivated}" />
                                 <ToggleSwitch
                                     IsChecked="{Binding ViewModel.Settings.EnableFaceRecognition, Mode=TwoWay}"
                                     Click="OnFaceRecognitionToggleClick" />
                             </StackPanel>
-                        </controls:SettingsExpanderItem.Footer>
-                    </controls:SettingsExpanderItem>
+                        </controls:FASettingsExpanderItem.Footer>
+                    </controls:FASettingsExpanderItem>
 
-                    <controls:SettingsExpanderItem Content="下载人脸识别验证模型及运行时">
-                        <controls:SettingsExpanderItem.Footer>
+                    <controls:FASettingsExpanderItem Content="下载人脸识别验证模型及运行时">
+                        <controls:FASettingsExpanderItem.Footer>
                             <Button Content="点击下载（138 MB）"
                                     Width="165"
                                     Click="OnDownloadFaceModelsClick"
                                     IsEnabled="{Binding ViewModel.IsFaceModelsDownloadEnabled}" />
-                        </controls:SettingsExpanderItem.Footer>
-                    </controls:SettingsExpanderItem>
+                        </controls:FASettingsExpanderItem.Footer>
+                    </controls:FASettingsExpanderItem>
+
+                    <controls:FASettingsExpanderItem Content="启用 Windows Hello 人脸识别验证器"
+                                                     Description="使用 Windows 安全界面验证；需先为当前用户录入 Windows Hello 人脸。系统可能回退到指纹或 PIN。"
+                                                     IconSource="{ci:FluentIconSource &#xEED5;}">
+                        <controls:FASettingsExpanderItem.Footer>
+                            <ToggleSwitch IsChecked="{Binding ViewModel.Settings.EnableWindowsHello, Mode=OneWay}"
+                                          Click="OnWindowsHelloToggleClick" />
+                        </controls:FASettingsExpanderItem.Footer>
+                    </controls:FASettingsExpanderItem>
+
+                    <controls:FASettingsExpanderItem Content="下载语音识别服务"
+                                                     Description="下载并安装语音识别所需的 VoskWorker 依赖。"
+                                                     IconSource="{ci:FluentIconSource &#xED53;}">
+                        <controls:FASettingsExpanderItem.Footer>
+                            <Button Content="点击下载（52 MB）"
+                                    Width="165"
+                                    Click="OnDownloadVoskWorkerClick"
+                                    IsEnabled="{Binding ViewModel.IsVoskWorkerDownloadEnabled}" />
+                        </controls:FASettingsExpanderItem.Footer>
+                    </controls:FASettingsExpanderItem>
+
+                    <controls:FASettingsExpanderItem Content="下载语音识别模型"
+                                                     Description="下载受 SystemTools 认证的模型文件。注意：仅能选择下载一个">
+                        <controls:FASettingsExpanderItem.Footer>
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <ComboBox Width="280"
+                                          ItemsSource="{Binding SpeechRecognitionModels}"
+                                          SelectedItem="{Binding ViewModel.SelectedSpeechRecognitionModel, Mode=TwoWay}"
+                                          IsEnabled="{Binding ViewModel.IsSpeechRecognitionModelSelectionEnabled}">
+                                    <ComboBox.ItemTemplate>
+                                        <DataTemplate>
+                                            <TextBlock Text="{Binding DisplayName}" />
+                                        </DataTemplate>
+                                    </ComboBox.ItemTemplate>
+                                </ComboBox>
+                                <Button Width="72"
+                                        Content="{Binding ViewModel.SpeechRecognitionActionText}"
+                                        Click="OnSpeechRecognitionModelActionClick"
+                                        IsEnabled="{Binding ViewModel.IsSpeechRecognitionActionEnabled}" />
+                            </StackPanel>
+                        </controls:FASettingsExpanderItem.Footer>
+                    </controls:FASettingsExpanderItem>
 
                     <StackPanel IsVisible="{Binding ViewModel.ShowDownloadProgress}"
                                 Margin="12,0,12,12"
@@ -244,7 +409,7 @@
                                      Maximum="100"
                                      Height="4" />
                     </StackPanel>
-                </controls:SettingsExpander>
+                </controls:FASettingsExpander>
 
                 <TextBlock Text="Programmer_Wang ©2026"
                            Foreground="Gray"
@@ -255,4 +420,5 @@
             </StackPanel>
         </ScrollViewer>
     </ci:DrawerHost>
+    </loading:SettingsPageLazy>
 </ci:SettingsPageBase>

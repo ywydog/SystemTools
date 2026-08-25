@@ -14,6 +14,7 @@ namespace SystemTools.Controls;
 
 public class SimulateKeyboardSettingsControl : ActionSettingsControlBase<KeyboardInputSettings>
 {
+    private CheckBox _notifyCheckBox;
     private readonly Button _startButton;
     private readonly Button _stopButton;
     private readonly ListBox _actionsListBox;
@@ -47,9 +48,9 @@ public class SimulateKeyboardSettingsControl : ActionSettingsControlBase<Keyboar
 
         var editor = new StackPanel { Spacing = 6 };
         _typeBox = new ComboBox { ItemsSource = Enum.GetValues<KeyboardAction.ActionType>(), SelectedIndex = 0, MinWidth = 120 };
-        _keyCodeBox = new TextBox { Watermark = "虚拟键码", Width = 90 };
-        _keyNameBox = new TextBox { Watermark = "按键名称", Width = 120 };
-        _intervalBox = new TextBox { Watermark = "延迟(ms)", Width = 90 };
+        _keyCodeBox = new TextBox { PlaceholderText = "虚拟键码", Width = 90 };
+        _keyNameBox = new TextBox { PlaceholderText = "按键名称", Width = 120 };
+        _intervalBox = new TextBox { PlaceholderText = "延迟(ms)", Width = 90 };
         var row = new StackPanel { Orientation = Avalonia.Layout.Orientation.Horizontal, Spacing = 8 };
         row.Children.Add(new TextBlock { Text = "操作", VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center });
         row.Children.Add(_typeBox);
@@ -67,12 +68,17 @@ public class SimulateKeyboardSettingsControl : ActionSettingsControlBase<Keyboar
         AddButton(editButtons, "删除", DeleteSelectedAction);
         editor.Children.Add(editButtons);
         panel.Children.Add(editor);
+        _notifyCheckBox = new CheckBox { Content = "当执行时发出提醒" };
+        _notifyCheckBox.IsCheckedChanged += (s, e) => { Settings.NotifyOnExecute = _notifyCheckBox.IsChecked ?? false; };
+        panel.Children.Add(_notifyCheckBox);
+
         Content = panel;
     }
 
     protected override void OnInitialized()
     {
         base.OnInitialized();
+        _notifyCheckBox.IsChecked = Settings.NotifyOnExecute;
         _recordedActions.Clear();
         if (Settings.Actions.Count > 0)
         {

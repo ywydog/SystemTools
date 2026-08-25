@@ -10,6 +10,13 @@ namespace SystemTools.ConfigHandlers;
 
 public class MainConfigData : INotifyPropertyChanged
 {
+    public MainConfigData()
+    {
+        _aiConversationLiquidGlass.PropertyChanged += OnLiquidGlassSettingsPropertyChanged;
+        _aiConversationApprovalButtonGlass.PropertyChanged += OnApprovalButtonGlassSettingsPropertyChanged;
+        _floatingWindowLiquidGlass.PropertyChanged += OnFloatingWindowLiquidGlassSettingsPropertyChanged;
+    }
+
     public event EventHandler? RestartPropertyChanged;
     public event PropertyChangedEventHandler? PropertyChanged;
 
@@ -88,16 +95,31 @@ public class MainConfigData : INotifyPropertyChanged
         }
     }
 
-    bool _autoMatchMainBackgroundTheme;
+    bool _enableWindowsHello;
 
-    [JsonPropertyName("autoMatchMainBackgroundTheme")]
-    public bool AutoMatchMainBackgroundTheme
+    [JsonPropertyName("enableWindowsHello")]
+    public bool EnableWindowsHello
     {
-        get => _autoMatchMainBackgroundTheme;
+        get => _enableWindowsHello;
         set
         {
-            if (value == _autoMatchMainBackgroundTheme) return;
-            _autoMatchMainBackgroundTheme = value;
+            if (value == _enableWindowsHello) return;
+            _enableWindowsHello = value;
+            OnPropertyChanged();
+            RestartPropertyChanged?.Invoke(this, EventArgs.Empty);
+        }
+    }
+
+    bool _autoSwitchClassIslandTheme;
+
+    [JsonPropertyName("autoSwitchClassIslandTheme")]
+    public bool AutoSwitchClassIslandTheme
+    {
+        get => _autoSwitchClassIslandTheme;
+        set
+        {
+            if (value == _autoSwitchClassIslandTheme) return;
+            _autoSwitchClassIslandTheme = value;
             OnPropertyChanged();
         }
     }
@@ -132,6 +154,35 @@ public class MainConfigData : INotifyPropertyChanged
         }
     }
 
+    bool _autoCleanupSystemMemory;
+
+    [JsonPropertyName("autoCleanupSystemMemory")]
+    public bool AutoCleanupSystemMemory
+    {
+        get => _autoCleanupSystemMemory;
+        set
+        {
+            if (value == _autoCleanupSystemMemory) return;
+            _autoCleanupSystemMemory = value;
+            OnPropertyChanged();
+        }
+    }
+
+    int _systemMemoryCleanupThresholdPercent = 90;
+
+    [JsonPropertyName("systemMemoryCleanupThresholdPercent")]
+    public int SystemMemoryCleanupThresholdPercent
+    {
+        get => _systemMemoryCleanupThresholdPercent;
+        set
+        {
+            var clamped = Math.Clamp(value, 50, 99);
+            if (clamped == _systemMemoryCleanupThresholdPercent) return;
+            _systemMemoryCleanupThresholdPercent = clamped;
+            OnPropertyChanged();
+        }
+    }
+
     bool _autoHideMainWindowWhenOccluded;
 
     [JsonPropertyName("autoHideMainWindowWhenOccluded")]
@@ -146,6 +197,173 @@ public class MainConfigData : INotifyPropertyChanged
         }
     }
     
+    bool _enableAiService;
+
+    [JsonPropertyName("enableAiService")]
+    public bool EnableAiService
+    {
+        get => _enableAiService;
+        set
+        {
+            if (value == _enableAiService) return;
+            _enableAiService = value;
+            OnPropertyChanged();
+            RestartPropertyChanged?.Invoke(this, EventArgs.Empty);
+        }
+    }
+
+    int _aiConversationFloatingWindowStyle;
+
+    [JsonPropertyName("aiConversationFloatingWindowStyle")]
+    public int AiConversationFloatingWindowStyle
+    {
+        get => _aiConversationFloatingWindowStyle;
+        set
+        {
+            var normalized = value == 1 ? 1 : 0;
+            if (normalized == _aiConversationFloatingWindowStyle) return;
+            _aiConversationFloatingWindowStyle = normalized;
+            OnPropertyChanged();
+        }
+    }
+
+    LiquidGlassSettings _aiConversationLiquidGlass = new();
+
+    [JsonPropertyName("aiConversationLiquidGlass")]
+    public LiquidGlassSettings AiConversationLiquidGlass
+    {
+        get => _aiConversationLiquidGlass;
+        set
+        {
+            value ??= new LiquidGlassSettings();
+            if (ReferenceEquals(value, _aiConversationLiquidGlass)) return;
+            _aiConversationLiquidGlass.PropertyChanged -= OnLiquidGlassSettingsPropertyChanged;
+            _aiConversationLiquidGlass = value;
+            _aiConversationLiquidGlass.PropertyChanged += OnLiquidGlassSettingsPropertyChanged;
+            OnPropertyChanged();
+        }
+    }
+
+    private LiquidGlassButtonSettings _aiConversationApprovalButtonGlass = new();
+
+    [JsonPropertyName("aiConversationApprovalButtonGlass")]
+    public LiquidGlassButtonSettings AiConversationApprovalButtonGlass
+    {
+        get => _aiConversationApprovalButtonGlass;
+        set
+        {
+            value ??= new LiquidGlassButtonSettings();
+            if (ReferenceEquals(value, _aiConversationApprovalButtonGlass)) return;
+            _aiConversationApprovalButtonGlass.PropertyChanged -= OnApprovalButtonGlassSettingsPropertyChanged;
+            _aiConversationApprovalButtonGlass = value;
+            _aiConversationApprovalButtonGlass.PropertyChanged += OnApprovalButtonGlassSettingsPropertyChanged;
+            OnPropertyChanged();
+        }
+    }
+
+    string _aiProviderName = "OpenAI";
+
+    [JsonPropertyName("aiProviderName")]
+    public string AiProviderName
+    {
+        get => _aiProviderName;
+        set
+        {
+            value ??= string.Empty;
+            if (string.Equals(value, _aiProviderName, StringComparison.Ordinal)) return;
+            _aiProviderName = value;
+            OnPropertyChanged();
+        }
+    }
+
+    string _aiApiKey = string.Empty;
+
+    [JsonPropertyName("aiApiKey")]
+    public string AiApiKey
+    {
+        get => _aiApiKey;
+        set
+        {
+            value ??= string.Empty;
+            if (string.Equals(value, _aiApiKey, StringComparison.Ordinal)) return;
+            _aiApiKey = value;
+            OnPropertyChanged();
+        }
+    }
+
+    string _aiApiUrl = "https://api.openai.com/v1";
+
+    [JsonPropertyName("aiApiUrl")]
+    public string AiApiUrl
+    {
+        get => _aiApiUrl;
+        set
+        {
+            value ??= string.Empty;
+            if (string.Equals(value, _aiApiUrl, StringComparison.Ordinal)) return;
+            _aiApiUrl = value;
+            OnPropertyChanged();
+        }
+    }
+
+    string _aiModel = string.Empty;
+
+    [JsonPropertyName("aiModel")]
+    public string AiModel
+    {
+        get => _aiModel;
+        set
+        {
+            value ??= string.Empty;
+            if (string.Equals(value, _aiModel, StringComparison.Ordinal)) return;
+            _aiModel = value;
+            OnPropertyChanged();
+        }
+    }
+
+    bool _shareAiRepliesWithClassIslandNotifications;
+
+    [JsonPropertyName("shareAiRepliesWithClassIslandNotifications")]
+    public bool ShareAiRepliesWithClassIslandNotifications
+    {
+        get => _shareAiRepliesWithClassIslandNotifications;
+        set
+        {
+            if (value == _shareAiRepliesWithClassIslandNotifications) return;
+            _shareAiRepliesWithClassIslandNotifications = value;
+            OnPropertyChanged();
+        }
+    }
+
+    bool _enableVoiceWakeAi;
+
+    [JsonPropertyName("enableVoiceWakeAi")]
+    public bool EnableVoiceWakeAi
+    {
+        get => _enableVoiceWakeAi;
+        set
+        {
+            if (value == _enableVoiceWakeAi) return;
+            _enableVoiceWakeAi = value;
+            OnPropertyChanged();
+        }
+    }
+
+    string _aiWakeWord = "你好ci";
+
+    [JsonPropertyName("aiWakeWord")]
+    public string AiWakeWord
+    {
+        get => _aiWakeWord;
+        set
+        {
+            value = string.IsNullOrWhiteSpace(value) ? "你好ci" : value.Trim();
+            if (string.Equals(value, _aiWakeWord, StringComparison.Ordinal)) return;
+            _aiWakeWord = value;
+            OnPropertyChanged();
+        }
+    }
+
     // ========== 公告相关 ==========
     /*string _lastAcceptedAnnouncement = string.Empty;
 
@@ -281,7 +499,7 @@ public class MainConfigData : INotifyPropertyChanged
         get => _floatingWindowTheme;
         set
         {
-            var normalized = value is 1 or 2 ? value : 0;
+            var normalized = value is 1 or 2 or 3 ? value : 0;
             if (normalized == _floatingWindowTheme) return;
             _floatingWindowTheme = normalized;
             OnPropertyChanged();
@@ -315,6 +533,18 @@ public class MainConfigData : INotifyPropertyChanged
             OnPropertyChanged();
         }
     }
+
+    [JsonPropertyName("actionFlowExecutionConfirmationPositionX")]
+    public int? ActionFlowExecutionConfirmationPositionX { get; set; }
+
+    [JsonPropertyName("actionFlowExecutionConfirmationPositionY")]
+    public int? ActionFlowExecutionConfirmationPositionY { get; set; }
+
+    [JsonPropertyName("actionFlowExecutionDelayPositionX")]
+    public int? ActionFlowExecutionDelayPositionX { get; set; }
+
+    [JsonPropertyName("actionFlowExecutionDelayPositionY")]
+    public int? ActionFlowExecutionDelayPositionY { get; set; }
 
     int _floatingWindowLayer = 1;
 
@@ -427,5 +657,84 @@ public class MainConfigData : INotifyPropertyChanged
     protected void OnPropertyChanged([CallerMemberName] string? propertyName = null)
     {
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+    }
+
+    private int _floatingWindowAppearanceStyle = 1;
+
+    [JsonPropertyName("floatingWindowAppearanceStyle")]
+    public int FloatingWindowAppearanceStyle
+    {
+        get => _floatingWindowAppearanceStyle;
+        set
+        {
+            var normalized = value == 1 ? 1 : 0;
+            if (normalized == _floatingWindowAppearanceStyle) return;
+            _floatingWindowAppearanceStyle = normalized;
+            OnPropertyChanged();
+        }
+    }
+
+    private LiquidGlassSettings _floatingWindowLiquidGlass = CreateFloatingWindowLiquidGlassDefaults();
+
+    [JsonPropertyName("floatingWindowLiquidGlass")]
+    public LiquidGlassSettings FloatingWindowLiquidGlass
+    {
+        get => _floatingWindowLiquidGlass;
+        set
+        {
+            value ??= CreateFloatingWindowLiquidGlassDefaults();
+            if (ReferenceEquals(value, _floatingWindowLiquidGlass)) return;
+            _floatingWindowLiquidGlass.PropertyChanged -= OnFloatingWindowLiquidGlassSettingsPropertyChanged;
+            _floatingWindowLiquidGlass = value;
+            _floatingWindowLiquidGlass.PropertyChanged += OnFloatingWindowLiquidGlassSettingsPropertyChanged;
+            OnPropertyChanged();
+        }
+    }
+
+    private double _floatingWindowGlassButtonScaleDip = 3.5;
+
+    [JsonPropertyName("floatingWindowGlassButtonScaleDip")]
+    public double FloatingWindowGlassButtonScaleDip
+    {
+        get => _floatingWindowGlassButtonScaleDip;
+        set
+        {
+            var clamped = Math.Clamp(value, 0, 12);
+            if (Math.Abs(clamped - _floatingWindowGlassButtonScaleDip) < 0.0001) return;
+            _floatingWindowGlassButtonScaleDip = clamped;
+            OnPropertyChanged();
+        }
+    }
+
+    private void OnLiquidGlassSettingsPropertyChanged(object? sender, PropertyChangedEventArgs e) =>
+        OnPropertyChanged(nameof(AiConversationLiquidGlass));
+
+    private void OnApprovalButtonGlassSettingsPropertyChanged(object? sender, PropertyChangedEventArgs e) =>
+        OnPropertyChanged(nameof(AiConversationApprovalButtonGlass));
+
+    private void OnFloatingWindowLiquidGlassSettingsPropertyChanged(object? sender, PropertyChangedEventArgs e) =>
+        OnPropertyChanged(nameof(FloatingWindowLiquidGlass));
+
+    private static LiquidGlassSettings CreateFloatingWindowLiquidGlassDefaults()
+    {
+        return new LiquidGlassSettings
+        {
+            CornerRadius = 20,
+            BackdropRefreshIntervalMs = 50,
+            RefractionHeight = 10,
+            RefractionAmount = 20,
+            BlurRadius = 4,
+            Vibrancy = 1.25,
+            BackdropOpacity = 0.96,
+            HighlightEnabled = true,
+            HighlightWidth = 0.5,
+            HighlightBlurRadius = 0.3,
+            HighlightOpacity = 0.65,
+            ShadowEnabled = true,
+            ShadowRadius = 20,
+            ShadowOffsetY = 4,
+            ShadowColor = "#40000000",
+            ShadowOpacity = 0.85
+        };
     }
 }

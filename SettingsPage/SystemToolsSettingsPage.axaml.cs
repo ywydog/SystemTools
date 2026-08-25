@@ -1,7 +1,9 @@
-﻿using System;
+using System;
 using System.IO;
 using System.Linq;
 using System.ComponentModel;
+using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Controls;
@@ -22,9 +24,14 @@ using ClassIsland.Core.Abstractions.Services;
 namespace SystemTools;
 
 [HidePageTitle]
-[SettingsPageInfo("systemtools.settings.main", "主设置", "\uE079", "\uE078")]
+[SettingsPageInfo("systemtools.settings.main", "主设置", "", "")]
 public partial class SystemToolsSettingsPage : SettingsPageBase
 {
+    public MainConfigData Config => GlobalConstants.MainConfig!.Data;
+    public ObservableCollection<string> AvailableAiModels { get; } = [];
+    public IReadOnlyList<SpeechRecognitionDownloadOption> SpeechRecognitionModels =>
+        SystemToolsSettingsViewModel.SpeechRecognitionModels;
+
     public SystemToolsSettingsPage()
     {
         if (GlobalConstants.MainConfig == null)
@@ -46,14 +53,18 @@ public partial class SystemToolsSettingsPage : SettingsPageBase
         ViewModel.RefreshFloatingTriggers();
         ViewModel.Settings.RestartPropertyChanged += OnRestartPropertyChanged;
         ViewModel.Settings.PropertyChanged += OnSettingsPropertyChanged;
+
+        if (!string.IsNullOrWhiteSpace(Config.AiModel))
+        {
+            AvailableAiModels.Add(Config.AiModel);
+        }
     }
 
     public SystemToolsSettingsViewModel ViewModel { get; }
 
     private void UpdateDownloadButtonStates()
     {
-        ViewModel.IsFfmpegDownloadEnabled = !ViewModel.CheckFfmpegExists();
-        ViewModel.IsFaceModelsDownloadEnabled = !ViewModel.CheckFaceModelsExists();
+        ViewModel.RefreshDownloadButtonStates();
     }
 
     private void OnRestartPropertyChanged(object? sender, EventArgs e)
@@ -79,6 +90,234 @@ public partial class SystemToolsSettingsPage : SettingsPageBase
         RequestRestart();
     }
 
+    private async void AiServiceToggle_OnClick(object? sender, RoutedEventArgs e)
+    {
+        if (sender is not ToggleSwitch toggleSwitch)
+        {
+            return;
+        }
+
+        if (toggleSwitch.IsChecked != true)
+        {
+            Config.EnableAiService = false;
+            GlobalConstants.MainConfig?.Save();
+            RestartClassIsland();
+            return;
+        }
+
+        toggleSwitch.IsEnabled = false;
+        var accepted = await ShowAiServiceAgreementAsync();
+        toggleSwitch.IsEnabled = true;
+        if (!accepted)
+        {
+            toggleSwitch.IsChecked = false;
+            return;
+        }
+
+        Config.EnableAiService = true;
+        GlobalConstants.MainConfig?.Save();
+        RestartClassIsland();
+    }
+
+    private async void VoiceWakeAiToggle_OnClick(object? sender, RoutedEventArgs e)
+    {
+        if (sender is not ToggleSwitch toggleSwitch)
+        {
+            return;
+        }
+
+        if (toggleSwitch.IsChecked != true)
+        {
+            Config.EnableVoiceWakeAi = false;
+            GlobalConstants.MainConfig?.Save();
+            IAppHost.TryGetService<AiVoiceConversationService>()?.ApplyConfig();
+            return;
+        }
+
+        if (!Config.EnableAiService)
+        {
+            toggleSwitch.IsChecked = false;
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(Config.AiModel))
+        {
+            toggleSwitch.IsChecked = false;
+            await ShowAiMessageAsync("无法启用语音唤醒", "请先在上方获取并选择一个 AI 模型。");
+            return;
+        }
+
+        var dependencyCheck = DependencyPaths.CheckSpeechRecognitionDependencies();
+        if (!dependencyCheck.IsAvailable)
+        {
+            toggleSwitch.IsChecked = false;
+            await ShowAiMessageAsync("无法启用语音唤醒", dependencyCheck.Message);
+            return;
+        }
+
+        toggleSwitch.IsEnabled = false;
+        try
+        {
+            Config.EnableVoiceWakeAi = true;
+            GlobalConstants.MainConfig?.Save();
+            var service = IAppHost.TryGetService<AiVoiceConversationService>();
+            if (service == null)
+            {
+                Config.EnableVoiceWakeAi = false;
+                GlobalConstants.MainConfig?.Save();
+                toggleSwitch.IsChecked = false;
+                await ShowAiMessageAsync("需要重启 ClassIsland", "AI 服务尚未在本次运行中加载，请重启 ClassIsland 后再启用语音唤醒。");
+                return;
+            }
+
+            service.ApplyConfig();
+            if (!service.IsWakeWordEnabled)
+            {
+                Config.EnableVoiceWakeAi = false;
+                GlobalConstants.MainConfig?.Save();
+                toggleSwitch.IsChecked = false;
+                await ShowAiMessageAsync("无法启用语音唤醒", service.LastError ?? "语音唤醒服务未能启动。");
+            }
+        }
+        finally
+        {
+            toggleSwitch.IsEnabled = true;
+        }
+    }
+
+    private void CheckCurrentVoskModelButton_OnClick(object? sender, RoutedEventArgs e)
+    {
+        if (sender is not Button button)
+        {
+            return;
+        }
+
+        button.Content = "重新检查";
+        try
+        {
+            var modelDirectory = DependencyPaths.FindSpeechRecognitionModelDirectory();
+            if (modelDirectory is null)
+            {
+                CurrentVoskModelText.Text = "未找到可用的语音识别模型。";
+            }
+            else
+            {
+                var model = DependencyPaths.GetSpeechRecognitionModelInfo(modelDirectory);
+                CurrentVoskModelText.Text = string.IsNullOrWhiteSpace(model?.Name)
+                    ? "已找到当前模型，但 copyright.txt 中未提供模型名称。"
+                    : $"当前正在使用 {model.Name} 模型";
+            }
+        }
+        catch (Exception ex)
+        {
+            CurrentVoskModelText.Text = $"检查当前模型失败：{ex.Message}";
+        }
+
+        CurrentVoskModelText.IsVisible = true;
+    }
+
+    private async Task<bool> ShowAiServiceAgreementAsync()
+    {
+        var agreementCheckBox = new CheckBox
+        {
+            Content = new TextBlock
+            {
+                Text = "我已阅读本协议，自愿承担使用AI带来的不确定风险",
+                TextWrapping = Avalonia.Media.TextWrapping.Wrap,
+                MaxWidth = 520
+            }
+        };
+        var dialog = new FAContentDialog
+        {
+            Title = "AI 服务使用协议",
+            Content = new StackPanel
+            {
+                Spacing = 16,
+                MaxWidth = 540,
+                Children =
+                {
+                    new TextBlock
+                    {
+                        Text = "此“AI 服务”是由SystemTools插件提供的外接 API Key 的AI辅助功能，与ClassIsland软件无关；\n" +
+                               "AI的回复和相关服务由对应提供商提供，与本插件及开发者无关；\n" +
+                               "使用课表问答或修改功能时，当前档案中的课表、时间表、科目、任课教师及扩展配置会发送给您配置的 AI 服务提供商；\n" +
+                               "须知应当正确使用AI，合理规避不确定性风险，明辨AI提供的相关回复。",
+                        TextWrapping = Avalonia.Media.TextWrapping.Wrap
+                    },
+                    agreementCheckBox
+                }
+            },
+            CloseButtonText = "取消",
+            PrimaryButtonText = "确定",
+            DefaultButton = FAContentDialogButton.Close,
+            IsPrimaryButtonEnabled = false
+        };
+
+        agreementCheckBox.IsCheckedChanged += (_, _) =>
+            dialog.IsPrimaryButtonEnabled = agreementCheckBox.IsChecked == true;
+
+        return await dialog.ShowAsync(TopLevel.GetTopLevel(this)) == FAContentDialogResult.Primary;
+    }
+
+    private async void GetAiModelsButton_OnClick(object? sender, RoutedEventArgs e)
+    {
+        if (sender is not Button button)
+        {
+            return;
+        }
+
+        var originalContent = button.Content;
+        button.IsEnabled = false;
+        button.Content = "正在获取...";
+
+        try
+        {
+            var service = IAppHost.GetService<IOpenAiCompatibleService>();
+            var models = await service.GetModelsAsync();
+            if (models.Count == 0)
+            {
+                await ShowAiMessageAsync("未找到模型", "供应商返回了空的模型列表。");
+                return;
+            }
+
+            var previousModel = Config.AiModel;
+            AvailableAiModels.Clear();
+            foreach (var model in models)
+            {
+                AvailableAiModels.Add(model);
+            }
+
+            Config.AiModel = models.Contains(previousModel, StringComparer.Ordinal)
+                ? previousModel
+                : models[0];
+            GlobalConstants.MainConfig?.Save();
+
+            await ShowAiMessageAsync("获取成功", $"已获取 {models.Count} 个可用模型。");
+        }
+        catch (Exception ex)
+        {
+            await ShowAiMessageAsync("获取模型失败", ex.Message);
+        }
+        finally
+        {
+            button.Content = originalContent;
+            button.IsEnabled = Config.EnableAiService;
+        }
+    }
+
+    private static async Task ShowAiMessageAsync(string title, string message)
+    {
+        var dialog = new FAContentDialog
+        {
+            Title = title,
+            Content = message,
+            PrimaryButtonText = "确定",
+            DefaultButton = FAContentDialogButton.Primary
+        };
+
+        await dialog.ShowAsync();
+    }
+
     private async void OnFfmpegToggleClick(object? sender, RoutedEventArgs e)
     {
         if (sender is not ToggleSwitch toggle) return;
@@ -97,7 +336,7 @@ public partial class SystemToolsSettingsPage : SettingsPageBase
                 ViewModel.Settings.RestartPropertyChanged += OnRestartPropertyChanged;
 
                 // 关闭功能时，允许重新下载（按钮启用状态由文件存在决定）
-                ViewModel.IsFfmpegDownloadEnabled = !ViewModel.CheckFfmpegExists();
+                UpdateDownloadButtonStates();
 
                 RequestRestart();
             }
@@ -109,7 +348,7 @@ public partial class SystemToolsSettingsPage : SettingsPageBase
             ViewModel.Settings.RestartPropertyChanged += OnRestartPropertyChanged;
 
             // 关闭功能时，允许重新下载（按钮启用状态由文件存在决定）
-            ViewModel.IsFfmpegDownloadEnabled = !ViewModel.CheckFfmpegExists();
+            UpdateDownloadButtonStates();
 
             RequestRestart();
         }
@@ -117,12 +356,12 @@ public partial class SystemToolsSettingsPage : SettingsPageBase
 
     private async Task ShowFfmpegNotFoundDialogAsync()
     {
-        var dialog = new ContentDialog
+        var dialog = new FAContentDialog
         {
             Title = "提示",
             Content = "请您先下载本插件专用的ffmpeg模块！",
             PrimaryButtonText = "确定",
-            DefaultButton = ContentDialogButton.Primary
+            DefaultButton = FAContentDialogButton.Primary
         };
 
         await dialog.ShowAsync();
@@ -137,12 +376,12 @@ public partial class SystemToolsSettingsPage : SettingsPageBase
             if (!ViewModel.CheckFaceModelsExists())
             {
                 toggle.IsChecked = false;
-                var dialog = new ContentDialog
+                var dialog = new FAContentDialog
                 {
                     Title = "提示",
                     Content = "请您先下载人脸识别验证模型及运行时依赖！",
                     PrimaryButtonText = "确定",
-                    DefaultButton = ContentDialogButton.Primary
+                    DefaultButton = FAContentDialogButton.Primary
                 };
                 await dialog.ShowAsync();
             }
@@ -153,6 +392,8 @@ public partial class SystemToolsSettingsPage : SettingsPageBase
         }
         else
         {
+            // 关闭功能时同时移除已保存的人脸认证，避免插件重启后留下不可用的认证方式。
+            FaceRecognitionCredentialCleanup.RemoveFaceRecognitionProviderFromManagementCredentials();
             RequestRestart();
         }
     }
@@ -168,6 +409,84 @@ public partial class SystemToolsSettingsPage : SettingsPageBase
         }
     }
 
+    private async void OnWindowsHelloToggleClick(object? sender, RoutedEventArgs e)
+    {
+        if (sender is not ToggleSwitch toggle)
+        {
+            return;
+        }
+
+        try
+        {
+            if (toggle.IsChecked != true)
+            {
+                SetWindowsHelloEnabledWithoutRestart(false);
+                FaceRecognitionCredentialCleanup.RemoveWindowsHelloProviderFromManagementCredentials();
+                RequestRestart();
+                return;
+            }
+
+            toggle.IsEnabled = false;
+            var support = await WindowsHelloService.CheckSupportAsync(requireFaceEnrollment: true);
+            if (!support.IsAvailable)
+            {
+                SetWindowsHelloEnabledWithoutRestart(false);
+                toggle.IsChecked = false;
+
+                var dialog = new FAContentDialog
+                {
+                    Title = "无法启用 Windows Hello 验证器",
+                    Content = new TextBlock
+                    {
+                        Text = support.Message,
+                        TextWrapping = Avalonia.Media.TextWrapping.Wrap,
+                        MaxWidth = 520
+                    },
+                    PrimaryButtonText = support.Status is WindowsHelloSupportStatus.FaceNotEnrolled or
+                        WindowsHelloSupportStatus.HelloNotConfigured
+                        ? "打开系统设置"
+                        : "确定",
+                    CloseButtonText = support.Status is WindowsHelloSupportStatus.FaceNotEnrolled or
+                        WindowsHelloSupportStatus.HelloNotConfigured
+                        ? "取消"
+                        : null,
+                    DefaultButton = FAContentDialogButton.Primary
+                };
+
+                var result = await dialog.ShowAsync(TopLevel.GetTopLevel(this));
+                if (result == FAContentDialogResult.Primary &&
+                    support.Status is WindowsHelloSupportStatus.FaceNotEnrolled or
+                        WindowsHelloSupportStatus.HelloNotConfigured)
+                {
+                    WindowsHelloService.OpenWindowsHelloSettings();
+                }
+                return;
+            }
+
+            SetWindowsHelloEnabledWithoutRestart(true);
+            RequestRestart();
+        }
+        finally
+        {
+            toggle.IsEnabled = true;
+        }
+    }
+
+    private void SetWindowsHelloEnabledWithoutRestart(bool enabled)
+    {
+        // Only suppress this property's synchronous notification. Never keep the shared
+        // restart listener detached while awaiting Windows or a dialog.
+        ViewModel.Settings.RestartPropertyChanged -= OnRestartPropertyChanged;
+        try
+        {
+            ViewModel.Settings.EnableWindowsHello = enabled;
+        }
+        finally
+        {
+            ViewModel.Settings.RestartPropertyChanged += OnRestartPropertyChanged;
+        }
+    }
+
     private async void OnDownloadFfmpegClick(object? sender, RoutedEventArgs e)
     {
         var success = await ViewModel.DownloadFfmpegAsync(ShowErrorDialogAsync, ShowMd5ErrorDialogAsync);
@@ -180,32 +499,43 @@ public partial class SystemToolsSettingsPage : SettingsPageBase
 
     private async Task ShowErrorDialogAsync()
     {
-        var dialog = new ContentDialog
+        var dialog = new FAContentDialog
         {
             Title = "错误",
             Content = "下载出错，请重试！",
             PrimaryButtonText = "确定",
-            DefaultButton = ContentDialogButton.Primary
+            DefaultButton = FAContentDialogButton.Primary
         };
         await dialog.ShowAsync();
     }
 
     private async Task ShowMd5ErrorDialogAsync()
     {
-        var dialog = new ContentDialog
+        var dialog = new FAContentDialog
         {
             Title = "错误",
             Content = "下载文件MD5校验错误，请重新下载！",
             PrimaryButtonText = "确定",
-            DefaultButton = ContentDialogButton.Primary
+            DefaultButton = FAContentDialogButton.Primary
         };
         await dialog.ShowAsync();
     }
 
     private void OnManageFeaturesClick(object? sender, RoutedEventArgs e)
     {
+        ViewModel.UpdateFeatureSearchResults(null);
         ViewModel.FeatureDrawerContent = new object();
         ViewModel.IsFeatureDrawerOpen = true;
+    }
+
+    private void OnFeatureSearchTextBoxTextChanged(object? sender, TextChangedEventArgs e)
+    {
+        if (sender is not TextBox textBox)
+        {
+            return;
+        }
+
+        ViewModel.UpdateFeatureSearchResults(textBox.Text);
     }
 
     private void OnOpenMoreFeaturesClick(object? sender, RoutedEventArgs e)
@@ -235,6 +565,9 @@ public partial class SystemToolsSettingsPage : SettingsPageBase
 
     private Point? _floatingDragStartPoint;
     private Border? _floatingDragSourceBorder;
+    private PointerPressedEventArgs? _floatingDragPressedArgs;
+    private static readonly DataFormat<string> FloatingTriggerButtonIdFormat =
+        DataFormat.CreateStringApplicationFormat("FloatingTriggerButtonId");
 
     private void OnAddFloatingTriggerRowClick(object? sender, RoutedEventArgs e)
     {
@@ -266,6 +599,7 @@ public partial class SystemToolsSettingsPage : SettingsPageBase
 
         _floatingDragSourceBorder = border;
         _floatingDragStartPoint = e.GetPosition(border);
+        _floatingDragPressedArgs = e;
         e.Handled = e.Pointer.Type is PointerType.Touch or PointerType.Pen;
     }
 
@@ -273,6 +607,7 @@ public partial class SystemToolsSettingsPage : SettingsPageBase
     {
         _floatingDragSourceBorder = null;
         _floatingDragStartPoint = null;
+        _floatingDragPressedArgs = null;
     }
 
     private async void OnFloatingTriggerItemPointerMoved(object? sender, PointerEventArgs e)
@@ -298,24 +633,24 @@ public partial class SystemToolsSettingsPage : SettingsPageBase
             return;
         }
 
-        var data = new DataObject();
-        data.Set("FloatingTriggerButtonId", buttonId);
+        if (_floatingDragPressedArgs == null)
+        {
+            return;
+        }
+
+        var data = new DataTransfer();
+        data.Add(DataTransferItem.Create(FloatingTriggerButtonIdFormat, buttonId));
 
         _floatingDragSourceBorder = null;
         _floatingDragStartPoint = null;
-        await DragDrop.DoDragDrop(e, data, DragDropEffects.Move);
+        await DragDrop.DoDragDropAsync(_floatingDragPressedArgs, data, DragDropEffects.Move);
+        _floatingDragPressedArgs = null;
         e.Handled = e.Pointer.Type is PointerType.Touch or PointerType.Pen;
     }
 
     private static bool TryGetDragButtonId(DragEventArgs e, out string buttonId)
     {
-        buttonId = string.Empty;
-        if (!e.Data.Contains("FloatingTriggerButtonId"))
-        {
-            return false;
-        }
-
-        buttonId = e.Data.Get("FloatingTriggerButtonId") as string ?? string.Empty;
+        buttonId = e.DataTransfer.TryGetValue(FloatingTriggerButtonIdFormat) ?? string.Empty;
         return !string.IsNullOrWhiteSpace(buttonId);
     }
 
@@ -343,21 +678,25 @@ public partial class SystemToolsSettingsPage : SettingsPageBase
         }
 
         var pointer = e.GetPosition(sender);
-        var itemBorders = sender.GetVisualDescendants()
-            .OfType<Border>()
-            .Where(x => x.DataContext is FloatingTriggerItem)
-            .OrderBy(x => x.TranslatePoint(new Point(0, 0), sender)?.X ?? double.MaxValue)
-            .ToList();
-
-        for (var i = 0; i < itemBorders.Count; i++)
+        var itemsControl = sender as ItemsControl
+                           ?? sender.GetVisualDescendants()
+                               .OfType<ItemsControl>()
+                               .FirstOrDefault(x => ReferenceEquals(x.ItemsSource, row.Buttons));
+        if (itemsControl == null)
         {
-            var topLeft = itemBorders[i].TranslatePoint(new Point(0, 0), sender);
+            return row.Buttons.Count;
+        }
+
+        for (var i = 0; i < row.Buttons.Count; i++)
+        {
+            var container = itemsControl.ContainerFromIndex(i);
+            var topLeft = container?.TranslatePoint(new Point(0, 0), sender);
             if (topLeft == null)
             {
                 continue;
             }
 
-            var center = topLeft.Value.X + itemBorders[i].Bounds.Width / 2;
+            var center = topLeft.Value.X + container!.Bounds.Width / 2;
             if (pointer.X <= center)
             {
                 return i;
@@ -429,5 +768,98 @@ public partial class SystemToolsSettingsPage : SettingsPageBase
         }
 
         ViewModel.MoveFloatingTrigger(buttonId, rowIndex, targetIndex);
+    }
+
+    private static void RestartClassIsland()
+    {
+        try
+        {
+            var startInfo = new System.Diagnostics.ProcessStartInfo
+            {
+                FileName = Environment.ProcessPath?.Replace(".dll", ".exe"),
+                UseShellExecute = true
+            };
+
+            startInfo.ArgumentList.Add("-m");
+
+            var args = Environment.GetCommandLineArgs().ToList();
+            args.RemoveAt(0);
+            foreach (var arg in args)
+            {
+                startInfo.ArgumentList.Add(arg);
+            }
+
+            System.Diagnostics.Process.Start(startInfo);
+            AppBase.Current.Stop();
+        }
+        catch
+        {
+            // Silently fail if restart is not possible.
+        }
+    }
+
+    private async void OnSpeechRecognitionModelActionClick(object? sender, RoutedEventArgs e)
+    {
+        if (ViewModel.IsSelectedSpeechRecognitionModelInstalled())
+        {
+            await ViewModel.DeleteSelectedSpeechRecognitionModelAsync(ShowErrorDialogAsync);
+        }
+        else
+        {
+            var selectedModel = ViewModel.SelectedSpeechRecognitionModel;
+            if (selectedModel is not null && !await ConfirmSpeechRecognitionModelDownloadAsync(selectedModel))
+            {
+                return;
+            }
+
+            await ViewModel.DownloadSpeechRecognitionModelAsync(ShowErrorDialogAsync, ShowMd5ErrorDialogAsync);
+        }
+
+        UpdateDownloadButtonStates();
+    }
+
+    private async Task<bool> ConfirmSpeechRecognitionModelDownloadAsync(SpeechRecognitionDownloadOption model)
+    {
+        var warning = model.ModelName switch
+        {
+            "vosk-model-en-us" or "vosk-model-cn" =>
+                "使用此模型会占用大量内存与性能。推荐使用 SenseVoiceSmall ONNX (INT8 Quantized) 模型，高准确率同时实现低占用。",
+            "vosk-model-small-en-us" =>
+                "此模型仅支持英文识别且准确率有限。推荐使用 SenseVoiceSmall ONNX (INT8 Quantized) 兼顾准确率、性能与中英识别。",
+            "vosk-model-small-cn" =>
+                "此模型准确率十分受限。建议选择 SenseVoiceSmall ONNX (INT8 Quantized) 在极高准确率同时实现低内存占用。",
+            _ => null
+        };
+
+        if (warning is null)
+        {
+            return true;
+        }
+
+        var dialog = new FAContentDialog
+        {
+            Title = "语音识别模型提示",
+            Content = new TextBlock
+            {
+                Text = warning,
+                TextWrapping = Avalonia.Media.TextWrapping.Wrap,
+                MaxWidth = 560
+            },
+            PrimaryButtonText = "继续下载",
+            CloseButtonText = "取消",
+            DefaultButton = FAContentDialogButton.Close
+        };
+
+        var owner = TopLevel.GetTopLevel(this);
+        var result = owner is null
+            ? await dialog.ShowAsync()
+            : await dialog.ShowAsync(owner);
+        return result == FAContentDialogResult.Primary;
+    }
+
+    private async void OnDownloadVoskWorkerClick(object? sender, RoutedEventArgs e)
+    {
+        await ViewModel.DownloadVoskWorkerAsync(ShowErrorDialogAsync, ShowMd5ErrorDialogAsync);
+        UpdateDownloadButtonStates();
     }
 }

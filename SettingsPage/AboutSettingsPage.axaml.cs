@@ -1,4 +1,5 @@
-﻿using Avalonia.Controls;
+using Avalonia.Controls;
+using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Media.Imaging;
 using ClassIsland.Core.Abstractions.Controls;
@@ -13,6 +14,7 @@ using System.IO;
 using System.Threading.Tasks;
 using ClassIsland.Core.Abstractions.Services;
 using ClassIsland.Shared;
+using SystemTools.Services;
 using SystemTools.Shared;
 
 namespace SystemTools;
@@ -21,6 +23,11 @@ namespace SystemTools;
 [SettingsPageInfo("systemtools.settings.about", "关于", "\uE9E4", "\uE9E4")]
 public partial class AboutSettingsPage : SettingsPageBase
 {
+    private const int PluginDebugClickThreshold = 5;
+
+    private int _pluginCardClickCount;
+    private readonly AboutTitleImageCacheService? _titleImageCacheService;
+
     public AboutSettingsViewModel ViewModel { get; }
 
     public AboutSettingsPage()
@@ -28,16 +35,65 @@ public partial class AboutSettingsPage : SettingsPageBase
         ViewModel = new AboutSettingsViewModel();
         DataContext = ViewModel;
         InitializeComponent();
+        _titleImageCacheService = IAppHost.TryGetService<AboutTitleImageCacheService>();
+        Loaded += OnLoaded;
+        Unloaded += OnUnloaded;
         LoadPluginIcon();
 
         CheckAutoSwitchTab();
+    }
+
+    private void OnLoaded(object? sender, RoutedEventArgs e)
+    {
+        if (_titleImageCacheService == null)
+        {
+            LoadTitleImage(Path.Combine(GlobalConstants.Information.PluginFolder, "title.png"));
+            return;
+        }
+
+        _titleImageCacheService.ImagePathChanged -= OnTitleImagePathChanged;
+        _titleImageCacheService.ImagePathChanged += OnTitleImagePathChanged;
+        LoadTitleImage(_titleImageCacheService.CurrentImagePath);
+    }
+
+    private void OnUnloaded(object? sender, RoutedEventArgs e)
+    {
+        if (_titleImageCacheService != null)
+        {
+            _titleImageCacheService.ImagePathChanged -= OnTitleImagePathChanged;
+        }
+    }
+
+    private void OnTitleImagePathChanged(object? sender, string imagePath)
+    {
+        Avalonia.Threading.Dispatcher.UIThread.Post(() => LoadTitleImage(imagePath));
+    }
+
+    private void LoadTitleImage(string imagePath)
+    {
+        try
+        {
+            if (!File.Exists(imagePath))
+            {
+                return;
+            }
+
+            var bitmap = new Bitmap(imagePath);
+            var previousBitmap = TitleImage.Source as Bitmap;
+            TitleImage.Source = bitmap;
+            previousBitmap?.Dispose();
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"加载关于页顶部图像失败: {ex.Message}");
+        }
     }
     
     private void UriNavigationCommands_OnClick(object sender, RoutedEventArgs e)
     {
         var url = e.Source switch
         {
-            SettingsExpanderItem s => s.CommandParameter?.ToString(),
+            FASettingsExpanderItem s => s.CommandParameter?.ToString(),
             Button s => s.CommandParameter?.ToString(),
             _ => "classisland://app/test/"
         };
@@ -45,6 +101,26 @@ public partial class AboutSettingsPage : SettingsPageBase
         {
             IAppHost.TryGetService<IUriNavigationService>()?.NavigateWrapped(new Uri(url));
         }
+    }
+
+    private void PluginCard_OnPointerPressed(object? sender, PointerPressedEventArgs e)
+    {
+        if (e.Pointer.Type == PointerType.Mouse &&
+            !e.GetCurrentPoint(this).Properties.IsLeftButtonPressed)
+        {
+            return;
+        }
+
+        _pluginCardClickCount++;
+
+        if (_pluginCardClickCount < PluginDebugClickThreshold)
+        {
+            return;
+        }
+
+        _pluginCardClickCount = 0;
+        IAppHost.TryGetService<IUriNavigationService>()?.NavigateWrapped(
+            new Uri("classisland://app/settings/systemtools.settings.pluginDebug"));
     }
 
     private void CheckAutoSwitchTab()
@@ -88,24 +164,24 @@ public partial class AboutSettingsPage : SettingsPageBase
             var topLevel = TopLevel.GetTopLevel(this);
             if (topLevel == null) return;
 
-            var dialog = new ContentDialog
+            var dialog = new FAContentDialog
             {
                 Title = "帮助",
                 Content = "     在使用适配 Lyricify Lite 的功能前，强烈建议您阅读相关使用方法！        \n\n     点击“不再提示”后您仍可以在本插件“关于”页面查看相关帮助。",
                 PrimaryButtonText = "前往了解…",
                 CloseButtonText = "以后再说",
                 SecondaryButtonText = "关闭并不再显示",
-                DefaultButton = ContentDialogButton.Primary
+                DefaultButton = FAContentDialogButton.Primary
             };
 
             var result = await dialog.ShowAsync(topLevel);
 
-            if (result == ContentDialogResult.Secondary && GlobalConstants.MainConfig != null)
+            if (result == FAContentDialogResult.Secondary && GlobalConstants.MainConfig != null)
             {
                 GlobalConstants.MainConfig.Data.LyricifyLiteWarningDismissed = true;
                 GlobalConstants.MainConfig.Save();
             }
-            else if (result == ContentDialogResult.Primary)
+            else if (result == FAContentDialogResult.Primary)
             {
                 OpenLyricifyLiteReadme();
             }
@@ -146,12 +222,12 @@ public partial class AboutSettingsPage : SettingsPageBase
                 Width = 550
             };
 
-            var dialog = new ContentDialog
+            var dialog = new FAContentDialog
             {
                 Title = "Lyricify Lite 适配帮助",
                 Content = border,
                 PrimaryButtonText = "了解",
-                DefaultButton = ContentDialogButton.Primary
+                DefaultButton = FAContentDialogButton.Primary
             };
 
             await dialog.ShowAsync(topLevel);
@@ -170,12 +246,12 @@ public partial class AboutSettingsPage : SettingsPageBase
             var topLevel = TopLevel.GetTopLevel(this);
             if (topLevel == null) return;
 
-            var dialog = new ContentDialog
+            var dialog = new FAContentDialog
             {
                 Title = title,
                 Content = message,
                 PrimaryButtonText = "了解",
-                DefaultButton = ContentDialogButton.Primary
+                DefaultButton = FAContentDialogButton.Primary
             };
 
             await dialog.ShowAsync(topLevel);

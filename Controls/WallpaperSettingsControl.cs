@@ -12,6 +12,7 @@ namespace SystemTools.Controls;
 public class ChangeWallpaperSettingsControl : ActionSettingsControlBase<ChangeWallpaperSettings>
 {
     private Avalonia.Controls.ComboBox _modeComboBox;
+    private CheckBox _notifyCheckBox;
     private Avalonia.Controls.TextBlock _pathLabel;
     private Avalonia.Controls.TextBox _pathBox;
     private Avalonia.Controls.Button _browseButton;
@@ -54,7 +55,7 @@ public class ChangeWallpaperSettingsControl : ActionSettingsControlBase<ChangeWa
 
         _pathBox = new Avalonia.Controls.TextBox
         {
-            Watermark = "请选择壁纸图片文件"
+            PlaceholderText = "请选择壁纸图片文件"
         };
         _pathBox.TextChanged += (s, e) => { Settings.ImagePath = _pathBox.Text ?? ""; };
         panel.Children.Add(_pathBox);
@@ -100,12 +101,16 @@ public class ChangeWallpaperSettingsControl : ActionSettingsControlBase<ChangeWa
 
         _solidColorBox = new Avalonia.Controls.TextBox
         {
-            Watermark = "#000000 或 0,0,0",
+            PlaceholderText = "#000000 或 0,0,0",
             Width = 200,
             HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Left
         };
         _solidColorBox.TextChanged += (s, e) => { Settings.SolidColor = _solidColorBox.Text ?? "#000000"; };
-        panel.Children.Add(_solidColorBox);
+        panel.Children.Add(_solidColorBox);        _notifyCheckBox = new CheckBox { Content = "当执行时发出提醒" };
+        _notifyCheckBox.IsCheckedChanged += (s, e) => { Settings.NotifyOnExecute = _notifyCheckBox.IsChecked ?? false; };
+        panel.Children.Add(_notifyCheckBox);
+
+        
 
         Content = panel;
     }
@@ -113,6 +118,7 @@ public class ChangeWallpaperSettingsControl : ActionSettingsControlBase<ChangeWa
     protected override void OnInitialized()
     {
         base.OnInitialized();
+        _notifyCheckBox.IsChecked = Settings.NotifyOnExecute;
         _modeComboBox.SelectedIndex = (int)Settings.Mode;
         _pathBox.Text = Settings.ImagePath;
         _fitComboBox.SelectedIndex = Settings.FitStyle;

@@ -7,8 +7,11 @@ namespace SystemTools.Settings;
 /// </summary>
 public class SwitchFloatingWindowThemeSettings
 {
+    [JsonPropertyName("notifyOnExecute")]
+    public bool NotifyOnExecute { get; set; } = false;
+
     /// <summary>
-    /// 目标主题。0=跟随系统, 1=浅色, 2=深色。
+    /// 目标主题。0=跟随系统, 1=浅色, 2=深色, 3=自适应背景。
     /// </summary>
     [JsonPropertyName("targetTheme")]
     public int TargetTheme { get; set; } = -1;

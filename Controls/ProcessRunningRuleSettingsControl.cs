@@ -5,6 +5,7 @@ using ClassIsland.Core.Abstractions.Controls;
 using System;
 using System.Diagnostics;
 using System.Threading.Tasks;
+using Avalonia.Input.Platform;
 using SystemTools.Rules;
 
 namespace SystemTools.Controls;
@@ -26,7 +27,7 @@ public class ProcessRunningRuleSettingsControl : RuleSettingsControlBase<Process
 
         _processNameBox = new TextBox
         {
-            Watermark = "输入进程名（如: notepad）"
+            PlaceholderText = "输入进程名（如: notepad）"
         };
         _processNameBox.TextChanged += (_, _) => Settings.ProcessName = _processNameBox.Text ?? string.Empty;
         panel.Children.Add(_processNameBox);

@@ -1,4 +1,4 @@
-﻿using Avalonia.Controls;
+using Avalonia.Controls;
 using Avalonia.Data;
 using ClassIsland.Core.Abstractions.Controls;
 using SystemTools.Settings;
@@ -28,7 +28,7 @@ public class TriggerCustomTriggerSettingsControl : ActionSettingsControlBase<Tri
 
         _triggerIdTextBox = new Avalonia.Controls.TextBox
         {
-            Watermark = "输入与”行动进行时“触发器相同的字符",
+            PlaceholderText = "输入与”行动进行时“触发器相同的字符",
             Height = 35
         };
         panel.Children.Add(_triggerIdTextBox);
@@ -47,9 +47,9 @@ public class TriggerCustomTriggerSettingsControl : ActionSettingsControlBase<Tri
     protected override void OnInitialized()
     {
         base.OnInitialized();
-        _triggerIdTextBox[!TextBox.TextProperty] = new Binding(nameof(Settings.TriggerId))
+        _triggerIdTextBox.Bind(TextBox.TextProperty, new Binding(nameof(Settings.TriggerId))
         {
             Source = Settings
-        };
+        });
     }
 }

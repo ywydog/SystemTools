@@ -1,0 +1,218 @@
+<Window x:Class="SystemTools.Views.AiVoiceConversationOverlayWindow"
+        xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:ci="http://classisland.tech/schemas/xaml/core"
+        xmlns:local="clr-namespace:SystemTools.Views"
+        xmlns:lg="clr-namespace:LiquidGlassAvaloniaUI"
+        Title="AI voice conversation"
+        CanResize="False"
+        CanMaximize="False"
+        CanMinimize="False"
+        ShowInTaskbar="False"
+        Topmost="True"
+        WindowStartupLocation="Manual"
+        WindowDecorations="None"
+        TransparencyLevelHint="Transparent"
+        Background="Transparent"
+        KeyDown="Window_OnKeyDown"
+        Closing="Window_OnClosing">
+    <Grid>
+        <Border x:Name="LiquidGlassBackdropClip"
+                IsVisible="False"
+                IsHitTestVisible="False"
+                ClipToBounds="True">
+            <Image x:Name="LiquidGlassBackdropImage"
+                   Stretch="UniformToFill"
+                   IsHitTestVisible="False" />
+        </Border>
+
+        <lg:LiquidGlassSurface x:Name="LiquidGlassSurface"
+                               IsVisible="False"
+                               IsHitTestVisible="False" />
+
+        <Border x:Name="RootBorder"
+                Padding="28,24,28,26"
+                CornerRadius="22"
+                lg:LiquidGlassBackdrop.IsExcludedFromCapture="True">
+            <Grid>
+            <Grid x:Name="ConversationContent"
+                  RowDefinitions="Auto,*"
+                  RowSpacing="18">
+                <StackPanel Grid.Row="0"
+                            HorizontalAlignment="Stretch"
+                            VerticalAlignment="Center"
+                            Spacing="7">
+                    <TextBlock x:Name="TranscriptText"
+                               HorizontalAlignment="Stretch"
+                               TextAlignment="Left"
+                               TextWrapping="Wrap"
+                               MaxWidth="720"
+                               FontSize="20"
+                               FontWeight="Medium"
+                               LineHeight="29"
+                               IsVisible="False" />
+                    <TextBlock x:Name="StatusText"
+                               HorizontalAlignment="Center"
+                               TextAlignment="Center"
+                               FontSize="25"
+                               FontWeight="SemiBold"
+                               LetterSpacing="0" />
+                    <TextBlock x:Name="DetailText"
+                               HorizontalAlignment="Center"
+                               TextAlignment="Center"
+                               TextWrapping="Wrap"
+                               MaxWidth="720"
+                               FontSize="14"
+                               Opacity="0.72"
+                               IsVisible="False" />
+                </StackPanel>
+
+                <Border Grid.Row="1"
+                        MinHeight="116"
+                        CornerRadius="16"
+                        Padding="10,8"
+                        Background="#0063B100">
+                    <Grid>
+                        <local:VoiceWaveformControl x:Name="Waveform"
+                                                     HorizontalAlignment="Stretch"
+                                                     VerticalAlignment="Stretch"
+                                                     IsHitTestVisible="False" />
+                        <ToggleButton x:Name="ListeningToggleButton"
+                                      Width="100"
+                                      Height="100"
+                                      HorizontalAlignment="Center"
+                                      VerticalAlignment="Center"
+                                      Padding="0"
+                                      Background="Transparent"
+                                      BorderThickness="0"
+                                      IsVisible="False">
+                            <ToggleButton.Template>
+                                <ControlTemplate>
+                                    <Border Background="{TemplateBinding Background}"
+                                            CornerRadius="50" />
+                                </ControlTemplate>
+                            </ToggleButton.Template>
+                        </ToggleButton>
+                    </Grid>
+                </Border>
+            </Grid>
+
+            <Grid x:Name="ApprovalContent"
+                  RowDefinitions="Auto,Auto,Auto,Auto,*"
+                  RowSpacing="12"
+                  IsVisible="False">
+                <TextBlock x:Name="ApprovalTitleText"
+                           Grid.Row="0"
+                           FontSize="22"
+                           FontWeight="SemiBold"
+                           TextWrapping="Wrap" />
+
+                <TextBlock x:Name="ApprovalSummaryText"
+                           Grid.Row="1"
+                           FontSize="14"
+                           LineHeight="21"
+                           TextWrapping="Wrap" />
+
+                <ScrollViewer Grid.Row="2"
+                              MaxHeight="260"
+                              HorizontalScrollBarVisibility="Disabled"
+                              VerticalScrollBarVisibility="Auto">
+                    <TextBlock x:Name="ApprovalDetailsText"
+                               FontFamily="Consolas"
+                               FontSize="13"
+                               LineHeight="20"
+                               TextWrapping="Wrap" />
+                </ScrollViewer>
+
+                <TextBlock x:Name="ApprovalWarningText"
+                           Grid.Row="3"
+                           FontSize="13"
+                           LineHeight="20"
+                           Opacity="0.76"
+                           TextWrapping="Wrap" />
+
+                <Grid x:Name="ClassicApprovalButtons"
+                      Grid.Row="4"
+                      Margin="0,4,0,0"
+                      VerticalAlignment="Bottom"
+                      ColumnDefinitions="*,*"
+                      ColumnSpacing="12">
+                    <Button Grid.Column="0"
+                            MinHeight="44"
+                            HorizontalAlignment="Stretch"
+                            HorizontalContentAlignment="Center"
+                            Content="拒绝请求"
+                            Click="DenyApprovalButton_OnClick" />
+                    <Button Grid.Column="1"
+                            MinHeight="44"
+                            HorizontalAlignment="Stretch"
+                            HorizontalContentAlignment="Center"
+                            Classes="accent"
+                            Content="批准请求"
+                            Click="ApproveApprovalButton_OnClick" />
+                </Grid>
+
+                <Grid x:Name="LiquidGlassApprovalButtons"
+                      Grid.Row="4"
+                      Margin="0,4,0,0"
+                      VerticalAlignment="Bottom"
+                      ColumnDefinitions="*,*"
+                      ColumnSpacing="12"
+                      IsVisible="False">
+                    <lg:LiquidGlassInteractiveSurface x:Name="DenyApprovalButtonGlass"
+                                                      Grid.Column="0"
+                                                      MinHeight="48"
+                                                      HorizontalAlignment="Stretch"
+                                                      VerticalAlignment="Center"
+                                                      CornerRadius="999">
+                        <Button x:Name="DenyApprovalGlassButton"
+                                MinHeight="48"
+                                Padding="14,4"
+                                HorizontalAlignment="Stretch"
+                                HorizontalContentAlignment="Center"
+                                Background="Transparent"
+                                BorderThickness="0"
+                                Click="DenyApprovalButton_OnClick">
+                            <StackPanel Orientation="Horizontal" Spacing="7">
+                                <ci:FluentIcon Glyph="&#xEDF7;"
+                                               FontSize="16"
+                                               VerticalAlignment="Center" />
+                                <TextBlock Text="拒绝请求"
+                                           FontSize="14"
+                                           FontWeight="SemiBold"
+                                           VerticalAlignment="Center" />
+                            </StackPanel>
+                        </Button>
+                    </lg:LiquidGlassInteractiveSurface>
+
+                    <lg:LiquidGlassInteractiveSurface x:Name="ApproveApprovalButtonGlass"
+                                                      Grid.Column="1"
+                                                      MinHeight="48"
+                                                      HorizontalAlignment="Stretch"
+                                                      VerticalAlignment="Center"
+                                                      CornerRadius="999">
+                        <Button x:Name="ApproveApprovalGlassButton"
+                                MinHeight="48"
+                                Padding="14,4"
+                                HorizontalAlignment="Stretch"
+                                HorizontalContentAlignment="Center"
+                                Background="Transparent"
+                                BorderThickness="0"
+                                Click="ApproveApprovalButton_OnClick">
+                            <StackPanel Orientation="Horizontal" Spacing="7">
+                                <ci:FluentIcon Glyph="&#xEDBF;"
+                                               FontSize="16"
+                                               VerticalAlignment="Center" />
+                                <TextBlock Text="批准请求"
+                                           FontSize="14"
+                                           FontWeight="SemiBold"
+                                           VerticalAlignment="Center" />
+                            </StackPanel>
+                        </Button>
+                    </lg:LiquidGlassInteractiveSurface>
+                </Grid>
+            </Grid>
+            </Grid>
+        </Border>
+    </Grid>
+</Window>
