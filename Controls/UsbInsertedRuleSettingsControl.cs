@@ -1,5 +1,6 @@
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Media;
 using ClassIsland.Core.Abstractions.Controls;
 using SystemTools.Rules;
 
