@@ -480,6 +480,12 @@ public partial class Plugin : PluginBase
             services.AddRule<MediaMusicPlayingRuleSettings, MediaMusicPlayingRuleSettingsControl>(
                 "SystemTools.MediaMusicPlayingRule", "正在播放媒体音乐", "\uEDBF", HandleMediaMusicPlayingRule);
         }
+
+        if (config.IsRuleEnabled("SystemTools.UsbInsertedRule"))
+        {
+            services.AddRule<UsbInsertedRuleSettings, UsbInsertedRuleSettingsControl>(
+                "SystemTools.UsbInsertedRule", "U盘正在插入", "\uF3A3", HandleUsbInsertedRule);
+        }
     }
 
     private void RegisterBaseComponents(IServiceCollection services)
